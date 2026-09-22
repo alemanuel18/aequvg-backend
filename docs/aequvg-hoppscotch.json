@@ -1,0 +1,12 @@
+{
+  "v": 3,
+  "name": "AEQUVG Sprint 2",
+  "folders": [{ "v": 3, "name": "Público", "folders": [], "requests": [
+    { "v": "1", "name": "Contenido institucional", "method": "GET", "endpoint": "<<baseUrl>>/institutional-content", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
+    { "v": "1", "name": "Junta directiva", "method": "GET", "endpoint": "<<baseUrl>>/board-members", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
+    { "v": "1", "name": "Medios oficiales", "method": "GET", "endpoint": "<<baseUrl>>/contact-methods", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
+    { "v": "1", "name": "Enviar consulta", "method": "POST", "endpoint": "<<baseUrl>>/contact-requests", "params": [], "headers": [{ "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"name\": \"Persona de prueba\",\n  \"email\": \"persona@example.com\",\n  \"phone\": \"+502 5555-5555\",\n  \"type\": \"CONSULTA\",\n  \"subject\": \"Información de la carrera\",\n  \"message\": \"Quisiera recibir información sobre la carrera.\",\n  \"consent\": true,\n  \"privacyVersion\": \"2026-09\"\n}" } }
+  ]}],
+  "requests": [],
+  "environments": [{ "name": "Local", "variables": [{ "key": "baseUrl", "value": "http://localhost:3000/api/v1" }, { "key": "adminApiKey", "value": "change-me" }] }]
+}
