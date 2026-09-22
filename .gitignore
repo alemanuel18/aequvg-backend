@@ -1,5 +1,9 @@
 .env
+.env.*
+!.env.example
 node_modules/
 dist/
 coverage/
+storage/*
+!storage/.gitkeep
 *.log

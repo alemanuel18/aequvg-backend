@@ -226,3 +226,4 @@ Una corrección de seguridad o concurrencia debe incluir una prueba de regresió
 ## Criterio de terminado
 
 Una tarea backend está terminada cuando aplica las reglas del dominio y permisos en el servidor, mantiene integridad y concurrencia, actualiza esquema/migraciones y OpenAPI cuando corresponda, protege datos y archivos, incluye pruebas proporcionales al riesgo, supera las verificaciones disponibles y deja configuración/despliegue reproducibles sin secretos.
+ 
