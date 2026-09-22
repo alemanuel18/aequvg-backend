@@ -32,6 +32,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql://aequvg:change-me@db:5432/aequvg}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
       SESSION_SECRET: ${SESSION_SECRET:-change-me-with-a-long-random-value}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-change-me-with-another-long-random-value}
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     volumes:
