@@ -1,0 +1,390 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  runtime         = "bun"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [citext]
+}
+
+enum AdministrativeUserStatus {
+  ACTIVO
+  INACTIVO
+  BLOQUEADO
+
+  @@map("estado_usuario_administrativo")
+}
+
+enum PublicationType {
+  PAPER_DERIVADO_TESIS
+  PROYECTO_INVESTIGACION
+
+  @@map("tipo_publicacion_cientifica")
+}
+
+enum PublicationStatus {
+  PENDIENTE_APROBACION
+  APROBADO
+  PUBLICADO
+  RECHAZADO
+  ARCHIVADO
+
+  @@map("estado_publicacion_cientifica")
+}
+
+enum ContributionRole {
+  AUTOR
+  COAUTOR
+  ASESOR
+  COLABORADOR
+
+  @@map("rol_contribucion")
+}
+
+enum ApprovalResponsibility {
+  ASOCIACION
+  FACULTAD
+  DIRECCION
+
+  @@map("responsabilidad_aprobacion")
+}
+
+enum ApprovalStatus {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+
+  @@map("estado_aprobacion")
+}
+
+enum ContentStatus {
+  BORRADOR
+  PUBLICADO
+  ARCHIVADO
+
+  @@map("estado_contenido")
+}
+
+enum EventStatus {
+  BORRADOR
+  PUBLICADO
+  FINALIZADO
+  CANCELADO
+  ARCHIVADO
+
+  @@map("estado_evento")
+}
+
+enum EventRegistrationStatus {
+  CONFIRMADA
+  CANCELADA
+
+  @@map("estado_inscripcion_evento")
+}
+
+enum BoardMemberStatus {
+  ACTIVO
+  INACTIVO
+
+  @@map("estado_miembro_junta")
+}
+
+enum ContactRequestStatus {
+  PENDIENTE
+  EN_PROCESO
+  ATENDIDA
+  ARCHIVADA
+
+  @@map("estado_solicitud_contacto")
+}
+
+model Role {
+  id          Int     @id @default(autoincrement()) @map("id_rol")
+  name        String  @unique @map("nombre") @db.VarChar(80)
+  description String? @map("descripcion") @db.Text
+  active      Boolean @default(true) @map("activo")
+
+  permissions RolePermission[]
+  users       AdministrativeUser[]
+
+  @@map("rol")
+}
+
+model Permission {
+  id          Int    @id @default(autoincrement()) @map("id_permiso")
+  code        String @unique @map("codigo") @db.VarChar(120)
+  description String @map("descripcion") @db.Text
+
+  roles RolePermission[]
+
+  @@map("permiso")
+}
+
+model RolePermission {
+  roleId       Int @map("id_rol")
+  permissionId Int @map("id_permiso")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("rol_permiso")
+}
+
+model AdministrativeUser {
+  id        Int                      @id @default(autoincrement()) @map("id_usuario")
+  roleId    Int                      @map("id_rol")
+  name      String                   @map("nombre") @db.VarChar(160)
+  email     String                   @unique @map("correo") @db.Citext
+  status    AdministrativeUserStatus @default(ACTIVO) @map("estado")
+  createdAt DateTime                 @default(now()) @map("creado_en") @db.Timestamptz(3)
+  updatedAt DateTime                 @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  role                    Role                      @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  credential              AdministrativeCredential?
+  uploadedFiles           File[]
+  createdPublications     ScientificPublication[]   @relation("PublicationCreator")
+  publicationApprovals    PublicationApproval[]
+  createdNews             News[]
+  createdEvents           Event[]
+  createdResources        Resource[]
+  assignedContactRequests ContactRequest[]
+
+  @@index([roleId, status])
+  @@map("usuario_administrativo")
+}
+
+model AdministrativeCredential {
+  userId       Int      @id @map("id_usuario")
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  updatedAt    DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  user AdministrativeUser @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("credencial_administrativa")
+}
+
+/// La primera migración debe agregar CHECK (tamano_bytes > 0).
+model File {
+  id           Int      @id @default(autoincrement()) @map("id_archivo")
+  uploadedById Int      @map("cargado_por")
+  originalName String   @map("nombre_original") @db.VarChar(255)
+  storageKey   String   @unique @map("clave_almacenamiento") @db.VarChar(512)
+  mimeType     String   @map("tipo_mime") @db.VarChar(150)
+  sizeBytes    BigInt   @map("tamano_bytes")
+  sha256       String   @map("checksum_sha256") @db.Char(64)
+  createdAt    DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+
+  uploadedBy   AdministrativeUser      @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  publications ScientificPublication[] @relation("PublicationFile")
+  newsImages   News[]                  @relation("NewsImage")
+  eventImages  Event[]                 @relation("EventImage")
+  resources    Resource[]              @relation("ResourceFile")
+  boardPhotos  BoardMember[]           @relation("BoardPhoto")
+
+  @@index([uploadedById])
+  @@index([sha256])
+  @@map("archivo")
+}
+
+model ScientificPublication {
+  id                    Int               @id @default(autoincrement()) @map("id_publicacion")
+  createdById           Int               @map("creado_por")
+  fileId                Int?              @map("id_archivo")
+  originalPublicationId Int?              @map("id_publicacion_original")
+  title                 String            @map("titulo") @db.Citext
+  type                  PublicationType   @map("tipo")
+  abstract              String            @map("resumen") @db.Text
+  researchArea          String            @map("area_investigacion") @db.VarChar(180)
+  keywords              String[]          @default([]) @map("palabras_clave")
+  publicationYear       Int               @map("anio_publicacion") @db.SmallInt
+  bibliographicData     String?           @map("datos_bibliograficos") @db.Text
+  externalUrl           String?           @map("enlace_externo") @db.VarChar(2048)
+  status                PublicationStatus @default(PENDIENTE_APROBACION) @map("estado")
+  registeredAt          DateTime          @default(now()) @map("registrado_en") @db.Timestamptz(3)
+  publishedAt           DateTime?         @map("publicado_en") @db.Timestamptz(3)
+
+  createdBy           AdministrativeUser       @relation("PublicationCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  file                File?                    @relation("PublicationFile", fields: [fileId], references: [id], onDelete: Restrict)
+  originalPublication ScientificPublication?   @relation("PublicationExtensions", fields: [originalPublicationId], references: [id], onDelete: Restrict)
+  extensions          ScientificPublication[]  @relation("PublicationExtensions")
+  contributors        PublicationContributor[]
+  approvals           PublicationApproval[]
+
+  @@index([status, type, publicationYear])
+  @@index([title])
+  @@index([createdById])
+  @@index([fileId])
+  @@index([originalPublicationId])
+  @@map("publicacion_cientifica")
+}
+
+model AuthorPerson {
+  id   Int    @id @default(autoincrement()) @map("id_persona")
+  name String @map("nombre") @db.VarChar(160)
+
+  publications PublicationContributor[]
+
+  @@index([name])
+  @@map("persona_autora")
+}
+
+/// La primera migración debe agregar CHECK (orden_autoria > 0).
+model PublicationContributor {
+  publicationId    Int              @map("id_publicacion")
+  personId         Int              @map("id_persona")
+  contributionRole ContributionRole @default(AUTOR) @map("rol_contribucion")
+  authorOrder      Int              @map("orden_autoria") @db.SmallInt
+
+  publication ScientificPublication @relation(fields: [publicationId], references: [id], onDelete: Restrict)
+  person      AuthorPerson          @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@id([publicationId, personId])
+  @@unique([publicationId, authorOrder])
+  @@index([personId])
+  @@map("publicacion_contribuyente")
+}
+
+model PublicationApproval {
+  id             Int                    @id @default(autoincrement()) @map("id_aprobacion")
+  publicationId  Int                    @map("id_publicacion")
+  userId         Int                    @map("id_usuario")
+  responsibility ApprovalResponsibility @map("responsabilidad")
+  status         ApprovalStatus         @default(PENDIENTE) @map("estado")
+  observations   String?                @map("observaciones") @db.Text
+  registeredAt   DateTime               @default(now()) @map("registrada_en") @db.Timestamptz(3)
+
+  publication ScientificPublication @relation(fields: [publicationId], references: [id], onDelete: Restrict)
+  user        AdministrativeUser    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([publicationId, userId])
+  @@index([publicationId, status])
+  @@index([userId])
+  @@map("aprobacion_publicacion")
+}
+
+model News {
+  id          Int           @id @default(autoincrement()) @map("id_noticia")
+  createdById Int           @map("creado_por")
+  imageId     Int?          @map("id_imagen")
+  title       String        @map("titulo") @db.VarChar(220)
+  summary     String        @map("resumen") @db.Text
+  content     String        @map("contenido") @db.Text
+  category    String        @map("categoria") @db.VarChar(100)
+  status      ContentStatus @default(BORRADOR) @map("estado")
+  createdAt   DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
+  publishedAt DateTime?     @map("publicado_en") @db.Timestamptz(3)
+
+  createdBy AdministrativeUser @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  image     File?              @relation("NewsImage", fields: [imageId], references: [id], onDelete: Restrict)
+
+  @@index([status, publishedAt])
+  @@index([createdById])
+  @@index([imageId])
+  @@map("noticia")
+}
+
+/// La primera migración debe agregar CHECK (capacidad_maxima > 0).
+model Event {
+  id                    Int         @id @default(autoincrement()) @map("id_evento")
+  createdById           Int         @map("creado_por")
+  imageId               Int?        @map("id_imagen")
+  name                  String      @map("nombre") @db.VarChar(220)
+  description           String      @map("descripcion") @db.Text
+  startsAt              DateTime    @map("inicia_en") @db.Timestamptz(3)
+  location              String      @map("ubicacion") @db.VarChar(255)
+  maximumCapacity       Int         @map("capacidad_maxima")
+  additionalInformation String?     @map("informacion_adicional") @db.Text
+  status                EventStatus @default(BORRADOR) @map("estado")
+  createdAt             DateTime    @default(now()) @map("creado_en") @db.Timestamptz(3)
+
+  createdBy     AdministrativeUser  @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  image         File?               @relation("EventImage", fields: [imageId], references: [id], onDelete: Restrict)
+  registrations EventRegistration[]
+
+  @@index([status, startsAt])
+  @@index([createdById])
+  @@index([imageId])
+  @@map("evento")
+}
+
+model EventRegistration {
+  id             Int                     @id @default(autoincrement()) @map("id_inscripcion")
+  eventId        Int                     @map("id_evento")
+  fullName       String                  @map("nombre_completo") @db.VarChar(160)
+  email          String                  @map("correo") @db.Citext
+  phone          String                  @map("telefono") @db.VarChar(40)
+  status         EventRegistrationStatus @default(CONFIRMADA) @map("estado")
+  consentedAt    DateTime                @map("consentimiento_en") @db.Timestamptz(3)
+  privacyVersion String                  @map("version_privacidad") @db.VarChar(40)
+  registeredAt   DateTime                @default(now()) @map("inscrito_en") @db.Timestamptz(3)
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Restrict)
+
+  @@unique([eventId, email])
+  @@index([eventId, status])
+  @@map("inscripcion_evento")
+}
+
+/// La primera migración debe agregar CHECK (id_archivo IS NOT NULL OR enlace_externo IS NOT NULL).
+model Resource {
+  id          Int           @id @default(autoincrement()) @map("id_recurso")
+  createdById Int           @map("creado_por")
+  fileId      Int?          @map("id_archivo")
+  title       String        @map("titulo") @db.VarChar(220)
+  description String        @map("descripcion") @db.Text
+  category    String        @map("categoria") @db.VarChar(100)
+  externalUrl String?       @map("enlace_externo") @db.VarChar(2048)
+  status      ContentStatus @default(BORRADOR) @map("estado")
+  createdAt   DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
+  publishedAt DateTime?     @map("publicado_en") @db.Timestamptz(3)
+
+  createdBy AdministrativeUser @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  file      File?              @relation("ResourceFile", fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@index([status, publishedAt])
+  @@index([createdById])
+  @@index([fileId])
+  @@map("recurso")
+}
+
+model BoardMember {
+  id                 Int               @id @default(autoincrement()) @map("id_miembro")
+  photoId            Int?              @map("id_fotografia")
+  name               String            @map("nombre") @db.VarChar(160)
+  position           String            @map("cargo") @db.VarChar(120)
+  description        String?           @map("descripcion") @db.Text
+  institutionalEmail String            @map("correo_institucional") @db.Citext
+  term               String            @map("periodo") @db.VarChar(80)
+  status             BoardMemberStatus @default(ACTIVO) @map("estado")
+
+  photo File? @relation("BoardPhoto", fields: [photoId], references: [id], onDelete: Restrict)
+
+  @@index([status, term])
+  @@index([photoId])
+  @@map("miembro_junta")
+}
+
+model ContactRequest {
+  id             Int                  @id @default(autoincrement()) @map("id_solicitud")
+  assignedToId   Int?                 @map("atendido_por")
+  name           String               @map("nombre") @db.VarChar(160)
+  email          String               @map("correo") @db.Citext
+  phone          String               @map("telefono") @db.VarChar(40)
+  subject        String               @map("asunto") @db.VarChar(220)
+  message        String               @map("mensaje") @db.Text
+  status         ContactRequestStatus @default(PENDIENTE) @map("estado_atencion")
+  consentedAt    DateTime             @map("consentimiento_en") @db.Timestamptz(3)
+  privacyVersion String               @map("version_privacidad") @db.VarChar(40)
+  sentAt         DateTime             @default(now()) @map("enviado_en") @db.Timestamptz(3)
+
+  assignedTo AdministrativeUser? @relation(fields: [assignedToId], references: [id], onDelete: Restrict)
+
+  @@index([status, sentAt])
+  @@index([assignedToId])
+  @@map("solicitud_contacto")
+}
