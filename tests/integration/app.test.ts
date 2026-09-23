@@ -11,6 +11,12 @@ describe('contrato HTTP base', () => {
     expect(await response.json()).toEqual({ status: 'ok' })
   })
 
+  it('reemplaza identificadores de solicitud no seguros', async () => {
+    const response = await app.handle(new Request('http://localhost/health', { headers: { 'x-request-id': 'correo@example.com' } }))
+    expect(response.headers.get('x-request-id')).not.toBe('correo@example.com')
+    expect(response.headers.get('x-request-id')).toMatch(/^[a-zA-Z0-9-]{8,100}$/)
+  })
+
   it('deniega el CRUD administrativo sin credencial', async () => {
     const response = await app.handle(new Request('http://localhost/api/v1/admin/board-members'))
     expect([401, 503]).toContain(response.status)

@@ -31,8 +31,8 @@ src/
     projects/            # Estructura reservada para proyectos
     resources/           # Estructura reservada para recursos
     users/               # Estructura reservada para usuarios
-  middleware/            # Autorización y limitación contra abuso
-  shared/                # Base de datos, errores y utilidades comunes
+  middleware/            # Autorización, rate limit y logs HTTP
+  shared/                # Base de datos, errores, logging y utilidades
   app.ts                 # Composición de plugins y módulos
   server.ts              # Punto de entrada del servidor
 prisma/
@@ -74,6 +74,9 @@ cp .env.example .env
 | `CORS_ORIGIN` | Origen autorizado del frontend. |
 | `SESSION_SECRET` | Secreto reservado para sesiones administrativas. |
 | `ADMIN_API_KEY` | Protección temporal de `/admin`; no usar el ejemplo en producción. |
+| `LOG_LEVEL` | Nivel mínimo: `debug`, `info`, `warn`, `error` o `silent`. |
+| `LOG_FORMAT` | `pretty` para desarrollo o `json` para agregadores de producción. |
+| `LOG_HEALTHCHECKS` | Define si `/health` debe aparecer en los logs HTTP. |
 
 Dentro de Docker, el host de PostgreSQL es `db`. Fuera de Docker debe cambiarse por `localhost`:
 
@@ -90,13 +93,15 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
-Espera a que los servicios estén listos y aplica las migraciones:
+Este comando inicia PostgreSQL y la API en modo desarrollo con recarga automática. No ejecuta migraciones ni carga la seed. Cada integrante decide explícitamente cuándo modificar su base local.
+
+Espera a que los servicios estén listos y aplica las migraciones cuando corresponda:
 
 ```bash
 docker compose exec backend bun run migrate:deploy
 ```
 
-Carga los datos iniciales:
+Carga los datos iniciales únicamente si los necesitas:
 
 ```bash
 docker compose exec backend bun run db:seed
@@ -134,8 +139,13 @@ cp .env.example .env
 # Edita DATABASE_URL para usar localhost.
 bun run prisma:generate
 bun run migrate:deploy
-bun run db:seed
 bun run dev
+```
+
+La seed es opcional y siempre manual:
+
+```bash
+bun run db:seed
 ```
 
 `bun run dev` activa recarga automática. Para iniciar sin observar archivos usa:
@@ -184,6 +194,8 @@ bun run db:seed
 ```
 
 La base debe tener las migraciones aplicadas antes de ejecutar el seed.
+
+Ni `bun run dev`, `bun run start`, el `Dockerfile` ni los archivos Compose ejecutan la seed automáticamente.
 
 ### Agregar un integrante
 
@@ -241,6 +253,77 @@ if (existing) {
 ```
 
 Solo agrega contenido autorizado y evita datos personales de prueba. Revisa el seed cuando cambien la junta, los medios o las políticas institucionales.
+
+## Logs
+
+El backend emite logs estructurados y configurables a `stdout`/`stderr`, para que Docker o una plataforma de observabilidad puedan recolectarlos sin depender de archivos dentro del contenedor.
+
+En desarrollo se recomienda:
+
+```env
+LOG_LEVEL=debug
+LOG_FORMAT=pretty
+LOG_HEALTHCHECKS=false
+```
+
+En producción:
+
+```env
+LOG_LEVEL=info
+LOG_FORMAT=json
+LOG_HEALTHCHECKS=false
+```
+
+Cada respuesta incluye `x-request-id`. Los logs HTTP registran únicamente identificador, método, ruta sin query string, estado y duración. No se registran cuerpos, contraseñas, tokens, correos, teléfonos ni mensajes de contacto.
+
+Con Docker:
+
+```bash
+docker compose logs -f backend
+```
+
+Los logs de producción tienen rotación local de `10 MB` y cinco archivos en `docker-compose.prod.yml`. Para una operación real deben enviarse además a la solución de observabilidad aprobada por UVG.
+
+## Preparación de producción
+
+Desarrollo y producción están separados:
+
+- `docker-compose.yml`: recarga automática, código montado y logs legibles.
+- `docker-compose.prod.yml`: imagen inmutable, usuario sin privilegios, healthchecks, PostgreSQL sin puerto público y logs JSON con rotación.
+- `.env.production.example`: plantilla sin secretos reales.
+
+Prepara las variables:
+
+```bash
+cp .env.production.example .env.production
+# Reemplaza todos los valores de ejemplo y usa secretos independientes.
+```
+
+Construye las imágenes:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml build
+```
+
+Aplica las migraciones de forma explícita antes de iniciar o actualizar la API:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm migrate
+```
+
+Inicia los servicios sin cargar datos de ejemplo:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d db backend
+```
+
+La seed de producción también existe como herramienta manual, pero no se ejecuta durante el despliegue:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm seed
+```
+
+Ejecuta ese comando solo cuando los datos del archivo hayan sido revisados y autorizados. Antes de un despliegue real todavía deben definirse TLS/proxy inverso, almacenamiento definitivo, gestión de secretos, monitoreo centralizado y la estrategia efectiva de respaldos/restauración.
 
 ## Pruebas y calidad
 

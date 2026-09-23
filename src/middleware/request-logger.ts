@@ -7,11 +7,12 @@ interface RequestLogContext {
 }
 
 const requests = new WeakMap<Request, RequestLogContext>()
+const requestIdPattern = /^[a-zA-Z0-9._-]{8,100}$/
 
 export const requestLogger = new Elysia({ name: 'request-logger' })
   .onRequest(({ request, set }) => {
     const incomingId = request.headers.get('x-request-id')
-    const requestId = incomingId?.slice(0, 100) || crypto.randomUUID()
+    const requestId = incomingId && requestIdPattern.test(incomingId) ? incomingId : crypto.randomUUID()
     requests.set(request, { requestId, startedAt: performance.now() })
     set.headers['x-request-id'] = requestId
   })
