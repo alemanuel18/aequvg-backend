@@ -1,13 +1,22 @@
 generator client {
-  provider        = "prisma-client"
-  output          = "../src/generated/prisma"
-  runtime         = "bun"
+  provider        = "prisma-client-js"
   previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider   = "postgresql"
+  url        = env("DATABASE_URL")
   extensions = [citext]
+}
+
+enum InstitutionalBlockType {
+  HERO
+  CAMPO_LABORAL
+  TESTIMONIO
+  LABORATORIO
+  PLAN_ESTUDIOS
+
+  @@map("tipo_bloque_institucional")
 }
 
 enum AdministrativeUserStatus {
@@ -99,6 +108,24 @@ enum ContactRequestStatus {
   ARCHIVADA
 
   @@map("estado_solicitud_contacto")
+}
+
+enum ContactRequestType {
+  CONSULTA
+  REUNION
+
+  @@map("tipo_solicitud_contacto")
+}
+
+enum ContactMethodType {
+  EMAIL
+  TELEFONO
+  UBICACION
+  INSTAGRAM
+  FACEBOOK
+  OTRO
+
+  @@map("tipo_medio_contacto")
 }
 
 model Role {
@@ -360,11 +387,15 @@ model BoardMember {
   description        String?           @map("descripcion") @db.Text
   institutionalEmail String            @map("correo_institucional") @db.Citext
   term               String            @map("periodo") @db.VarChar(80)
+  termStartsAt       DateTime?          @map("periodo_inicio") @db.Date
+  termEndsAt         DateTime?          @map("periodo_fin") @db.Date
+  displayOrder       Int               @default(0) @map("orden")
   status             BoardMemberStatus @default(ACTIVO) @map("estado")
 
   photo File? @relation("BoardPhoto", fields: [photoId], references: [id], onDelete: Restrict)
 
-  @@index([status, term])
+  @@index([status, displayOrder])
+  @@index([termStartsAt, termEndsAt])
   @@index([photoId])
   @@map("miembro_junta")
 }
@@ -375,8 +406,10 @@ model ContactRequest {
   name           String               @map("nombre") @db.VarChar(160)
   email          String               @map("correo") @db.Citext
   phone          String               @map("telefono") @db.VarChar(40)
+  type           ContactRequestType   @default(CONSULTA) @map("tipo")
   subject        String               @map("asunto") @db.VarChar(220)
   message        String               @map("mensaje") @db.Text
+  preferredAt    DateTime?            @map("fecha_preferida") @db.Timestamptz(3)
   status         ContactRequestStatus @default(PENDIENTE) @map("estado_atencion")
   consentedAt    DateTime             @map("consentimiento_en") @db.Timestamptz(3)
   privacyVersion String               @map("version_privacidad") @db.VarChar(40)
@@ -387,4 +420,38 @@ model ContactRequest {
   @@index([status, sentAt])
   @@index([assignedToId])
   @@map("solicitud_contacto")
+}
+
+model InstitutionalBlock {
+  id           Int                    @id @default(autoincrement()) @map("id_bloque")
+  type         InstitutionalBlockType @map("tipo")
+  title        String                 @map("titulo") @db.VarChar(220)
+  subtitle     String?                @map("subtitulo") @db.VarChar(320)
+  body         String                 @map("contenido") @db.Text
+  imageUrl     String?                @map("imagen_url") @db.VarChar(2048)
+  actionLabel  String?                @map("accion_texto") @db.VarChar(100)
+  actionUrl    String?                @map("accion_url") @db.VarChar(2048)
+  displayOrder Int                    @default(0) @map("orden")
+  status       ContentStatus          @default(BORRADOR) @map("estado")
+  createdAt    DateTime               @default(now()) @map("creado_en") @db.Timestamptz(3)
+  updatedAt    DateTime               @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  publishedAt  DateTime?              @map("publicado_en") @db.Timestamptz(3)
+
+  @@index([status, type, displayOrder])
+  @@map("bloque_institucional")
+}
+
+model ContactMethod {
+  id           Int               @id @default(autoincrement()) @map("id_medio")
+  type         ContactMethodType @map("tipo")
+  label        String            @map("etiqueta") @db.VarChar(100)
+  value        String            @map("valor") @db.VarChar(320)
+  url          String?           @map("url") @db.VarChar(2048)
+  displayOrder Int               @default(0) @map("orden")
+  active       Boolean           @default(true) @map("activo")
+  createdAt    DateTime          @default(now()) @map("creado_en") @db.Timestamptz(3)
+  updatedAt    DateTime          @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  @@index([active, displayOrder])
+  @@map("medio_contacto")
 }
