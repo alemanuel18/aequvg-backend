@@ -1,15 +1,40 @@
-FROM oven/bun:1-alpine
+FROM oven/bun:1-alpine AS dependencies
 
 WORKDIR /app
+COPY package.json bun.lock ./
+COPY prisma ./prisma
+RUN bun install --frozen-lockfile
+
+FROM dependencies AS development
 
 ENV NODE_ENV=development \
     HOST=0.0.0.0 \
     PORT=3000
 
 COPY . .
-
 EXPOSE 3000
+CMD ["bun", "run", "dev"]
 
-# El contenedor también puede levantarse durante la fase de estructura inicial.
-# Cuando aparezca package.json, instala las dependencias y arranca el servidor.
-CMD ["sh", "-c", "until [ -f package.json ]; do echo 'Esperando la inicialización del backend...'; sleep 2; done; if [ -f bun.lock ] || [ -f bun.lockb ]; then bun install --frozen-lockfile; else bun install; fi; exec bun run dev"]
+FROM dependencies AS tooling
+
+ENV NODE_ENV=production
+COPY . .
+
+FROM oven/bun:1-alpine AS production-dependencies
+
+WORKDIR /app
+COPY package.json bun.lock ./
+COPY prisma ./prisma
+RUN bun install --frozen-lockfile --production
+
+FROM production-dependencies AS production
+
+ENV NODE_ENV=production \
+    HOST=0.0.0.0 \
+    PORT=3000
+
+COPY --chown=bun:bun src ./src
+COPY --chown=bun:bun storage ./storage
+USER bun
+EXPOSE 3000
+CMD ["bun", "run", "start"]
