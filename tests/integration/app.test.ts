@@ -7,6 +7,7 @@ describe('contrato HTTP base', () => {
   it('expone el healthcheck', async () => {
     const response = await app.handle(new Request('http://localhost/health'))
     expect(response.status).toBe(200)
+    expect(response.headers.get('x-request-id')).toBeTruthy()
     expect(await response.json()).toEqual({ status: 'ok' })
   })
 
