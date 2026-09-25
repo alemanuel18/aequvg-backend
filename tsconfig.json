@@ -8,5 +8,5 @@
     "skipLibCheck": true,
     "types": ["bun-types", "vitest/globals"]
   },
-  "include": ["src", "tests", "prisma/seed.ts"]
+  "include": ["src", "tests", "prisma/seed.ts", "scripts"]
 }
