@@ -162,6 +162,29 @@ model RolePermission {
   @@map("rol_permiso")
 }
 
+enum ProjectStatus {
+	NO_APROBADO
+	APROBADO
+	EN_REVISION
+}
+
+model Project {
+	id String @id @default(uuid())
+	name String
+	slug String @unique
+	description String?
+	status ProjectStatus @default(EN_REVISION)
+	repository String?
+	liveUrl String?
+	startDate DateTime?
+	endDate DateTime?
+	createdAt DateTime @default(now())
+	updatedAt DateTime @updatedAt
+
+	@@index([status])
+	
+}
+
 model AdministrativeUser {
   id        Int                      @id @default(autoincrement()) @map("id_usuario")
   roleId    Int                      @map("id_rol")
