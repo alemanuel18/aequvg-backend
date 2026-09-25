@@ -166,23 +166,36 @@ enum ProjectStatus {
 	NO_APROBADO
 	APROBADO
 	EN_REVISION
+	@@map("estado_proyecto")
 }
 
 model Project {
-	id String @id @default(uuid())
-	name String
-	slug String @unique
-	description String?
-	status ProjectStatus @default(EN_REVISION)
-	repository String?
-	liveUrl String?
-	startDate DateTime?
-	endDate DateTime?
-	createdAt DateTime @default(now())
-	updatedAt DateTime @updatedAt
+  id              Int           @id @default(autoincrement()) @map("id_proyecto")
+  authorId        Int           @map("id_autor")
+  reviewerId      Int?          @map("id_revisor")
+  coverImageId    Int?          @map("id_imagen_portada")
+  title           String        @map("titulo") @db.Citext
+  slug            String        @unique @map("slug") @db.VarChar(220)
+  description     String        @map("descripcion") @db.Text
+  repositoryUrl   String?       @map("url_repositorio") @db.VarChar(2048)
+  liveUrl         String?       @map("url_demo") @db.VarChar(2048)
+  status          ProjectStatus @default(EN_REVISION) @map("estado")
+  rejectionReason String?       @map("motivo_rechazo") @db.Text
+  reviewedAt      DateTime?     @map("revisado_en") @db.Timestamptz(3)
+  createdAt       DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @map("actualizado_en") @db.Timestamptz(3)
 
-	@@index([status])
-	
+  // Relaciones
+  author     AdministrativeUser  @relation("ProjectAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  reviewer   AdministrativeUser? @relation("ProjectReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  coverImage File?               @relation("ProjectCoverImage", fields: [coverImageId], references: [id], onDelete: Restrict)
+
+  // Índices 
+  @@index([status, createdAt])
+  @@index([authorId])
+  @@index([reviewerId])
+  @@index([coverImageId])
+  @@map("proyecto")
 }
 
 model AdministrativeUser {
@@ -206,6 +219,10 @@ model AdministrativeUser {
 
   @@index([roleId, status])
   @@map("usuario_administrativo")
+
+  // Relaciones con proyectos
+  createdProjects  Project[] @relation("ProjectAuthor")
+  reviewedProjects Project[] @relation("ProjectReviewer")
 }
 
 model AdministrativeCredential {
@@ -239,6 +256,10 @@ model File {
   @@index([uploadedById])
   @@index([sha256])
   @@map("archivo")
+  
+  //Relacion con proyecto
+  projectCovers Project[] @relation("ProjectCoverImage")
+
 }
 
 model ScientificPublication {
