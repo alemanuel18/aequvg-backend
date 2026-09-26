@@ -78,8 +78,13 @@ async function main() {
   if (resource) await prisma.resource.update({ where: { id: resource.id }, data: resourceData })
   else await prisma.resource.create({ data: { ...resourceData, createdById: developmentUser.id } })
 
+  const newsCategory = await prisma.newsCategory.upsert({
+    where: { name: 'Actividades y eventos' },
+    update: { active: true },
+    create: { name: 'Actividades y eventos', active: true }
+  })
   const news = await prisma.news.findFirst({ where: { createdById: developmentUser.id, title: 'Noticia de desarrollo del MVP público' } })
-  const newsData = { title: 'Noticia de desarrollo del MVP público', summary: 'Registro de ejemplo para validar la base limpia.', content: 'Este contenido es exclusivamente de desarrollo y no corresponde a una comunicación institucional.', category: 'Desarrollo', status: 'PUBLICADO' as const, publishedAt: developmentPublishedAt }
+  const newsData = { categoryId: newsCategory.id, title: 'Noticia de desarrollo del MVP público', summary: 'Registro de ejemplo para validar la base limpia.', content: 'Este contenido es exclusivamente de desarrollo y no corresponde a una comunicación institucional.', status: 'PUBLICADO' as const, publishedAt: developmentPublishedAt }
   if (news) await prisma.news.update({ where: { id: news.id }, data: newsData })
   else await prisma.news.create({ data: { ...newsData, createdById: developmentUser.id } })
 
