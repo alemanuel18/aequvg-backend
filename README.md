@@ -66,8 +66,10 @@ Las rutas administrativas bajo `/api/v1/admin/news` requieren `Authorization: Be
 La integración real del módulo se ejecuta únicamente contra una PostgreSQL aislada para no modificar datos locales:
 
 ```bash
-NEWS_DATABASE_TEST=true bun run test -- tests/integration/news.database.test.ts
+bun run test:integration:news
 ```
+
+GitHub Actions ejecuta esa misma prueba contra PostgreSQL 16 en cada pull request, después de aplicar las migraciones. El job se llama `news-postgres`; configúralo como required status check de la rama `develop` desde las reglas de protección del repositorio.
 
 ## Variables de entorno
 
