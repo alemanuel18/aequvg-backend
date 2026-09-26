@@ -24,6 +24,12 @@ describe('contrato HTTP base', () => {
     expect(body.error.code).toMatch(/UNAUTHORIZED|ADMIN_AUTH_NOT_CONFIGURED/)
   })
 
+  it('deniega la creación administrativa de noticias sin credencial', async () => {
+    const body = { createdById: 1, categoryId: 1, title: 'Noticia de prueba', summary: 'Resumen válido para comprobar la autorización.', content: 'Contenido válido con suficiente longitud para pasar el contrato de entrada.' }
+    const response = await app.handle(new Request('http://localhost/api/v1/admin/news', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }))
+    expect([401, 503]).toContain(response.status)
+  })
+
   it('publica la interfaz OpenAPI', async () => {
     const response = await app.handle(new Request('http://localhost/openapi'))
     expect(response.status).toBe(200)
