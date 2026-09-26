@@ -3,6 +3,7 @@ import { openapi } from '@elysiajs/openapi'
 import { Elysia } from 'elysia'
 import { boardRoutes } from './modules/board/controllers/routes'
 import { contactRoutes } from './modules/contact/controllers/routes'
+import { eventsRoutes } from './modules/events/controllers/routes'
 import { institutionalRoutes } from './modules/institutional/controllers/routes'
 import { newsRoutes } from './modules/news/controllers/routes'
 import { errorBody } from './shared/errors/app-error'
@@ -20,5 +21,6 @@ export const createApp = () => new Elysia()
   .get('/health', () => ({ status: 'ok' }))
   .use(institutionalRoutes)
   .use(newsRoutes)
+  .use(eventsRoutes)
   .use(boardRoutes)
   .use(contactRoutes)
