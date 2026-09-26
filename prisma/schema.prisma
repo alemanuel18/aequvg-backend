@@ -338,22 +338,38 @@ model PublicationApproval {
   @@map("aprobacion_publicacion")
 }
 
+model NewsCategory {
+  id        Int      @id @default(autoincrement()) @map("id_categoria_noticia")
+  name      String   @unique @map("nombre") @db.Citext
+  active    Boolean  @default(true) @map("activa")
+  createdAt DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  news News[]
+
+  @@index([active, name])
+  @@map("categoria_noticia")
+}
+
 model News {
-  id          Int           @id @default(autoincrement()) @map("id_noticia")
+  id         Int           @id @default(autoincrement()) @map("id_noticia")
   createdById Int           @map("creado_por")
-  imageId     Int?          @map("id_imagen")
-  title       String        @map("titulo") @db.VarChar(220)
-  summary     String        @map("resumen") @db.Text
-  content     String        @map("contenido") @db.Text
-  category    String        @map("categoria") @db.VarChar(100)
-  status      ContentStatus @default(BORRADOR) @map("estado")
-  createdAt   DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
-  publishedAt DateTime?     @map("publicado_en") @db.Timestamptz(3)
+  categoryId Int           @map("id_categoria_noticia")
+  imageId    Int?          @map("id_imagen")
+  title      String        @map("titulo") @db.VarChar(220)
+  summary    String        @map("resumen") @db.Text
+  content    String        @map("contenido") @db.Text
+  status     ContentStatus @default(BORRADOR) @map("estado")
+  createdAt  DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
+  updatedAt  DateTime      @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  publishedAt DateTime?    @map("publicado_en") @db.Timestamptz(3)
 
   createdBy AdministrativeUser @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  category  NewsCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   image     File?              @relation("NewsImage", fields: [imageId], references: [id], onDelete: Restrict)
 
   @@index([status, publishedAt])
+  @@index([categoryId, status, publishedAt])
   @@index([createdById])
   @@index([imageId])
   @@map("noticia")
