@@ -73,10 +73,11 @@ async function main() {
     create: { originalName: 'guia-seguridad-laboratorio.pdf', storageKey: 'development/resources/guia-seguridad-laboratorio.pdf', mimeType: 'application/pdf', sizeBytes: BigInt(2048), sha256: '4fd1d6e7e84d9b7b8f1695af1cb68a1ff35f4a9c39b06d955efc29c8c8376520', uploadedById: developmentUser.id }
   })
 
+  const resourceCategory = await prisma.resourceCategory.upsert({ where: { name: 'Laboratorio' }, update: { active: true }, create: { name: 'Laboratorio', active: true } })
   const resource = await prisma.resource.findFirst({ where: { createdById: developmentUser.id, title: 'Guía de seguridad de laboratorio (desarrollo)' } })
-  const resourceData = { fileId: pdfMetadata.id, title: 'Guía de seguridad de laboratorio (desarrollo)', description: 'Recurso de prueba que referencia metadatos de un PDF almacenado fuera de PostgreSQL.', category: 'Laboratorio', externalUrl: null, status: 'PUBLICADO' as const, publishedAt: developmentPublishedAt }
-  if (resource) await prisma.resource.update({ where: { id: resource.id }, data: resourceData })
-  else await prisma.resource.create({ data: { ...resourceData, createdById: developmentUser.id } })
+  const resourceData = { fileId: pdfMetadata.id, categoryId: resourceCategory.id, title: 'Guía de seguridad de laboratorio (desarrollo)', description: 'Recurso de prueba que referencia metadatos de un PDF almacenado fuera de PostgreSQL.', status: 'PUBLICADO' as const, publishedAt: developmentPublishedAt }
+  const savedResource = resource ? await prisma.resource.update({ where: { id: resource.id }, data: resourceData }) : await prisma.resource.create({ data: { ...resourceData, createdById: developmentUser.id } })
+  await prisma.resourceLink.upsert({ where: { resourceId_url: { resourceId: savedResource.id, url: 'https://www.uvg.edu.gt/' } }, update: { label: 'Sitio UVG', displayOrder: 1 }, create: { resourceId: savedResource.id, label: 'Sitio UVG', url: 'https://www.uvg.edu.gt/', displayOrder: 1 } })
 
   const newsCategory = await prisma.newsCategory.upsert({
     where: { name: 'Actividades y eventos' },
