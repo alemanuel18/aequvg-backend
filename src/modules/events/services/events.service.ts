@@ -33,6 +33,12 @@ export type EventQuery = {
   pageSize?: number
 }
 
+export type EventPublicQuery = {
+  q?: string
+  page?: number
+  pageSize?: number
+}
+
 const notFound = () => new AppError(404, 'EVENT_NOT_FOUND', 'El evento solicitado no existe.')
 
 const verifyAuthor = async (userId: number) => {
@@ -111,6 +117,27 @@ const updateData = async (
 }
 
 export const eventsService = {
+  async publicList(query: EventPublicQuery) {
+    const page = query.page ?? 1
+    const pageSize = query.pageSize ?? 20
+    const filters = {
+      q: query.q ? cleanText(query.q) : undefined,
+      page,
+      pageSize
+    }
+    const [items, total] = await Promise.all([
+      eventsRepository.publicList(filters),
+      eventsRepository.publicCount(filters)
+    ])
+    return { items, pagination: { page, pageSize, total } }
+  },
+
+  async publicById(id: number) {
+    const event = await eventsRepository.findPublicById(id)
+    if (!event) throw notFound()
+    return event
+  },
+
   async adminList(query: EventQuery) {
     const page = query.page ?? 1
     const pageSize = query.pageSize ?? 20

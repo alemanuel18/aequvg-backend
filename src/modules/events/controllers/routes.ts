@@ -5,6 +5,9 @@ import {
   eventCreateBody,
   eventErrorResponse,
   eventListResponse,
+  eventPublicListResponse,
+  eventPublicQuery,
+  eventPublicResponse,
   eventResponse,
   eventUpdateBody,
   idParams
@@ -12,6 +15,16 @@ import {
 import { eventsService } from '../services/events.service'
 
 export const eventsRoutes = new Elysia({ prefix: '/api/v1' })
+  .get('/events', ({ query }) => eventsService.publicList(query), {
+    query: eventPublicQuery,
+    response: { 200: eventPublicListResponse, 503: eventErrorResponse },
+    detail: { tags: ['Eventos'], summary: 'Busca eventos públicos activos', description: 'Busca por texto y pagina únicamente eventos en estado PUBLICADO.' }
+  })
+  .get('/events/:id', ({ params }) => eventsService.publicById(params.id), {
+    params: idParams,
+    response: { 200: eventPublicResponse, 404: eventErrorResponse, 503: eventErrorResponse },
+    detail: { tags: ['Eventos'], summary: 'Consulta un evento público activo', description: 'Devuelve información pública de eventos con estado PUBLICADO. Eventos no publicados o inexistentes devuelven 404.' }
+  })
   .get('/admin/events', ({ headers, query }) => {
     requireAdmin(headers.authorization)
     return eventsService.adminList(query)

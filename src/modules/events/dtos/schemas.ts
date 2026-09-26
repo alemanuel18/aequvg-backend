@@ -35,11 +35,34 @@ export const eventUpdateBody = t.Partial(t.Object({
   status: eventStatus
 }))
 
+export const eventPublicQuery = t.Object({
+  q: t.Optional(t.String({ minLength: 1, maxLength: 120 })),
+  page: t.Optional(t.Integer({ minimum: 1 })),
+  pageSize: t.Optional(t.Integer({ minimum: 1, maximum: 50 }))
+})
+
 export const eventAdminQuery = t.Object({
   q: t.Optional(t.String({ minLength: 1, maxLength: 120 })),
   status: t.Optional(eventStatus),
   page: t.Optional(t.Integer({ minimum: 1 })),
   pageSize: t.Optional(t.Integer({ minimum: 1, maximum: 50 }))
+})
+
+export const eventPublicResponse = t.Object({
+  id: t.Integer(),
+  name: t.String(),
+  description: t.String(),
+  startsAt: t.Date(),
+  location: t.String(),
+  maximumCapacity: t.Integer(),
+  additionalInformation: t.Nullable(t.String()),
+  status: eventStatus,
+  image: t.Nullable(t.Object({ id: t.Integer(), originalName: t.String(), mimeType: t.String() }))
+})
+
+export const eventPublicListResponse = t.Object({
+  items: t.Array(eventPublicResponse),
+  pagination: t.Object({ page: t.Integer(), pageSize: t.Integer(), total: t.Integer() })
 })
 
 export const eventResponse = t.Object({
