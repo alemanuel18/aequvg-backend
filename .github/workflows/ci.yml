@@ -56,3 +56,4 @@ jobs:
       - run: bun run migrate:deploy
       - run: bun run test:integration:news
       - run: bun run test:integration:events
+      - run: bun run test:integration:events:api
