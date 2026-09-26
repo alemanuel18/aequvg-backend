@@ -107,19 +107,7 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
-Este comando inicia PostgreSQL y la API en modo desarrollo con recarga automática. No ejecuta migraciones ni carga la seed. Cada integrante decide explícitamente cuándo modificar su base local.
-
-Espera a que los servicios estén listos y aplica las migraciones cuando corresponda:
-
-```bash
-docker compose exec backend bun run migrate:deploy
-```
-
-Carga los datos iniciales únicamente si los necesitas:
-
-```bash
-docker compose exec backend bun run db:seed
-```
+Este comando inicia PostgreSQL y la API en modo desarrollo con recarga automática. Cuando PostgreSQL está saludable, el backend aplica las migraciones versionadas y ejecuta la seed idempotente antes de iniciar. Por ello, una base local vacía queda lista con datos de desarrollo usando un solo comando.
 
 Servicios disponibles:
 
@@ -230,7 +218,7 @@ bun run db:seed
 
 La base debe tener las migraciones aplicadas antes de ejecutar el seed. Los datos de ejemplo están marcados como contenido de desarrollo y no reemplazan contenido institucional aprobado.
 
-Ni `bun run dev`, `bun run start`, el `Dockerfile` ni los archivos Compose ejecutan la seed automáticamente.
+Fuera de Docker la seed sigue siendo manual. El Compose de desarrollo sí la ejecuta automáticamente; el Compose de producción conserva la seed como herramienta manual.
 
 ### Archivos y PDF
 

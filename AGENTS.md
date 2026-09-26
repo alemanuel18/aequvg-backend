@@ -53,7 +53,7 @@ Mantén el flujo `ruta → DTO → servicio → repositorio → Prisma`. Los con
 - Cada cambio de `schema.prisma` requiere una migración nueva y revisada.
 - Desarrollo: `bun run migrate:dev --name descripcion`; despliegue: `bun run migrate:deploy`.
 - Nunca uses `prisma db push` en producción ni edites migraciones aplicadas.
-- `prisma/seed.ts` es repetible para medios e integrantes de junta. La seed es **manual**: `bun run dev`, `bun run start`, Docker y el Dockerfile no la ejecutan.
+- `prisma/seed.ts` es repetible para medios e integrantes de junta. `bun run dev`, `bun run start` y el Dockerfile no la ejecutan; el Compose de desarrollo la carga tras aplicar migraciones para preparar una base local limpia. Producción la conserva manual.
 - Para agregar datos, modifica el arreglo/estrategia existente usando claves estables y ejecuta `bun run db:seed` después de migrar. No introduzcas credenciales o datos personales reales.
 - En producción, migración y seed son servicios manuales del perfil `tools` de `docker-compose.prod.yml`.
 
