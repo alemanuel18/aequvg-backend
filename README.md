@@ -170,12 +170,33 @@ bun run migrate:deploy
 
 No uses `prisma db push` en producción ni edites una migración que ya haya sido aplicada.
 
+### Verificar una base limpia
+
+La migración inicial integra las tablas del MVP público, sus claves foráneas, restricciones e índices. Para comprobarla sin afectar tu volumen de desarrollo, usa un proyecto Compose aislado:
+
+```bash
+docker compose --project-name aequvg-mvp-clean -f docker-compose.yml up -d db
+docker compose --project-name aequvg-mvp-clean -f docker-compose.yml run --rm backend bun run migrate:deploy
+docker compose --project-name aequvg-mvp-clean -f docker-compose.yml run --rm backend bun run db:seed
+docker compose --project-name aequvg-mvp-clean -f docker-compose.yml run --rm backend bun run db:verify
+```
+
+`db:verify` revisa que estén las tablas, claves foráneas, `CHECK`, índices y datos de desarrollo esperados. También falla si detecta una columna `BYTEA` en el esquema público. Cuando termines, elimina únicamente ese entorno aislado con:
+
+```bash
+docker compose --project-name aequvg-mvp-clean -f docker-compose.yml down -v
+```
+
+No uses ese último comando con el nombre de tu proyecto de desarrollo habitual.
+
 ## Seed: cargar y agregar datos
 
-El seed está en `prisma/seed.ts`. Actualmente carga:
+El seed está en `prisma/seed.ts`. Carga de forma idempotente:
 
-- Medios oficiales: correo, teléfono, ubicación e Instagram.
-- Integrantes y orden de la junta directiva.
+- Rol, permisos y usuario ficticio para contenido de desarrollo.
+- Medios de contacto, integrantes y orden de la junta directiva.
+- Bloques institucionales, una noticia y un recurso publicados de ejemplo.
+- Metadatos de un PDF de ejemplo para comprobar la relación entre recursos y archivos.
 
 Puede ejecutarse varias veces. La junta se busca por correo institucional; si existe, se actualiza. Los medios se buscan por `type` y `value`; una entrada idéntica se actualiza en lugar de duplicarse.
 
@@ -193,9 +214,13 @@ Sin Docker:
 bun run db:seed
 ```
 
-La base debe tener las migraciones aplicadas antes de ejecutar el seed.
+La base debe tener las migraciones aplicadas antes de ejecutar el seed. Los datos de ejemplo están marcados como contenido de desarrollo y no reemplazan contenido institucional aprobado.
 
 Ni `bun run dev`, `bun run start`, el `Dockerfile` ni los archivos Compose ejecutan la seed automáticamente.
+
+### Archivos y PDF
+
+PostgreSQL no almacena el contenido de PDFs ni de ningún archivo. La tabla `archivo` conserva únicamente metadatos: nombre original, `storageKey`, MIME type, tamaño, checksum, fecha y usuario que lo cargó. El binario debe vivir en el volumen `storage/` o en el proveedor externo de almacenamiento que se defina; `storageKey` es la referencia persistida en la base. La comprobación `bun run db:verify` detecta columnas binarias (`BYTEA`) en el esquema público.
 
 ### Agregar un integrante
 
