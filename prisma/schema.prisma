@@ -417,7 +417,6 @@ model EventRegistration {
   @@map("inscripcion_evento")
 }
 
-/// La primera migración debe agregar CHECK (id_archivo IS NOT NULL OR enlace_externo IS NOT NULL).
 model ResourceCategory {
   id        Int      @id @default(autoincrement()) @map("id_categoria_recurso")
   name      String   @unique @map("nombre") @db.Citext
