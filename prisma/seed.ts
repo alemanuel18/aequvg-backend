@@ -1,4 +1,4 @@
-import { PrismaClient, ProjectStatus } from '@prisma/client'
+import { PrismaClient, ProjectStatus, ProjectType } from '@prisma/client'
 
 const prisma = new PrismaClient()
 const developmentPublishedAt = new Date('2026-01-15T12:00:00.000Z')
@@ -89,9 +89,9 @@ async function main() {
   else await prisma.news.create({ data: { ...newsData, createdById: developmentUser.id } })
 
   const projects = [
-    { title: 'Plataforma de Control Académico', slug: 'plataforma-control-academico', description: 'Sistema web para la gestión de notas y asignación de cursos universitarios.', repositoryUrl: 'https://github.com/ejemplo/control-academico', liveUrl: 'https://demo.control-academico.edu', status: ProjectStatus.APROBADO, reviewerId: developmentUser.id, reviewedAt: developmentPublishedAt },
-    { title: 'Aplicación Móvil de Eventos Universitarios', slug: 'app-eventos-universitarios', description: 'App para consultar agenda institucional e inscribirse a talleres.', repositoryUrl: 'https://github.com/ejemplo/app-eventos', liveUrl: null, status: ProjectStatus.EN_REVISION, reviewerId: null, reviewedAt: null },
-    { title: 'Script de Monitoreo de Redes', slug: 'script-monitoreo-redes', description: 'Herramienta en terminal para analizar tráfico local.', repositoryUrl: null, liveUrl: null, status: ProjectStatus.NO_APROBADO, reviewerId: developmentUser.id, reviewedAt: developmentPublishedAt, rejectionReason: 'El proyecto debe ser una aplicación web expuesta con interfaz visual.' }
+    { title: 'Plataforma de Control Académico', slug: 'plataforma-control-academico', description: 'Sistema web para la gestión de notas y asignación de cursos universitarios.', repositoryUrl: 'https://github.com/ejemplo/control-academico', liveUrl: 'https://demo.control-academico.edu', type: ProjectType.PROYECTO, status: ProjectStatus.APROBADO, reviewerId: developmentUser.id, reviewedAt: developmentPublishedAt },
+    { title: 'Aplicación Móvil de Eventos Universitarios', slug: 'app-eventos-universitarios', description: 'App para consultar agenda institucional e inscribirse a talleres.', repositoryUrl: 'https://github.com/ejemplo/app-eventos', liveUrl: null, type: ProjectType.PROYECTO, status: ProjectStatus.EN_REVISION, reviewerId: null, reviewedAt: null },
+    { title: 'Script de Monitoreo de Redes', slug: 'script-monitoreo-redes', description: 'Herramienta en terminal para analizar tráfico local.', repositoryUrl: null, liveUrl: null, type: ProjectType.PROYECTO, status: ProjectStatus.NO_APROBADO, reviewerId: developmentUser.id, reviewedAt: developmentPublishedAt, rejectionReason: 'El proyecto debe ser una aplicación web expuesta con interfaz visual.' }
   ]
   for (const project of projects) {
     await prisma.project.upsert({
