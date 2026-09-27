@@ -627,4 +627,178 @@ describeDatabase('CRUD administrativo de eventos con PostgreSQL', () => {
       expect((await response.json() as { error: { code: string } }).error.code).toBe('EVENT_NOT_FOUND')
     })
   })
+
+  describe('Consulta pública de eventos (GET /api/v1/events y /api/v1/events/:id)', () => {
+    it('GET /events funciona sin Authorization y lista únicamente eventos en estado PUBLICADO', async () => {
+      const p1 = await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Pub 1', { status: 'PUBLICADO', startsAt: '2030-01-01T10:00:00.000Z' })) }))
+      const p2 = await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Pub 2', { status: 'PUBLICADO', startsAt: '2030-02-01T10:00:00.000Z' })) }))
+      const b1 = await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Draft 1', { status: 'BORRADOR' })) }))
+      const f1 = await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Fin 1', { status: 'FINALIZADO' })) }))
+      const c1 = await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Canc 1', { status: 'CANCELADO' })) }))
+      const a1 = await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Arch 1', { status: 'ARCHIVADO' })) }))
+      expect(p1.status).toBe(201)
+      expect(p2.status).toBe(201)
+      expect(b1.status).toBe(201)
+      expect(f1.status).toBe(201)
+      expect(c1.status).toBe(201)
+      expect(a1.status).toBe(201)
+
+      const response = await app.handle(request('/api/v1/events'))
+      expect(response.status).toBe(200)
+      const data = await response.json() as { items: { name: string; status: string }[] }
+      expect(data.items.length).toBeGreaterThanOrEqual(2)
+      expect(data.items.every(item => item.status === 'PUBLICADO')).toBe(true)
+      expect(data.items.some(item => item.name === 'Draft 1')).toBe(false)
+      expect(data.items.some(item => item.name === 'Fin 1')).toBe(false)
+      expect(data.items.some(item => item.name === 'Canc 1')).toBe(false)
+      expect(data.items.some(item => item.name === 'Arch 1')).toBe(false)
+    })
+
+    it('busca con q y q nunca recupera eventos no publicados', async () => {
+      await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Quantum Chemistry Workshop', { status: 'PUBLICADO' })) }))
+      await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Quantum Draft Secret', { status: 'BORRADOR' })) }))
+      await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Quantum Cancelled Event', { status: 'CANCELADO' })) }))
+
+      const res = await app.handle(request('/api/v1/events?q=Quantum'))
+      expect(res.status).toBe(200)
+      const data = await res.json() as { items: { name: string; status: string }[] }
+      expect(data.items.length).toBeGreaterThanOrEqual(1)
+      expect(data.items.every(item => item.status === 'PUBLICADO')).toBe(true)
+      expect(data.items.some(item => item.name === 'Quantum Chemistry Workshop')).toBe(true)
+      expect(data.items.some(item => item.name === 'Quantum Draft Secret')).toBe(false)
+      expect(data.items.some(item => item.name === 'Quantum Cancelled Event')).toBe(false)
+    })
+
+    it('pagina resultados y ordena por startsAt ASC con desempate determinista por id ASC', async () => {
+      const sameTime = '2031-08-10T12:00:00.000Z'
+      const earlierTime = '2031-01-01T12:00:00.000Z'
+      await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Paging Alpha Early', { startsAt: earlierTime, status: 'PUBLICADO' })) }))
+      const eTie1 = await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Paging Beta Tie 1', { startsAt: sameTime, status: 'PUBLICADO' })) }))
+      const eTie2 = await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Paging Gamma Tie 2', { startsAt: sameTime, status: 'PUBLICADO' })) }))
+      const id1 = (await eTie1.json() as { id: number }).id
+      const id2 = (await eTie2.json() as { id: number }).id
+      expect(id1).toBeLessThan(id2)
+
+      const pageRes = await app.handle(request('/api/v1/events?q=Paging&page=1&pageSize=2'))
+      expect(pageRes.status).toBe(200)
+      const pageData = await pageRes.json() as { items: { id: number; name: string }[]; pagination: { total: number; page: number; pageSize: number } }
+      expect(pageData.pagination.total).toBe(3)
+      expect(pageData.items).toHaveLength(2)
+      expect(pageData.items[0]?.name).toBe('Paging Alpha Early')
+      expect(pageData.items[1]?.id).toBe(id1)
+
+      const page2Res = await app.handle(request('/api/v1/events?q=Paging&page=2&pageSize=2'))
+      const page2Data = await page2Res.json() as { items: { id: number }[] }
+      expect(page2Data.items).toHaveLength(1)
+      expect(page2Data.items[0]?.id).toBe(id2)
+    })
+
+    it('un evento PUBLICADO con startsAt en el pasado sigue siendo visible', async () => {
+      const pastTime = '2020-01-01T10:00:00.000Z'
+      const pastCreated = await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Evento Histórico Pasado', { startsAt: pastTime, status: 'PUBLICADO' })) }))
+      const pastEvent = await pastCreated.json() as { id: number }
+
+      const listRes = await app.handle(request('/api/v1/events?q=Histórico'))
+      expect(listRes.status).toBe(200)
+      const listData = await listRes.json() as { items: { id: number }[] }
+      expect(listData.items.some(item => item.id === pastEvent.id)).toBe(true)
+
+      const detailRes = await app.handle(request(`/api/v1/events/${pastEvent.id}`))
+      expect(detailRes.status).toBe(200)
+    })
+
+    it('GET /events/:id devuelve 200 para evento PUBLICADO y valida contrato público estricto', async () => {
+      const createdWithInfo = await app.handle(
+        request('/api/v1/admin/events', {
+          method: 'POST',
+          headers: adminHeaders,
+          body: JSON.stringify(
+            baseEventPayload('Evento Público Detallado Con Info', {
+              status: 'PUBLICADO',
+              imageId,
+              additionalInformation: 'Se requiere bata de laboratorio y lentes protectores.'
+            })
+          )
+        })
+      )
+      const eventWithInfo = await createdWithInfo.json() as { id: number }
+
+      const response = await app.handle(request(`/api/v1/events/${eventWithInfo.id}`))
+      expect(response.status).toBe(200)
+      const body = await response.json() as Record<string, unknown>
+
+      // SÍ contiene los campos públicos esperados
+      expect(body.id).toBe(eventWithInfo.id)
+      expect(body.name).toBe('Evento Público Detallado Con Info')
+      expect(body.description).toBeDefined()
+      expect(body.startsAt).toBeDefined()
+      expect(body.location).toBe('Auditorio Central UVG')
+      expect(body.maximumCapacity).toBe(50)
+      expect(body.status).toBe('PUBLICADO')
+      expect(body.additionalInformation).toBe('Se requiere bata de laboratorio y lentes protectores.')
+      expect(body.image).toEqual(expect.objectContaining({ id: imageId, originalName: 'banner.png' }))
+
+      // NO contiene campos administrativos, relaciones internas ni cupos dinámicos
+      expect(body.createdById).toBeUndefined()
+      expect(body.createdBy).toBeUndefined()
+      expect(body.createdAt).toBeUndefined()
+      expect(body.updatedAt).toBeUndefined()
+      expect(body.imageId).toBeUndefined()
+      expect(body.registrations).toBeUndefined()
+      expect(body.confirmedRegistrationsCount).toBeUndefined()
+      expect(body.availableCapacity).toBeUndefined()
+      expect(body.participants).toBeUndefined()
+
+      // Prueba additionalInformation null cuando no existe
+      const createdWithoutInfo = await app.handle(
+        request('/api/v1/admin/events', {
+          method: 'POST',
+          headers: adminHeaders,
+          body: JSON.stringify(
+            baseEventPayload('Evento Público Sin Info Adicional', {
+              status: 'PUBLICADO',
+              additionalInformation: null
+            })
+          )
+        })
+      )
+      const eventWithoutInfo = await createdWithoutInfo.json() as { id: number }
+      const resWithoutInfo = await app.handle(request(`/api/v1/events/${eventWithoutInfo.id}`))
+      expect(resWithoutInfo.status).toBe(200)
+      const bodyWithoutInfo = await resWithoutInfo.json() as Record<string, unknown>
+      expect(bodyWithoutInfo.additionalInformation).toBeNull()
+    })
+
+    it('GET /events/:id devuelve 404 para BORRADOR, FINALIZADO, CANCELADO, ARCHIVADO e inexistente, y 200 solo para PUBLICADO', async () => {
+      const pub = await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Pub-Check', { status: 'PUBLICADO' })) }))
+      const b = await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Draft-1', { status: 'BORRADOR' })) }))
+      const f = await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Final-1', { status: 'FINALIZADO' })) }))
+      const c = await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Cancel-1', { status: 'CANCELADO' })) }))
+      const a = await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Archive-1', { status: 'ARCHIVADO' })) }))
+      expect(pub.status).toBe(201)
+      expect(b.status).toBe(201)
+      expect(f.status).toBe(201)
+      expect(c.status).toBe(201)
+      expect(a.status).toBe(201)
+
+      const pubId = (await pub.json() as { id: number }).id
+      const pubRes = await app.handle(request(`/api/v1/events/${pubId}`))
+      expect(pubRes.status).toBe(200)
+
+      const nonPublishedCases = [
+        { status: 'BORRADOR', id: (await b.json() as { id: number }).id },
+        { status: 'FINALIZADO', id: (await f.json() as { id: number }).id },
+        { status: 'CANCELADO', id: (await c.json() as { id: number }).id },
+        { status: 'ARCHIVADO', id: (await a.json() as { id: number }).id },
+        { status: 'INEXISTENTE', id: 999999 }
+      ]
+
+      for (const item of nonPublishedCases) {
+        const res = await app.handle(request(`/api/v1/events/${item.id}`))
+        expect(res.status).toBe(404)
+        const err = await res.json() as { error: { code: string } }
+        expect(err.error.code).toBe('EVENT_NOT_FOUND')
+      }
+    })
+  })
 })
