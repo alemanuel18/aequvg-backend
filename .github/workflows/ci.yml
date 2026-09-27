@@ -58,3 +58,4 @@ jobs:
       - run: bun run test:integration:news
       - run: bun run test:integration:resources
       - run: bun run test:integration:events
+      - run: bun run test:integration:events:api

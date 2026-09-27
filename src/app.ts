@@ -3,6 +3,7 @@ import { openapi } from '@elysiajs/openapi'
 import { Elysia } from 'elysia'
 import { boardRoutes } from './modules/board/controllers/routes'
 import { contactRoutes } from './modules/contact/controllers/routes'
+import { eventsRoutes } from './modules/events/controllers/routes'
 import { institutionalRoutes } from './modules/institutional/controllers/routes'
 import { newsRoutes } from './modules/news/controllers/routes'
 import { projectRoutes } from './modules/projects/controllers/routes'
@@ -24,5 +25,6 @@ export const createApp = () => new Elysia()
   .use(newsRoutes)
   .use(resourceRoutes)
   .use(projectRoutes)
+  .use(eventsRoutes)
   .use(boardRoutes)
   .use(contactRoutes)
