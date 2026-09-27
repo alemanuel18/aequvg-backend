@@ -1,6 +1,7 @@
 import { ProjectRepository } from "../repositories/project.repository";
 import { ProjectStatus, ProjectType } from "@prisma/client";
 import { cleanText } from '../../../shared/utils/text'
+import { AppError } from '../../../shared/errors/app-error'
 
 export type ProjectListInput = {
 	search?: string
@@ -48,13 +49,13 @@ export class ProjectService {
 
 	static async getProjectById(id: number){
 		const project = await ProjectRepository.findById(id);
-		if (!project) throw new Error('PROYECTO_NO_ENCONTRADO');
+		if (!project) throw new AppError(404, 'PROJECT_NOT_FOUND', 'El proyecto no existe.')
 		return project;
 	}
 
 	static async createProject(data: any, authorId: number) {
 		const existingSlug = await ProjectRepository.findBySlug(data.slug);
-		if (existingSlug) throw new Error('SLUG_DUPLICADO');
+		if (existingSlug) throw new AppError(409, 'PROJECT_SLUG_EXISTS', 'Ya existe un proyecto con ese slug.')
 
 		return await ProjectRepository.create(data, authorId);
 	}

@@ -23,6 +23,10 @@ export const CreateProjectDTO = t.Object({
 
 export const UpdateProjectDTO = t.Partial(CreateProjectDTO);
 
+export const AdminCreateProjectDTO = t.Intersect([CreateProjectDTO, t.Object({
+	authorId: t.Integer({ minimum: 1 }),
+})]);
+
 export const ReviewProjectDTO = t.Object({
 	status: ProjectStatusEnum,
 	rejectionReason: t.Optional(t.String()),
@@ -38,3 +42,49 @@ export const projectListQuery = t.Object({
 	page: t.Optional(t.Numeric({ minimum: 1 })),
 	pageSize: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
 })
+
+export const projectIdParams = t.Object({ id: t.Integer({ minimum: 1 }) })
+
+export const projectErrorResponse = t.Object({ 
+	error: t.Object({
+		code: t.String(),
+		message: t.String(),
+		details: t.Optional(t.Record(t.String(), t.String())) }) 
+	})
+
+export const publicProjectResponse = t.Object({
+	id: t.Integer(),
+	title: t.String(),
+	slug: t.String(),
+	description: t.String(),
+	repositoryUrl: t.Nullable(t.String()),
+	liveUrl: t.Nullable(t.String()), 
+	type: ProjectTypeEnum, 
+	status: ProjectStatusEnum, 
+	createdAt: t.Date(),
+	author: t.Object({ id: t.Integer(), name: t.String() }),
+	coverImage: t.Nullable(t.Object({ id: t.Integer(), originalName: t.String(), storageKey: t.String() })),
+	})
+
+	export const projectListResponse = t.Object({
+		items: t.Array(publicProjectResponse),
+		pagination: t.Object({ page: t.Integer(), pageSize: t.Integer(), total: t.Integer(), totalPages: t.Integer() })
+		})
+
+	export const adminProjectResponse = t.Object({
+		id: t.Integer(),
+		authorId: t.Integer(), 
+		reviewerId: t.Nullable(t.Integer()), 
+		coverImageId: t.Nullable(t.Integer()), 
+		title: t.String(), slug: t.String(), 
+		description: t.String(), 
+		repositoryUrl: t.Nullable(t.String()), 
+		liveUrl: t.Nullable(t.String()), 
+		type: ProjectTypeEnum, 
+		status: ProjectStatusEnum, 
+		rejectionReason: t.Nullable(t.String()), 
+		reviewedAt: t.Nullable(t.Date()), 
+		createdAt: t.Date(), 
+		updatedAt: t.Date(),
+})
+	export const projectMessageResponse = t.Object({ message: t.String() })
