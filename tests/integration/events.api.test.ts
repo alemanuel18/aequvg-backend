@@ -734,6 +734,7 @@ describeDatabase('CRUD administrativo de eventos con PostgreSQL', () => {
       expect(body.startsAt).toBeDefined()
       expect(body.location).toBe('Auditorio Central UVG')
       expect(body.maximumCapacity).toBe(50)
+      expect(body.availableCapacity).toBe(50)
       expect(body.status).toBe('PUBLICADO')
       expect(body.additionalInformation).toBe('Se requiere bata de laboratorio y lentes protectores.')
       expect(body.image).toEqual(expect.objectContaining({ id: imageId, originalName: 'banner.png' }))
@@ -746,7 +747,6 @@ describeDatabase('CRUD administrativo de eventos con PostgreSQL', () => {
       expect(body.imageId).toBeUndefined()
       expect(body.registrations).toBeUndefined()
       expect(body.confirmedRegistrationsCount).toBeUndefined()
-      expect(body.availableCapacity).toBeUndefined()
       expect(body.participants).toBeUndefined()
 
       // Prueba additionalInformation null cuando no existe
@@ -799,6 +799,291 @@ describeDatabase('CRUD administrativo de eventos con PostgreSQL', () => {
         const err = await res.json() as { error: { code: string } }
         expect(err.error.code).toBe('EVENT_NOT_FOUND')
       }
+    })
+  })
+
+  describe('Disponibilidad de cupos en eventos públicos (SCRUM-129)', () => {
+    it('evento PUBLICADO sin inscripciones devuelve availableCapacity igual a maximumCapacity', async () => {
+      const created = await app.handle(
+        request('/api/v1/admin/events', {
+          method: 'POST',
+          headers: adminHeaders,
+          body: JSON.stringify(baseEventPayload('Evento Cupos Intactos', { status: 'PUBLICADO', maximumCapacity: 25 }))
+        })
+      )
+      const ev = await created.json() as { id: number }
+
+      const res = await app.handle(request(`/api/v1/events/${ev.id}`))
+      expect(res.status).toBe(200)
+      const body = await res.json() as { maximumCapacity: number; availableCapacity: number }
+      expect(body.maximumCapacity).toBe(25)
+      expect(body.availableCapacity).toBe(25)
+    })
+
+    it('inscripciones CONFIRMADA reducen la disponibilidad y CANCELADA no consume cupo (ej. 10 - 3 CONFIRMADA = 7)', async () => {
+      const created = await app.handle(
+        request('/api/v1/admin/events', {
+          method: 'POST',
+          headers: adminHeaders,
+          body: JSON.stringify(baseEventPayload('Evento Con Canceladas', { status: 'PUBLICADO', maximumCapacity: 10 }))
+        })
+      )
+      const ev = await created.json() as { id: number }
+
+      // 3 CONFIRMADA
+      for (let i = 1; i <= 3; i++) {
+        await prisma.eventRegistration.create({
+          data: {
+            eventId: ev.id,
+            fullName: `Confirmado ${i}`,
+            email: `${runId}-c${i}-${ev.id}@uvg.edu.gt`,
+            phone: `+502 5000 000${i}`,
+            status: 'CONFIRMADA',
+            consentedAt: new Date(),
+            privacyVersion: '1.0'
+          }
+        })
+      }
+
+      // 4 CANCELADA
+      for (let i = 1; i <= 4; i++) {
+        await prisma.eventRegistration.create({
+          data: {
+            eventId: ev.id,
+            fullName: `Cancelado ${i}`,
+            email: `${runId}-canc${i}-${ev.id}@uvg.edu.gt`,
+            phone: `+502 6000 000${i}`,
+            status: 'CANCELADA',
+            consentedAt: new Date(),
+            privacyVersion: '1.0'
+          }
+        })
+      }
+
+      const res = await app.handle(request(`/api/v1/events/${ev.id}`))
+      expect(res.status).toBe(200)
+      const body = await res.json() as { maximumCapacity: number; availableCapacity: number }
+      expect(body.maximumCapacity).toBe(10)
+      expect(body.availableCapacity).toBe(7)
+    })
+
+    it('evento con cupo lleno devuelve availableCapacity === 0', async () => {
+      const created = await app.handle(
+        request('/api/v1/admin/events', {
+          method: 'POST',
+          headers: adminHeaders,
+          body: JSON.stringify(baseEventPayload('Evento Lleno', { status: 'PUBLICADO', maximumCapacity: 2 }))
+        })
+      )
+      const ev = await created.json() as { id: number }
+
+      for (let i = 1; i <= 2; i++) {
+        await prisma.eventRegistration.create({
+          data: {
+            eventId: ev.id,
+            fullName: `Llenador ${i}`,
+            email: `${runId}-full${i}-${ev.id}@uvg.edu.gt`,
+            phone: `+502 7000 000${i}`,
+            status: 'CONFIRMADA',
+            consentedAt: new Date(),
+            privacyVersion: '1.0'
+          }
+        })
+      }
+
+      const res = await app.handle(request(`/api/v1/events/${ev.id}`))
+      expect(res.status).toBe(200)
+      const body = await res.json() as { maximumCapacity: number; availableCapacity: number }
+      expect(body.maximumCapacity).toBe(2)
+      expect(body.availableCapacity).toBe(0)
+    })
+
+    it('defensa: si confirmadas superan capacidad teórica, clamp a 0 sin números negativos', async () => {
+      const created = await app.handle(
+        request('/api/v1/admin/events', {
+          method: 'POST',
+          headers: adminHeaders,
+          body: JSON.stringify(baseEventPayload('Evento Clamp Defensivo', { status: 'PUBLICADO', maximumCapacity: 1 }))
+        })
+      )
+      const ev = await created.json() as { id: number }
+
+      // Insertar directamente 2 confirmadas para simular inconsistencia histórica en DB
+      for (let i = 1; i <= 2; i++) {
+        await prisma.eventRegistration.create({
+          data: {
+            eventId: ev.id,
+            fullName: `Over ${i}`,
+            email: `${runId}-over${i}-${ev.id}@uvg.edu.gt`,
+            phone: `+502 8000 000${i}`,
+            status: 'CONFIRMADA',
+            consentedAt: new Date(),
+            privacyVersion: '1.0'
+          }
+        })
+      }
+
+      const res = await app.handle(request(`/api/v1/events/${ev.id}`))
+      expect(res.status).toBe(200)
+      const body = await res.json() as { availableCapacity: number }
+      expect(body.availableCapacity).toBe(0)
+    })
+
+    it('listado público calcula disponibilidad en lote para varios eventos correctamente', async () => {
+      const ev1Res = await app.handle(
+        request('/api/v1/admin/events', {
+          method: 'POST',
+          headers: adminHeaders,
+          body: JSON.stringify(baseEventPayload('Evento Lote A', { status: 'PUBLICADO', maximumCapacity: 15 }))
+        })
+      )
+      const ev1 = await ev1Res.json() as { id: number }
+
+      const ev2Res = await app.handle(
+        request('/api/v1/admin/events', {
+          method: 'POST',
+          headers: adminHeaders,
+          body: JSON.stringify(baseEventPayload('Evento Lote B', { status: 'PUBLICADO', maximumCapacity: 20 }))
+        })
+      )
+      const ev2 = await ev2Res.json() as { id: number }
+
+      // 5 en ev1
+      for (let i = 1; i <= 5; i++) {
+        await prisma.eventRegistration.create({
+          data: {
+            eventId: ev1.id,
+            fullName: `Lote A ${i}`,
+            email: `${runId}-lotea${i}@uvg.edu.gt`,
+            phone: `+502 9100 000${i}`,
+            status: 'CONFIRMADA',
+            consentedAt: new Date(),
+            privacyVersion: '1.0'
+          }
+        })
+      }
+
+      // 8 en ev2
+      for (let i = 1; i <= 8; i++) {
+        await prisma.eventRegistration.create({
+          data: {
+            eventId: ev2.id,
+            fullName: `Lote B ${i}`,
+            email: `${runId}-loteb${i}@uvg.edu.gt`,
+            phone: `+502 9200 000${i}`,
+            status: 'CONFIRMADA',
+            consentedAt: new Date(),
+            privacyVersion: '1.0'
+          }
+        })
+      }
+
+      const listRes = await app.handle(request('/api/v1/events?pageSize=50'))
+      expect(listRes.status).toBe(200)
+      const listBody = await listRes.json() as { items: Array<{ id: number; availableCapacity: number; maximumCapacity: number }> }
+
+      const itemA = listBody.items.find(e => e.id === ev1.id)
+      const itemB = listBody.items.find(e => e.id === ev2.id)
+
+      expect(itemA).toBeDefined()
+      expect(itemA?.maximumCapacity).toBe(15)
+      expect(itemA?.availableCapacity).toBe(10) // 15 - 5
+
+      expect(itemB).toBeDefined()
+      expect(itemB?.maximumCapacity).toBe(20)
+      expect(itemB?.availableCapacity).toBe(12) // 20 - 8
+    })
+
+    it('evento PUBLICADO con fecha pasada mantiene disponibilidad matemática en el response', async () => {
+      const created = await app.handle(
+        request('/api/v1/admin/events', {
+          method: 'POST',
+          headers: adminHeaders,
+          body: JSON.stringify(baseEventPayload('Evento Pasado Disponible', {
+            status: 'PUBLICADO',
+            startsAt: '2020-01-01T10:00:00.000Z',
+            maximumCapacity: 30
+          }))
+        })
+      )
+      const ev = await created.json() as { id: number }
+
+      const res = await app.handle(request(`/api/v1/events/${ev.id}`))
+      expect(res.status).toBe(200)
+      const body = await res.json() as { startsAt: string; availableCapacity: number }
+      expect(new Date(body.startsAt).getTime()).toBeLessThan(Date.now())
+      expect(body.availableCapacity).toBe(30)
+    })
+
+    it('el response público no expone confirmedRegistrationsCount, registrations ni PII', async () => {
+      const created = await app.handle(
+        request('/api/v1/admin/events', {
+          method: 'POST',
+          headers: adminHeaders,
+          body: JSON.stringify(baseEventPayload('Evento Sin PII Ni Counts', { status: 'PUBLICADO', maximumCapacity: 10 }))
+        })
+      )
+      const ev = await created.json() as { id: number }
+
+      await prisma.eventRegistration.create({
+        data: {
+          eventId: ev.id,
+          fullName: 'Participante Oculto',
+          email: `${runId}-privado@uvg.edu.gt`,
+          phone: '+502 9999 0000',
+          status: 'CONFIRMADA',
+          consentedAt: new Date(),
+          privacyVersion: '1.0'
+        }
+      })
+
+      const res = await app.handle(request(`/api/v1/events/${ev.id}`))
+      expect(res.status).toBe(200)
+      const body = await res.json() as Record<string, unknown>
+
+      expect(body).toHaveProperty('availableCapacity', 9)
+      expect(body).not.toHaveProperty('confirmedRegistrationsCount')
+      expect(body).not.toHaveProperty('registrations')
+      expect(body).not.toHaveProperty('participants')
+      expect(body).not.toHaveProperty('fullName')
+      expect(body).not.toHaveProperty('email')
+      expect(body).not.toHaveProperty('phone')
+      expect(body).not.toHaveProperty('consentedAt')
+      expect(body).not.toHaveProperty('privacyVersion')
+    })
+
+    it('actualización derivada: GET -> confirmar registration -> GET -> availableCapacity disminuye', async () => {
+      const created = await app.handle(
+        request('/api/v1/admin/events', {
+          method: 'POST',
+          headers: adminHeaders,
+          body: JSON.stringify(baseEventPayload('Evento Actualización Derivada', { status: 'PUBLICADO', maximumCapacity: 5 }))
+        })
+      )
+      const ev = await created.json() as { id: number }
+
+      // 1. Primer GET: 5 disponibles
+      const res1 = await app.handle(request(`/api/v1/events/${ev.id}`))
+      const body1 = await res1.json() as { availableCapacity: number }
+      expect(body1.availableCapacity).toBe(5)
+
+      // 2. Registrar participante
+      await prisma.eventRegistration.create({
+        data: {
+          eventId: ev.id,
+          fullName: 'Nuevo Inscrito',
+          email: `${runId}-dinamico@uvg.edu.gt`,
+          phone: '+502 8888 1234',
+          status: 'CONFIRMADA',
+          consentedAt: new Date(),
+          privacyVersion: '1.0'
+        }
+      })
+
+      // 3. Segundo GET: 4 disponibles
+      const res2 = await app.handle(request(`/api/v1/events/${ev.id}`))
+      const body2 = await res2.json() as { availableCapacity: number }
+      expect(body2.availableCapacity).toBe(4)
     })
   })
 })
