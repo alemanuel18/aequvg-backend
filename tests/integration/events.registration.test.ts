@@ -661,4 +661,369 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
       expect(freshEvent.maximumCapacity).toBeGreaterThanOrEqual(confirmedCount)
     })
   })
+
+  describe('Consulta administrativa de participantes de eventos (SCRUM-128)', () => {
+    it('requiere autorización administrativa (401 si falta o es incorrecta)', async () => {
+      const event = await createEvent()
+
+      const noAuthRes = await app.handle(request(`/api/v1/admin/events/${event.id}/registrations`))
+      expect(noAuthRes.status).toBe(401)
+      const noAuthBody = (await noAuthRes.json()) as { error: { code: string } }
+      expect(noAuthBody.error.code).toBe('UNAUTHORIZED')
+
+      const badAuthRes = await app.handle(
+        request(`/api/v1/admin/events/${event.id}/registrations`, {
+          headers: { authorization: 'Bearer clave-invalida' }
+        })
+      )
+      expect(badAuthRes.status).toBe(401)
+      const badAuthBody = (await badAuthRes.json()) as { error: { code: string } }
+      expect(badAuthBody.error.code).toBe('UNAUTHORIZED')
+
+      const okRes = await app.handle(
+        request(`/api/v1/admin/events/${event.id}/registrations`, { headers: adminHeaders })
+      )
+      expect(okRes.status).toBe(200)
+    })
+
+    it('devuelve 404 EVENT_NOT_FOUND si el evento no existe', async () => {
+      const res = await app.handle(
+        request('/api/v1/admin/events/999999/registrations', { headers: adminHeaders })
+      )
+      expect(res.status).toBe(404)
+      const body = (await res.json()) as { error: { code: string } }
+      expect(body.error.code).toBe('EVENT_NOT_FOUND')
+    })
+
+    it('permite consultar participantes para eventos en cualquier estado (ej. CANCELADO o ARCHIVADO)', async () => {
+      const eventCancelled = await createEvent({ status: 'CANCELADO' })
+      await prisma.eventRegistration.create({
+        data: {
+          eventId: eventCancelled.id,
+          fullName: 'Participante Cancelado',
+          email: `${runId}-canc@uvg.edu.gt`,
+          phone: '+502 5555 9999',
+          status: 'CONFIRMADA',
+          consentedAt: new Date(),
+          privacyVersion: '1.0'
+        }
+      })
+
+      const res = await app.handle(
+        request(`/api/v1/admin/events/${eventCancelled.id}/registrations`, { headers: adminHeaders })
+      )
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as { items: Array<{ id: number; fullName: string }>; pagination: { total: number } }
+      expect(body.pagination.total).toBe(1)
+      expect(body.items[0]?.fullName).toBe('Participante Cancelado')
+    })
+
+    it('aísla los participantes por evento (no mezcla inscripciones de otros eventos)', async () => {
+      const eventA = await createEvent()
+      const eventB = await createEvent()
+
+      await prisma.eventRegistration.create({
+        data: {
+          eventId: eventA.id,
+          fullName: 'Participante de Evento A',
+          email: `${runId}-a@uvg.edu.gt`,
+          phone: '+502 1111 1111',
+          status: 'CONFIRMADA',
+          consentedAt: new Date(),
+          privacyVersion: '1.0'
+        }
+      })
+      await prisma.eventRegistration.create({
+        data: {
+          eventId: eventB.id,
+          fullName: 'Participante de Evento B',
+          email: `${runId}-b@uvg.edu.gt`,
+          phone: '+502 2222 2222',
+          status: 'CONFIRMADA',
+          consentedAt: new Date(),
+          privacyVersion: '1.0'
+        }
+      })
+
+      const resA = await app.handle(
+        request(`/api/v1/admin/events/${eventA.id}/registrations`, { headers: adminHeaders })
+      )
+      expect(resA.status).toBe(200)
+      const bodyA = (await resA.json()) as { items: Array<{ fullName: string }> }
+      expect(bodyA.items).toHaveLength(1)
+      expect(bodyA.items[0]?.fullName).toBe('Participante de Evento A')
+
+      const resB = await app.handle(
+        request(`/api/v1/admin/events/${eventB.id}/registrations`, { headers: adminHeaders })
+      )
+      expect(resB.status).toBe(200)
+      const bodyB = (await resB.json()) as { items: Array<{ fullName: string }> }
+      expect(bodyB.items).toHaveLength(1)
+      expect(bodyB.items[0]?.fullName).toBe('Participante de Evento B')
+    })
+
+    it('devuelve únicamente la PII operativa mínima y excluye eventId, consentedAt y privacyVersion', async () => {
+      const event = await createEvent()
+      await prisma.eventRegistration.create({
+        data: {
+          eventId: event.id,
+          fullName: 'Participante Mínimo',
+          email: `${runId}-min@uvg.edu.gt`,
+          phone: '+502 3333 3333',
+          status: 'CONFIRMADA',
+          consentedAt: new Date('2026-01-01T10:00:00Z'),
+          privacyVersion: 'vers-auditoria-99'
+        }
+      })
+
+      const res = await app.handle(
+        request(`/api/v1/admin/events/${event.id}/registrations`, { headers: adminHeaders })
+      )
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as { items: Array<Record<string, unknown>> }
+      expect(body.items).toHaveLength(1)
+      const item = body.items[0]!
+
+      // Campos esperados
+      expect(item).toHaveProperty('id')
+      expect(item.fullName).toBe('Participante Mínimo')
+      expect(item.email).toBe(`${runId}-min@uvg.edu.gt`)
+      expect(item.phone).toBe('+502 3333 3333')
+      expect(item.status).toBe('CONFIRMADA')
+      expect(item).toHaveProperty('registeredAt')
+
+      // Campos excluidos
+      expect(item).not.toHaveProperty('eventId')
+      expect(item).not.toHaveProperty('consentedAt')
+      expect(item).not.toHaveProperty('privacyVersion')
+      expect(Object.keys(item).sort()).toEqual(['email', 'fullName', 'id', 'phone', 'registeredAt', 'status'])
+    })
+
+    it('maneja el filtrado por status (CONFIRMADA, CANCELADA o todas por defecto)', async () => {
+      const event = await createEvent()
+      await prisma.eventRegistration.create({
+        data: {
+          eventId: event.id,
+          fullName: 'Asistente Confirmado',
+          email: `${runId}-conf@uvg.edu.gt`,
+          phone: '+502 4444 1111',
+          status: 'CONFIRMADA',
+          consentedAt: new Date(),
+          privacyVersion: '1.0'
+        }
+      })
+      await prisma.eventRegistration.create({
+        data: {
+          eventId: event.id,
+          fullName: 'Asistente Cancelado',
+          email: `${runId}-canc2@uvg.edu.gt`,
+          phone: '+502 4444 2222',
+          status: 'CANCELADA',
+          consentedAt: new Date(),
+          privacyVersion: '1.0'
+        }
+      })
+
+      // Sin status: devuelve todas
+      const allRes = await app.handle(
+        request(`/api/v1/admin/events/${event.id}/registrations`, { headers: adminHeaders })
+      )
+      expect(allRes.status).toBe(200)
+      const allBody = (await allRes.json()) as { items: Array<{ status: string }>; pagination: { total: number } }
+      expect(allBody.pagination.total).toBe(2)
+      expect(allBody.items.map(i => i.status).sort()).toEqual(['CANCELADA', 'CONFIRMADA'])
+
+      // status=CONFIRMADA
+      const confRes = await app.handle(
+        request(`/api/v1/admin/events/${event.id}/registrations?status=CONFIRMADA`, { headers: adminHeaders })
+      )
+      expect(confRes.status).toBe(200)
+      const confBody = (await confRes.json()) as { items: Array<{ status: string }>; pagination: { total: number } }
+      expect(confBody.pagination.total).toBe(1)
+      expect(confBody.items[0]?.status).toBe('CONFIRMADA')
+
+      // status=CANCELADA
+      const cancRes = await app.handle(
+        request(`/api/v1/admin/events/${event.id}/registrations?status=CANCELADA`, { headers: adminHeaders })
+      )
+      expect(cancRes.status).toBe(200)
+      const cancBody = (await cancRes.json()) as { items: Array<{ status: string }>; pagination: { total: number } }
+      expect(cancBody.pagination.total).toBe(1)
+      expect(cancBody.items[0]?.status).toBe('CANCELADA')
+
+      // status inválido -> 422
+      const invalidRes = await app.handle(
+        request(`/api/v1/admin/events/${event.id}/registrations?status=NO_EXISTE`, { headers: adminHeaders })
+      )
+      expect(invalidRes.status).toBe(422)
+    })
+
+    it('soporta búsqueda con q por fullName, email (insensible a mayúsculas CITEXT) y phone', async () => {
+      const event = await createEvent()
+      await prisma.eventRegistration.create({
+        data: {
+          eventId: event.id,
+          fullName: 'Carlos Rodrigo Mendoza',
+          email: `${runId}-carlos.mendoza@uvg.edu.gt`,
+          phone: '+502 5999 1234',
+          status: 'CONFIRMADA',
+          consentedAt: new Date(),
+          privacyVersion: '1.0'
+        }
+      })
+      await prisma.eventRegistration.create({
+        data: {
+          eventId: event.id,
+          fullName: 'María Andrea Castillo',
+          email: `${runId}-maria.castillo@uvg.edu.gt`,
+          phone: '+502 5888 5678',
+          status: 'CONFIRMADA',
+          consentedAt: new Date(),
+          privacyVersion: '1.0'
+        }
+      })
+
+      // Búsqueda por nombre
+      const nameRes = await app.handle(
+        request(`/api/v1/admin/events/${event.id}/registrations?q=rodrigo`, { headers: adminHeaders })
+      )
+      expect(nameRes.status).toBe(200)
+      const nameBody = (await nameRes.json()) as { items: Array<{ fullName: string }> }
+      expect(nameBody.items).toHaveLength(1)
+      expect(nameBody.items[0]?.fullName).toBe('Carlos Rodrigo Mendoza')
+
+      // Búsqueda por email con casing en mayúsculas (demostrando insensibilidad a mayúsculas con CITEXT)
+      const emailRes = await app.handle(
+        request(`/api/v1/admin/events/${event.id}/registrations?q=MARIA.CASTILLO`, { headers: adminHeaders })
+      )
+      expect(emailRes.status).toBe(200)
+      const emailBody = (await emailRes.json()) as { items: Array<{ fullName: string }> }
+      expect(emailBody.items).toHaveLength(1)
+      expect(emailBody.items[0]?.fullName).toBe('María Andrea Castillo')
+
+      // Búsqueda por teléfono
+      const phoneRes = await app.handle(
+        request(`/api/v1/admin/events/${event.id}/registrations?q=5999`, { headers: adminHeaders })
+      )
+      expect(phoneRes.status).toBe(200)
+      const phoneBody = (await phoneRes.json()) as { items: Array<{ fullName: string }> }
+      expect(phoneBody.items).toHaveLength(1)
+      expect(phoneBody.items[0]?.fullName).toBe('Carlos Rodrigo Mendoza')
+
+      // Búsqueda sin coincidencias
+      const emptyRes = await app.handle(
+        request(`/api/v1/admin/events/${event.id}/registrations?q=inexistente`, { headers: adminHeaders })
+      )
+      expect(emptyRes.status).toBe(200)
+      const emptyBody = (await emptyRes.json()) as { items: unknown[]; pagination: { total: number } }
+      expect(emptyBody.items).toHaveLength(0)
+      expect(emptyBody.pagination.total).toBe(0)
+    })
+
+    it('maneja paginación determinista (page, pageSize, total y orden registrado desc, id desc)', async () => {
+      const event = await createEvent()
+      // Crear 3 registros con marcas de tiempo explícitas
+      const reg1 = await prisma.eventRegistration.create({
+        data: {
+          eventId: event.id,
+          fullName: 'Primero',
+          email: `${runId}-p1@uvg.edu.gt`,
+          phone: '+502 5111 0001',
+          status: 'CONFIRMADA',
+          consentedAt: new Date(),
+          privacyVersion: '1.0',
+          registeredAt: new Date('2026-03-01T10:00:00Z')
+        }
+      })
+      const reg2 = await prisma.eventRegistration.create({
+        data: {
+          eventId: event.id,
+          fullName: 'Segundo',
+          email: `${runId}-p2@uvg.edu.gt`,
+          phone: '+502 5111 0002',
+          status: 'CONFIRMADA',
+          consentedAt: new Date(),
+          privacyVersion: '1.0',
+          registeredAt: new Date('2026-03-01T12:00:00Z')
+        }
+      })
+      const reg3 = await prisma.eventRegistration.create({
+        data: {
+          eventId: event.id,
+          fullName: 'Tercero',
+          email: `${runId}-p3@uvg.edu.gt`,
+          phone: '+502 5111 0003',
+          status: 'CONFIRMADA',
+          consentedAt: new Date(),
+          privacyVersion: '1.0',
+          registeredAt: new Date('2026-03-01T14:00:00Z')
+        }
+      })
+
+      // Primera página con pageSize=2
+      const page1Res = await app.handle(
+        request(`/api/v1/admin/events/${event.id}/registrations?page=1&pageSize=2`, { headers: adminHeaders })
+      )
+      expect(page1Res.status).toBe(200)
+      const page1Body = (await page1Res.json()) as { items: Array<{ id: number; fullName: string }>; pagination: { page: number; pageSize: number; total: number } }
+      expect(page1Body.pagination).toEqual({ page: 1, pageSize: 2, total: 3 })
+      expect(page1Body.items).toHaveLength(2)
+      // Orden DESC: Tercero (más reciente), luego Segundo
+      expect(page1Body.items[0]?.id).toBe(reg3.id)
+      expect(page1Body.items[1]?.id).toBe(reg2.id)
+
+      // Segunda página con pageSize=2
+      const page2Res = await app.handle(
+        request(`/api/v1/admin/events/${event.id}/registrations?page=2&pageSize=2`, { headers: adminHeaders })
+      )
+      expect(page2Res.status).toBe(200)
+      const page2Body = (await page2Res.json()) as { items: Array<{ id: number; fullName: string }>; pagination: { page: number; pageSize: number; total: number } }
+      expect(page2Body.pagination).toEqual({ page: 2, pageSize: 2, total: 3 })
+      expect(page2Body.items).toHaveLength(1)
+      expect(page2Body.items[0]?.id).toBe(reg1.id)
+
+      // Validación de límites: page=0 inválido
+      const invalidPageRes = await app.handle(
+        request(`/api/v1/admin/events/${event.id}/registrations?page=0`, { headers: adminHeaders })
+      )
+      expect(invalidPageRes.status).toBe(422)
+
+      // Validación de límites: pageSize > 100 inválido
+      const invalidSizeRes = await app.handle(
+        request(`/api/v1/admin/events/${event.id}/registrations?pageSize=101`, { headers: adminHeaders })
+      )
+      expect(invalidSizeRes.status).toBe(422)
+    })
+
+    it('regresión de privacidad: el endpoint público POST /events/:id/registrations sigue sin PII', async () => {
+      const event = await createEvent({ maximumCapacity: 10 })
+      const regRes = await app.handle(
+        request(`/api/v1/events/${event.id}/registrations`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-forwarded-for': '172.16.5.1' },
+          body: JSON.stringify(baseRegistrationPayload({
+            fullName: 'Participante Secreto',
+            email: `${runId}-regresion@uvg.edu.gt`,
+            phone: '+502 9999 8888'
+          }))
+        })
+      )
+      expect(regRes.status).toBe(201)
+      const regBody = (await regRes.json()) as Record<string, unknown>
+
+      // SÍ contiene los 4 campos públicos autorizados
+      expect(regBody).toHaveProperty('id')
+      expect(regBody.eventId).toBe(event.id)
+      expect(regBody.status).toBe('CONFIRMADA')
+      expect(regBody).toHaveProperty('registeredAt')
+
+      // NO contiene PII ni metadatos de auditoría
+      expect(regBody).not.toHaveProperty('fullName')
+      expect(regBody).not.toHaveProperty('email')
+      expect(regBody).not.toHaveProperty('phone')
+      expect(regBody).not.toHaveProperty('consentedAt')
+      expect(regBody).not.toHaveProperty('privacyVersion')
+      expect(Object.keys(regBody).sort()).toEqual(['eventId', 'id', 'registeredAt', 'status'])
+    })
+  })
 })
