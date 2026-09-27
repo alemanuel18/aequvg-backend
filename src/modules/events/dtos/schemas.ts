@@ -92,3 +92,5 @@ export const eventErrorResponse = t.Object({
     message: t.String()
   })
 })
+
+export * from './registration-schemas'
