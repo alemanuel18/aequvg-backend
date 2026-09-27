@@ -1,11 +1,11 @@
 import { ProjectRepository } from "../repositories/project.repository";
-import { ProjectStatus } from "@prisma/client";
+import { ProjectStatus, ProjectType } from "@prisma/client";
 import { cleanText } from '../../../shared/utils/text'
 
 export type ProjectListInput = {
 	search?: string
 	year?: number
-	type?: ProjectStatus
+	type?: ProjectType
 	sortBy?: 'createdAt' | 'title' | 'author'
 	sortOrder?: 'asc' | 'desc'
 	page?: number
@@ -25,14 +25,10 @@ export const normalizeProjectListQuery = (input: ProjectListInput) => ({
 export class ProjectService {
 	static async getFilteredProjects(input: ProjectListInput) {
 		const query = normalizeProjectListQuery(input)
-		// El catálogo público nunca revela proyectos pendientes o rechazados.
-		if (query.type && query.type !== ProjectStatus.APROBADO) {
-			return { items: [], pagination: { page: query.page, pageSize: query.pageSize, total: 0, totalPages: 0 } }
-		}
-
 		const [items, total] = await ProjectRepository.findPublicPage({
 			search: query.search,
 			year: query.year,
+			type: query.type,
 			sortBy: query.sortBy,
 			sortOrder: query.sortOrder,
 			skip: (query.page - 1) * query.pageSize,

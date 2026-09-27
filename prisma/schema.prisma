@@ -169,6 +169,12 @@ enum ProjectStatus {
 	@@map("estado_proyecto")
 }
 
+enum ProjectType {
+	TESIS
+	PROYECTO
+	@@map("tipo_proyecto")
+}
+
 model Project {
   id              Int           @id @default(autoincrement()) @map("id_proyecto")
   authorId        Int           @map("id_autor")
@@ -179,6 +185,7 @@ model Project {
   description     String        @map("descripcion") @db.Text
   repositoryUrl   String?       @map("url_repositorio") @db.VarChar(2048)
   liveUrl         String?       @map("url_demo") @db.VarChar(2048)
+  type            ProjectType   @map("tipo")
   status          ProjectStatus @default(EN_REVISION) @map("estado")
   rejectionReason String?       @map("motivo_rechazo") @db.Text
   reviewedAt      DateTime?     @map("revisado_en") @db.Timestamptz(3)
@@ -192,6 +199,7 @@ model Project {
 
   // Índices 
   @@index([status, createdAt])
+  @@index([status, type, createdAt])
   @@index([authorId])
   @@index([reviewerId])
   @@index([coverImageId])

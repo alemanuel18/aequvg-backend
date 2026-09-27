@@ -56,9 +56,9 @@ describe('contrato HTTP base', () => {
     expect(await response.json()).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'Revisa los datos enviados.' } })
   })
 
-  it('no revela proyectos no aprobados mediante el filtro type', async () => {
-    const response = await app.handle(new Request('http://localhost/api/v1/projects?type=EN_REVISION&page=2&pageSize=5'))
-    expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ items: [], pagination: { page: 2, pageSize: 5, total: 0, totalPages: 0 } })
+  it('valida el tipo del catálogo de proyectos', async () => {
+    const response = await app.handle(new Request('http://localhost/api/v1/projects?type=EN_REVISION'))
+    expect(response.status).toBe(422)
+    expect(await response.json()).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'Revisa los datos enviados.' } })
   })
 })

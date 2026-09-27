@@ -1,9 +1,10 @@
-import { Prisma, ProjectStatus } from '@prisma/client'
+import { Prisma, ProjectStatus, ProjectType } from '@prisma/client'
 import { prisma } from '../../../shared/database/prisma'
 
 export type PublicProjectListOptions = {
 	search?: string
 	year?: number
+	type?: ProjectType
 	sortBy: 'createdAt' | 'title' | 'author'
 	sortOrder: Prisma.SortOrder
 	skip: number
@@ -20,6 +21,8 @@ export class ProjectRepository {
 				lt: new Date(Date.UTC(options.year + 1, 0, 1)),
 			}
 		}
+
+		if (options.type) where.type = options.type
 
 		if (options.search) {
 			where.OR = [
@@ -45,6 +48,7 @@ export class ProjectRepository {
 					description: true,
 					repositoryUrl: true,
 					liveUrl: true,
+					type: true,
 					status: true,
 					createdAt: true,
 					author: { select: { id: true, name: true } },

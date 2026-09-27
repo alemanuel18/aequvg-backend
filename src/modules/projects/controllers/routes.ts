@@ -8,6 +8,6 @@ export const projectRoutes = new Elysia({ prefix: '/api/v1' })
     detail: {
       tags: ['Proyectos'],
       summary: 'Lista proyectos aprobados con búsqueda, filtros, orden y paginación',
-      description: 'year filtra el año UTC de creación y type corresponde al estado del proyecto. El catálogo público solo muestra proyectos APROBADO.',
+      description: 'year filtra el año UTC de creación y type corresponde a la categoría TESIS o PROYECTO. El catálogo público solo muestra proyectos APROBADO.',
     },
   })
