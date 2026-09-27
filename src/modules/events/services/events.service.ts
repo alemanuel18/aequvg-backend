@@ -100,6 +100,14 @@ const buildUpdateData = (input: EventUpdateInput): Prisma.EventUncheckedUpdateIn
   return data
 }
 
+const withAvailableCapacity = <T extends { id: number; maximumCapacity: number }>(
+  event: T,
+  confirmedCount: number
+): T & { availableCapacity: number } => ({
+  ...event,
+  availableCapacity: Math.max(0, event.maximumCapacity - confirmedCount)
+})
+
 export const eventsService = {
   async publicList(query: EventPublicQuery) {
     const page = query.page ?? 1
@@ -109,17 +117,31 @@ export const eventsService = {
       page,
       pageSize
     }
-    const [items, total] = await Promise.all([
+    const [events, total] = await Promise.all([
       eventsRepository.publicList(filters),
       eventsRepository.publicCount(filters)
     ])
+
+    if (events.length === 0) {
+      return { items: [], pagination: { page, pageSize, total } }
+    }
+
+    const eventIds = events.map((e) => e.id)
+    const countMap = await eventsRepository.countConfirmedByEventIds(eventIds)
+
+    const items = events.map((event) =>
+      withAvailableCapacity(event, countMap.get(event.id) ?? 0)
+    )
+
     return { items, pagination: { page, pageSize, total } }
   },
 
   async publicById(id: number) {
     const event = await eventsRepository.findPublicById(id)
     if (!event) throw notFound()
-    return event
+
+    const countMap = await eventsRepository.countConfirmedByEventIds([id])
+    return withAvailableCapacity(event, countMap.get(id) ?? 0)
   },
 
   async adminList(query: EventQuery) {

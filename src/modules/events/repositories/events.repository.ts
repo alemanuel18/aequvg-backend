@@ -84,5 +84,17 @@ export const eventsRepository = {
   findImage: (id: number) => prisma.file.findUnique({ where: { id }, select: { id: true, mimeType: true } }),
   countRegistrations: (eventId: number) => prisma.eventRegistration.count({ where: { eventId } }),
   countConfirmedRegistrations: (eventId: number) =>
-    prisma.eventRegistration.count({ where: { eventId, status: 'CONFIRMADA' } })
+    prisma.eventRegistration.count({ where: { eventId, status: 'CONFIRMADA' } }),
+  countConfirmedByEventIds: async (eventIds: number[]): Promise<Map<number, number>> => {
+    if (eventIds.length === 0) return new Map()
+    const groups = await prisma.eventRegistration.groupBy({
+      by: ['eventId'],
+      where: {
+        eventId: { in: eventIds },
+        status: 'CONFIRMADA'
+      },
+      _count: { _all: true }
+    })
+    return new Map(groups.map((g) => [g.eventId, g._count._all]))
+  }
 }
