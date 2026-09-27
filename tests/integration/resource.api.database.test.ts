@@ -81,7 +81,7 @@ describeDatabase('CRUD HTTP de recursos con PostgreSQL', () => {
     resourceId = 0
   })
 
-  it('rechaza destinos faltantes, categorías inactivas y accesos sin autorización', async () => {
+  it('rechaza destinos, enlaces, archivos y categorías inválidos', async () => {
     const app = createApp()
     const unauthorized = await app.handle(request('/api/v1/admin/resources'))
     expect(unauthorized.status).toBe(401)
@@ -97,5 +97,41 @@ describeDatabase('CRUD HTTP de recursos con PostgreSQL', () => {
     }))
     expect(inactiveCategory.status).toBe(422)
     expect((await inactiveCategory.json() as { error: { code: string } }).error.code).toBe('INVALID_RESOURCE_CATEGORY')
+
+    const invalidFile = await app.handle(request('/api/v1/admin/resources', {
+      method: 'POST', headers: adminHeaders, body: JSON.stringify(bodyFor('Archivo inexistente', { fileId: 999999 }))
+    }))
+    expect(invalidFile.status).toBe(422)
+    expect((await invalidFile.json() as { error: { code: string } }).error.code).toBe('INVALID_RESOURCE_FILE')
+
+    const duplicateLinks = await app.handle(request('/api/v1/admin/resources', {
+      method: 'POST', headers: adminHeaders,
+      body: JSON.stringify(bodyFor('Enlaces repetidos', { links: [{ label: 'Uno', url: 'https://example.org/duplicado' }, { label: 'Dos', url: 'https://example.org/duplicado' }] }))
+    }))
+    expect(duplicateLinks.status).toBe(422)
+    expect((await duplicateLinks.json() as { error: { code: string } }).error.code).toBe('DUPLICATE_RESOURCE_LINK')
+
+    const invalidLink = await app.handle(request('/api/v1/admin/resources', {
+      method: 'POST', headers: adminHeaders, body: JSON.stringify(bodyFor('Enlace inválido', { links: [{ label: 'FTP', url: 'ftp://example.org/recurso' }] }))
+    }))
+    expect(invalidLink.status).toBe(422)
+    expect((await app.handle(request('/api/v1/resources/999999'))).status).toBe(404)
+  })
+
+  it('filtra, pagina y excluye recursos programados de la consulta pública', async () => {
+    const app = createApp()
+    const alpha = await app.handle(request('/api/v1/admin/resources', { method: 'POST', headers: adminHeaders, body: JSON.stringify(bodyFor('Documentación alfa')) }))
+    const beta = await app.handle(request('/api/v1/admin/resources', { method: 'POST', headers: adminHeaders, body: JSON.stringify(bodyFor('Documentación beta')) }))
+    const future = await app.handle(request('/api/v1/admin/resources', { method: 'POST', headers: adminHeaders, body: JSON.stringify(bodyFor('Documentación programada', { publishedAt: '2099-01-01T00:00:00.000Z' })) }))
+    expect([alpha.status, beta.status, future.status]).toEqual([201, 201, 201])
+
+    const page = await app.handle(request(`/api/v1/resources?q=documentación&categoryId=${categoryId}&page=1&pageSize=1`))
+    expect(page.status).toBe(200)
+    const listed = await page.json() as { items: { title: string }[]; pagination: { page: number; pageSize: number; total: number } }
+    expect(listed.items).toHaveLength(1)
+    expect(listed.pagination).toEqual({ page: 1, pageSize: 1, total: 2 })
+
+    const admin = await app.handle(request('/api/v1/admin/resources?status=PUBLICADO&q=programada', { headers: adminHeaders }))
+    expect((await admin.json() as { items: { title: string }[] }).items.map(item => item.title)).toContain('Documentación programada')
   })
 })

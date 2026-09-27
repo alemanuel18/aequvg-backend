@@ -48,9 +48,14 @@ describe('contrato HTTP base', () => {
     const response = await app.handle(new Request('http://localhost/openapi/json'))
     expect(response.status).toBe(200)
     const document = await response.json() as { paths: Record<string, Record<string, { responses: Record<string, unknown> }>> }
+    expect(document.paths['/api/v1/resources/categories']?.get?.responses['200']).toBeTruthy()
     expect(document.paths['/api/v1/resources']?.get?.responses['200']).toBeTruthy()
-    expect(document.paths['/api/v1/admin/resources']?.post?.responses['201']).toBeTruthy()
     expect(document.paths['/api/v1/resources/{id}']?.get?.responses['404']).toBeTruthy()
+    expect(document.paths['/api/v1/admin/resources']?.get?.responses['200']).toBeTruthy()
+    expect(document.paths['/api/v1/admin/resources']?.post?.responses['201']).toBeTruthy()
+    expect(document.paths['/api/v1/admin/resources/{id}']?.put?.responses['422']).toBeTruthy()
+    expect(document.paths['/api/v1/admin/resources/{id}/archive']?.patch?.responses['200']).toBeTruthy()
+    expect(document.paths['/api/v1/admin/resources/{id}']?.delete?.responses['404']).toBeTruthy()
   })
 
   it('devuelve un error público estable cuando el cuerpo no es válido', async () => {

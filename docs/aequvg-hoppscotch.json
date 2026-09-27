@@ -32,6 +32,34 @@
         { "v": "1", "name": "Archivar noticia", "method": "PATCH", "endpoint": "<<baseUrl>>/admin/news/1/archive", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
         { "v": "1", "name": "Eliminar noticia", "method": "DELETE", "endpoint": "<<baseUrl>>/admin/news/1", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } }
       ]
+    },
+    {
+      "v": 3,
+      "name": "Público - Recursos",
+      "folders": [],
+      "requests": [
+        { "v": "1", "name": "Categorías de recursos", "method": "GET", "endpoint": "<<baseUrl>>/resources/categories", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
+        { "v": "1", "name": "Buscar recursos", "method": "GET", "endpoint": "<<baseUrl>>/resources?q=seguridad&categoryId=1&page=1&pageSize=20", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
+        { "v": "1", "name": "Detalle de recurso", "method": "GET", "endpoint": "<<baseUrl>>/resources/1", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
+        { "v": "1", "name": "Recurso inexistente (404)", "method": "GET", "endpoint": "<<baseUrl>>/resources/999999", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } }
+      ]
+    },
+    {
+      "v": 3,
+      "name": "Administración - Recursos",
+      "folders": [],
+      "requests": [
+        { "v": "1", "name": "Listar recursos", "method": "GET", "endpoint": "<<baseUrl>>/admin/resources?status=PUBLICADO&page=1&pageSize=20", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
+        { "v": "1", "name": "Administración sin credencial (401)", "method": "GET", "endpoint": "<<baseUrl>>/admin/resources", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
+        { "v": "1", "name": "Consultar recurso", "method": "GET", "endpoint": "<<baseUrl>>/admin/resources/1", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
+        { "v": "1", "name": "Crear recurso con archivo y enlace", "method": "POST", "endpoint": "<<baseUrl>>/admin/resources", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"createdById\": 1,\n  \"categoryId\": 1,\n  \"fileId\": 1,\n  \"title\": \"Guía de laboratorio\",\n  \"description\": \"Guía disponible para consulta desde el catálogo público.\",\n  \"status\": \"PUBLICADO\",\n  \"links\": [{ \"label\": \"Sitio UVG\", \"url\": \"https://www.uvg.edu.gt/\", \"displayOrder\": 1 }]\n}" } },
+        { "v": "1", "name": "Crear recurso sin destino (422)", "method": "POST", "endpoint": "<<baseUrl>>/admin/resources", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"createdById\": 1,\n  \"categoryId\": 1,\n  \"title\": \"Recurso inválido\",\n  \"description\": \"No tiene archivo ni enlace para su publicación.\",\n  \"status\": \"PUBLICADO\",\n  \"links\": []\n}" } },
+        { "v": "1", "name": "Crear recurso con archivo inexistente (422)", "method": "POST", "endpoint": "<<baseUrl>>/admin/resources", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"createdById\": 1,\n  \"categoryId\": 1,\n  \"fileId\": 999999,\n  \"title\": \"Archivo inexistente\",\n  \"description\": \"Debe devolver INVALID_RESOURCE_FILE.\",\n  \"status\": \"PUBLICADO\"\n}" } },
+        { "v": "1", "name": "Crear recurso con URL inválida (422)", "method": "POST", "endpoint": "<<baseUrl>>/admin/resources", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"createdById\": 1,\n  \"categoryId\": 1,\n  \"fileId\": 1,\n  \"title\": \"URL inválida\",\n  \"description\": \"Debe devolver VALIDATION_ERROR.\",\n  \"status\": \"PUBLICADO\",\n  \"links\": [{ \"label\": \"Enlace no permitido\", \"url\": \"ftp://example.org/archivo\" }]\n}" } },
+        { "v": "1", "name": "Actualizar enlaces de recurso", "method": "PUT", "endpoint": "<<baseUrl>>/admin/resources/1", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"links\": [{ \"label\": \"Referencia actualizada\", \"url\": \"https://www.uvg.edu.gt/\" }]\n}" } },
+        { "v": "1", "name": "Archivar recurso", "method": "PATCH", "endpoint": "<<baseUrl>>/admin/resources/1/archive", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
+        { "v": "1", "name": "Eliminar recurso", "method": "DELETE", "endpoint": "<<baseUrl>>/admin/resources/1", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } }
+      ]
     }
   ],
   "requests": [],
