@@ -55,6 +55,7 @@ export const eventPublicResponse = t.Object({
   startsAt: t.Date(),
   location: t.String(),
   maximumCapacity: t.Integer(),
+  availableCapacity: t.Integer({ minimum: 0 }),
   additionalInformation: t.Nullable(t.String()),
   status: eventStatus,
   image: t.Nullable(t.Object({ id: t.Integer(), originalName: t.String(), mimeType: t.String() }))
