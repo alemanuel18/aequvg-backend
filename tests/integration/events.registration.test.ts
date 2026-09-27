@@ -660,6 +660,49 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
       })
       expect(freshEvent.maximumCapacity).toBeGreaterThanOrEqual(confirmedCount)
     })
+
+    it('Caso 5: Operaciones concurrentes sobre eventos distintos mantienen independencia de bloqueos', async () => {
+      const eventA = await createEvent({ maximumCapacity: 1, name: 'Evento A Concurrente' })
+      const eventB = await createEvent({ maximumCapacity: 1, name: 'Evento B Concurrente' })
+
+      const [resA, resB] = await Promise.all([
+        app.handle(
+          request(`/api/v1/events/${eventA.id}/registrations`, {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'x-forwarded-for': '172.16.5.1'
+            },
+            body: JSON.stringify(baseRegistrationPayload({ email: `${runId}-event-a@uvg.edu.gt` }))
+          })
+        ),
+        app.handle(
+          request(`/api/v1/events/${eventB.id}/registrations`, {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'x-forwarded-for': '172.16.5.2'
+            },
+            body: JSON.stringify(baseRegistrationPayload({ email: `${runId}-event-b@uvg.edu.gt` }))
+          })
+        )
+      ])
+
+      expect(resA.status).toBe(201)
+      expect(resB.status).toBe(201)
+
+      const [countA, countB] = await Promise.all([
+        prisma.eventRegistration.count({
+          where: { eventId: eventA.id, status: 'CONFIRMADA' }
+        }),
+        prisma.eventRegistration.count({
+          where: { eventId: eventB.id, status: 'CONFIRMADA' }
+        })
+      ])
+
+      expect(countA).toBe(1)
+      expect(countB).toBe(1)
+    })
   })
 
   describe('Consulta administrativa de participantes de eventos (SCRUM-128)', () => {
