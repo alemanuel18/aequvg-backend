@@ -67,7 +67,7 @@ export const eventsRoutes = new Elysia({ prefix: '/api/v1' })
   }, {
     params: idParams,
     response: { 200: eventResponse, 401: eventErrorResponse, 404: eventErrorResponse, 503: eventErrorResponse },
-    detail: { tags: ['Administración'], summary: 'Consulta un evento administrativo' }
+    detail: { tags: ['Administración'], summary: 'Consulta un evento administrativo', description: 'Devuelve un evento administrativo por ID independientemente de su estado. Requiere Authorization: Bearer <ADMIN_API_KEY>.' }
   })
   .get('/admin/events/:id/registrations', ({ headers, params, query }) => {
     requireAdmin(headers.authorization)
