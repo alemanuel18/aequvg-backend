@@ -1,12 +1,14 @@
 import {Elysia, t} from 'elysia';
 import { ProjectService } from '../services/project.service';
-import { CreateProjectDTO, UpdateProjectDTO, ReviewProjectDTO } from '../dtos/project.dto';
+import { CreateProjectDTO, UpdateProjectDTO, ReviewProjectDTO, projectListQuery } from '../dtos/project.dto';
 import { ProjectStatus } from '@prisma/client';
 
 export const projectController =  new Elysia({prefix: '/projects'})
 
-	.get('/', async () => {
-		return await ProjectService.getAllProjects();
+	.get('/', async ({ query }) => {
+		return await ProjectService.getFilteredProjects(query);
+	}, {
+		query: projectListQuery,
 	})
 
 	.get('/aproved', async () => {

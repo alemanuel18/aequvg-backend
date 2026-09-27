@@ -44,7 +44,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: ["sh", "-c", "bun run migrate:deploy && bun run db:seed && bun run dev"]
+    command: ["sh", "-c", "bun run prisma:generate && bun run migrate:deploy && bun run db:seed && bun run dev"]
 
 volumes:
   postgres_data:

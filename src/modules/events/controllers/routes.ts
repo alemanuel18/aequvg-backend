@@ -88,6 +88,25 @@ export const eventsRoutes = new Elysia({ prefix: '/api/v1' })
       description: 'Lista paginada de inscripciones con PII operativa para la administración de eventos. Requiere Authorization: Bearer <ADMIN_API_KEY>.'
     }
   })
+  .get('/admin/events/:id/registrations', ({ headers, params, query }) => {
+    requireAdmin(headers.authorization)
+    return eventRegistrationsService.adminList(params.id, query)
+  }, {
+    params: idParams,
+    query: eventRegistrationAdminQuery,
+    response: {
+      200: eventRegistrationAdminListResponse,
+      401: eventErrorResponse,
+      404: eventErrorResponse,
+      422: eventErrorResponse,
+      503: eventErrorResponse
+    },
+    detail: {
+      tags: ['Administración'],
+      summary: 'Consulta participantes de un evento',
+      description: 'Lista paginada de inscripciones con PII operativa para la administración de eventos. Requiere Authorization: Bearer <ADMIN_API_KEY>.'
+    }
+  })
   .post('/admin/events', ({ headers, body, set }) => {
     requireAdmin(headers.authorization)
     set.status = 201
