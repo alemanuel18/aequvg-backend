@@ -15,6 +15,7 @@
     "test:integration:resources": "RESOURCE_DATABASE_TEST=true vitest run tests/integration/resource.database.test.ts tests/integration/resource.api.database.test.ts",
     "test:integration:events": "EVENTS_DATABASE_TEST=true vitest run tests/integration/events.database.test.ts",
     "test:integration:events:api": "EVENTS_DATABASE_TEST=true vitest run tests/integration/events.api.test.ts",
+    "test:integration:events:registration": "EVENTS_DATABASE_TEST=true vitest run tests/integration/events.registration.test.ts",
     "prisma:generate": "prisma generate",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",

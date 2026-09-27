@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia'
 import { requireAdmin } from '../../../middleware/admin'
+import { enforceRateLimit } from '../../../middleware/rate-limit'
 import {
   eventAdminQuery,
   eventCreateBody,
@@ -8,10 +9,13 @@ import {
   eventPublicListResponse,
   eventPublicQuery,
   eventPublicResponse,
+  eventRegistrationBody,
+  eventRegistrationResponse,
   eventResponse,
   eventUpdateBody,
   idParams
 } from '../dtos/schemas'
+import { eventRegistrationsService } from '../services/event-registrations.service'
 import { eventsService } from '../services/events.service'
 
 export const eventsRoutes = new Elysia({ prefix: '/api/v1' })
@@ -24,6 +28,28 @@ export const eventsRoutes = new Elysia({ prefix: '/api/v1' })
     params: idParams,
     response: { 200: eventPublicResponse, 404: eventErrorResponse, 503: eventErrorResponse },
     detail: { tags: ['Eventos'], summary: 'Consulta un evento público activo', description: 'Devuelve información pública de eventos con estado PUBLICADO. Eventos no publicados o inexistentes devuelven 404.' }
+  })
+  .post('/events/:id/registrations', ({ headers, params, body, set }) => {
+    enforceRateLimit(headers['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown')
+    set.status = 201
+    return eventRegistrationsService.register(params.id, body)
+  }, {
+    params: idParams,
+    body: eventRegistrationBody,
+    response: {
+      201: eventRegistrationResponse,
+      400: eventErrorResponse,
+      404: eventErrorResponse,
+      409: eventErrorResponse,
+      422: eventErrorResponse,
+      429: eventErrorResponse,
+      503: eventErrorResponse
+    },
+    detail: {
+      tags: ['Eventos'],
+      summary: 'Inscribe un participante a un evento público',
+      description: 'Inscripción pública con control atómico de cupos y aceptación de política de privacidad.'
+    }
   })
   .get('/admin/events', ({ headers, query }) => {
     requireAdmin(headers.authorization)
