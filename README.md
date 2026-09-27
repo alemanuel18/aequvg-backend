@@ -79,6 +79,80 @@ GitHub Actions ejecuta esa misma prueba contra PostgreSQL 16 en cada pull reques
 La respuesta contiene `{ items, pagination: { page, pageSize, total, totalPages } }`. La búsqueda parcial se apoya en índices trigram de PostgreSQL sobre título y nombre de autor; el filtro de estado y fecha usa el índice compuesto existente.
 >>>>>>> Stashed changes
 
+## Persistencia de eventos e inscripciones (SCRUM-119 / SCRUM-123)
+
+El contrato de persistencia ya está en `prisma/schema.prisma` y en la migración
+`20260922170000_sprint_2_public_content`. No necesita campos adicionales ni una
+migración nueva. Las rutas y reglas de negocio de eventos siguen pendientes.
+
+`Event` se mapea a `evento`: `id` → `id_evento`, `createdById` → `creado_por`,
+`imageId` → `id_imagen` (opcional), `name` → `nombre`, `description` → `descripcion`,
+`startsAt` → `inicia_en`, `location` → `ubicacion`, `maximumCapacity` →
+`capacidad_maxima`, `additionalInformation` → `informacion_adicional` (opcional),
+`status` → `estado` y `createdAt` → `creado_en`. Incluye la relación `registrations`.
+Los estados son `BORRADOR` (default), `PUBLICADO`, `FINALIZADO`, `CANCELADO` y
+`ARCHIVADO`. PostgreSQL garantiza capacidad positiva con
+`evento_capacidad_positiva_check`. Los índices cubren `(estado, inicia_en)`, creador
+e imagen. Las FK al administrador y archivo usan `ON DELETE RESTRICT` y
+`ON UPDATE CASCADE`.
+
+`EventRegistration` se mapea a `inscripcion_evento`: `id` → `id_inscripcion`,
+`eventId` → `id_evento`, `fullName` → `nombre_completo`, `email` → `correo`, `phone`
+→ `telefono`, `status` → `estado`, `consentedAt` → `consentimiento_en`,
+`privacyVersion` → `version_privacidad` y `registeredAt` → `inscrito_en`. Todos
+son obligatorios. La FK al evento usa las mismas políticas RESTRICT/CASCADE.
+Los estados son `CONFIRMADA` (default) y `CANCELADA`; el índice `(id_evento, estado)`
+soporta el conteo de confirmadas. Los IDs son enteros autoincrementales y las
+fechas son `TIMESTAMPTZ(3)`; creación e inscripción tienen default de fecha actual.
+
+### Decisión MVP: unicidad, cancelación y privacidad
+
+- Se conserva `UNIQUE(eventId, email)`. `CITEXT` compara correos sin distinguir
+  mayúsculas, incluso al consultar con Prisma. No elimina espacios ni transforma
+  el valor almacenado; la futura normalización seguirá el patrón de contacto.
+- Hay como máximo un registro por evento/correo, incluido cuando está cancelado.
+  Cancelar y eventualmente reinscribirse significa cambiar el estado del mismo
+  registro. Este PR verifica que la persistencia lo permite; no implementa ese flujo.
+- Los cupos disponibles se calcularán desde capacidad e inscripciones válidas;
+  no se persiste un contador. El CHECK de capacidad no evita sobreinscripción:
+  la transacción atómica corresponde a SCRUM-127.
+- Como en contacto, consentimiento se representa mediante `consentedAt` obligatorio,
+  junto con `privacyVersion`. NOT NULL garantiza su presencia, no prueba aceptación
+  del visitante ni valida texto vacío o una versión oficial. La futura entrada HTTP
+  deberá exigir aceptación explícita, generar la fecha de consentimiento en el
+  servidor y registrar la versión de privacidad aplicable.
+- No se agregan IP, user agent ni datos personales adicionales. La retención y
+  eliminación quedan pendientes de política UVG. Los logs no deben incluir PII.
+
+### Verificación con PostgreSQL aislado
+
+Las pruebas siguen el patrón Vitest/Prisma de noticias: habilitación explícita,
+fixtures ficticios y limpieza limitada al rol único creado por cada ejecución.
+Usan Prisma para persistir y SQL parametrizado para demostrar que CHECK/NOT NULL
+son restricciones de PostgreSQL, no solo validaciones del cliente.
+
+Con dependencias instaladas y una `DATABASE_URL` de pruebas ya migrada:
+
+```bash
+bun run test:integration:events
+```
+
+El script habilita `EVENTS_DATABASE_TEST=true` solo para esta suite; `bun run test`
+la omite por defecto. Es una variable de pruebas, no de despliegue. CI ejecuta la
+suite en el servicio PostgreSQL 16 aislado del job existente `news-postgres`.
+
+Para reproducir desde una instalación limpia con Compose, elige un nombre de
+proyecto exclusivo y usa estos valores ficticios exclusivamente en ese proyecto:
+
+```bash
+POSTGRES_DB=aequvg POSTGRES_USER=aequvg POSTGRES_PASSWORD=events-test docker compose -p aequvg-events-test up -d db
+DATABASE_URL=postgresql://aequvg:events-test@db:5432/aequvg docker compose -p aequvg-events-test run --rm --no-deps backend sh -c 'bun install --frozen-lockfile && bun run prisma:generate && bun run migrate:deploy && bun run test:integration:events && bun run test && bun run typecheck && bun run build'
+```
+
+El comando explícito sustituye el arranque de desarrollo: no inicia la API ni
+ejecuta la seed. Tras revisar los resultados, se pueden eliminar exclusivamente
+los recursos de este proyecto de pruebas con `docker compose -p aequvg-events-test down -v`.
+
 ## Variables de entorno
 
 ```bash
