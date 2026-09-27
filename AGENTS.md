@@ -152,5 +152,3 @@ Debe seguir la misma estructura estricta de los commits:
 - **Separador:** `: ` (dos puntos y espacio).
 - **Mensaje (en español):** Inicia obligatoriamente con Mayúscula en tono impersonal y finaliza con punto (`.`).
 - **Sin atribución de IA:** Prohibido incluir firmas, menciones o trailers de IA en el título o descripción de la PR.
-
-
