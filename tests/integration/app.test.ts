@@ -44,8 +44,34 @@ describe('contrato HTTP base', () => {
     expect(document.paths['/api/v1/news/{id}']?.get?.responses['404']).toBeTruthy()
   })
 
+  it('documenta el contrato de recursos en OpenAPI', async () => {
+    const response = await app.handle(new Request('http://localhost/openapi/json'))
+    expect(response.status).toBe(200)
+    const document = await response.json() as { paths: Record<string, Record<string, { responses: Record<string, unknown> }>> }
+    expect(document.paths['/api/v1/resources/categories']?.get?.responses['200']).toBeTruthy()
+    expect(document.paths['/api/v1/resources']?.get?.responses['200']).toBeTruthy()
+    expect(document.paths['/api/v1/resources/{id}']?.get?.responses['404']).toBeTruthy()
+    expect(document.paths['/api/v1/admin/resources']?.get?.responses['200']).toBeTruthy()
+    expect(document.paths['/api/v1/admin/resources']?.post?.responses['201']).toBeTruthy()
+    expect(document.paths['/api/v1/admin/resources/{id}']?.put?.responses['422']).toBeTruthy()
+    expect(document.paths['/api/v1/admin/resources/{id}/archive']?.patch?.responses['200']).toBeTruthy()
+    expect(document.paths['/api/v1/admin/resources/{id}']?.delete?.responses['404']).toBeTruthy()
+  })
+
   it('devuelve un error público estable cuando el cuerpo no es válido', async () => {
     const response = await app.handle(new Request('http://localhost/api/v1/contact-requests', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }))
+    expect(response.status).toBe(422)
+    expect(await response.json()).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'Revisa los datos enviados.' } })
+  })
+
+  it('valida los parámetros del catálogo de proyectos', async () => {
+    const response = await app.handle(new Request('http://localhost/api/v1/projects?page=0'))
+    expect(response.status).toBe(422)
+    expect(await response.json()).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'Revisa los datos enviados.' } })
+  })
+
+  it('valida el tipo del catálogo de proyectos', async () => {
+    const response = await app.handle(new Request('http://localhost/api/v1/projects?type=EN_REVISION'))
     expect(response.status).toBe(422)
     expect(await response.json()).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'Revisa los datos enviados.' } })
   })

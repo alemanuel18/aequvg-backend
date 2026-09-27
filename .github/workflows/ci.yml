@@ -46,6 +46,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://aequvg:ci-password@localhost:5432/aequvg
       NEWS_DATABASE_TEST: 'true'
+      RESOURCE_DATABASE_TEST: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -55,5 +56,6 @@ jobs:
       - run: bun run prisma:generate
       - run: bun run migrate:deploy
       - run: bun run test:integration:news
+      - run: bun run test:integration:resources
       - run: bun run test:integration:events
       - run: bun run test:integration:events:api
