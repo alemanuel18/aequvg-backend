@@ -1,8 +1,60 @@
-import { PrismaClient, ProjectStatus } from "@prisma/client";
+import { Prisma, ProjectStatus } from '@prisma/client'
+import { prisma } from '../../../shared/database/prisma'
 
-const prisma = new PrismaClient()
+export type PublicProjectListOptions = {
+	search?: string
+	year?: number
+	sortBy: 'createdAt' | 'title' | 'author'
+	sortOrder: Prisma.SortOrder
+	skip: number
+	take: number
+}
 
 export class ProjectRepository {
+	static async findPublicPage(options: PublicProjectListOptions) {
+		const where: Prisma.ProjectWhereInput = { status: ProjectStatus.APROBADO }
+
+		if (options.year) {
+			where.createdAt = {
+				gte: new Date(Date.UTC(options.year, 0, 1)),
+				lt: new Date(Date.UTC(options.year + 1, 0, 1)),
+			}
+		}
+
+		if (options.search) {
+			where.OR = [
+				{ title: { contains: options.search, mode: 'insensitive' } },
+				{ author: { name: { contains: options.search, mode: 'insensitive' } } },
+			]
+		}
+
+		const orderBy: Prisma.ProjectOrderByWithRelationInput[] = options.sortBy === 'author'
+			? [{ author: { name: options.sortOrder } }, { id: 'desc' }]
+			: [{ [options.sortBy]: options.sortOrder }, { id: 'desc' }]
+
+		return Promise.all([
+			prisma.project.findMany({
+				where,
+				skip: options.skip,
+				take: options.take,
+				orderBy,
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					description: true,
+					repositoryUrl: true,
+					liveUrl: true,
+					status: true,
+					createdAt: true,
+					author: { select: { id: true, name: true } },
+					coverImage: { select: { id: true, originalName: true, storageKey: true } },
+				},
+			}),
+			prisma.project.count({ where }),
+		])
+	}
+
 	static async findAll() {
 		return await prisma.project.findMany({
 			include: {

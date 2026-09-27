@@ -4,14 +4,22 @@ import { Elysia } from 'elysia'
 import { boardRoutes } from './modules/board/controllers/routes'
 import { contactRoutes } from './modules/contact/controllers/routes'
 import { institutionalRoutes } from './modules/institutional/controllers/routes'
+<<<<<<< Updated upstream
 import { newsRoutes } from './modules/news/controllers/routes'
+=======
+import { projectRoutes } from './modules/projects/controllers/routes'
+>>>>>>> Stashed changes
 import { errorBody } from './shared/errors/app-error'
 import { requestIdFor, requestLogger } from './middleware/request-logger'
 
 export const createApp = () => new Elysia()
   .use(requestLogger)
   .use(cors({ origin: process.env.CORS_ORIGIN ?? 'http://localhost:3001' }))
+<<<<<<< Updated upstream
   .use(openapi({ path: '/openapi', documentation: { info: { title: 'AEQUVG API', version: '1.0.0', description: 'API pública y administrativa de la Asociación de Estudiantes de Química UVG.' }, tags: [{ name: 'Contenido institucional' }, { name: 'Junta directiva' }, { name: 'Contacto' }, { name: 'Noticias' }, { name: 'Administración' }] } }))
+=======
+  .use(openapi({ path: '/openapi', documentation: { info: { title: 'AEQUVG API', version: '1.0.0', description: 'API pública y administrativa de la Asociación de Estudiantes de Química UVG.' }, tags: [{ name: 'Contenido institucional' }, { name: 'Junta directiva' }, { name: 'Contacto' }, { name: 'Proyectos' }, { name: 'Administración' }] } }))
+>>>>>>> Stashed changes
   .onError(({ code, error, request, set }) => {
     if (code === 'VALIDATION') { set.status = 422; return { error: { code: 'VALIDATION_ERROR', message: 'Revisa los datos enviados.' } } }
     if (code === 'NOT_FOUND') { set.status = 404; return { error: { code: 'NOT_FOUND', message: 'El recurso solicitado no existe.' } } }
@@ -19,6 +27,10 @@ export const createApp = () => new Elysia()
   })
   .get('/health', () => ({ status: 'ok' }))
   .use(institutionalRoutes)
+<<<<<<< Updated upstream
   .use(newsRoutes)
+=======
+  .use(projectRoutes)
+>>>>>>> Stashed changes
   .use(boardRoutes)
   .use(contactRoutes)

@@ -22,3 +22,13 @@ export const ReviewProjectDTO = t.Object({
 	rejectionReason: t.Optional(t.String()),
 	reviewerId: t.Numeric(),
 })
+
+export const projectListQuery = t.Object({
+	search: t.Optional(t.String({ maxLength: 160 })),
+	year: t.Optional(t.Numeric({ minimum: 1970, maximum: 9999 })),
+	type: t.Optional(ProjectStatusEnum),
+	sortBy: t.Optional(t.Union([t.Literal('createdAt'), t.Literal('title'), t.Literal('author')])),
+	sortOrder: t.Optional(t.Union([t.Literal('asc'), t.Literal('desc')])),
+	page: t.Optional(t.Numeric({ minimum: 1 })),
+	pageSize: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
+})

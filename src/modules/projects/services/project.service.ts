@@ -1,7 +1,47 @@
 import { ProjectRepository } from "../repositories/project.repository";
 import { ProjectStatus } from "@prisma/client";
+import { cleanText } from '../../../shared/utils/text'
+
+export type ProjectListInput = {
+	search?: string
+	year?: number
+	type?: ProjectStatus
+	sortBy?: 'createdAt' | 'title' | 'author'
+	sortOrder?: 'asc' | 'desc'
+	page?: number
+	pageSize?: number
+}
+
+export const normalizeProjectListQuery = (input: ProjectListInput) => ({
+	search: input.search ? cleanText(input.search) || undefined : undefined,
+	year: input.year,
+	type: input.type,
+	sortBy: input.sortBy ?? 'createdAt',
+	sortOrder: input.sortOrder ?? 'desc',
+	page: input.page ?? 1,
+	pageSize: input.pageSize ?? 12,
+})
 
 export class ProjectService {
+	static async listPublic(input: ProjectListInput) {
+		const query = normalizeProjectListQuery(input)
+		// El catálogo público nunca revela proyectos pendientes o rechazados.
+		if (query.type && query.type !== ProjectStatus.APROBADO) {
+			return { items: [], pagination: { page: query.page, pageSize: query.pageSize, total: 0, totalPages: 0 } }
+		}
+
+		const [items, total] = await ProjectRepository.findPublicPage({
+			search: query.search,
+			year: query.year,
+			sortBy: query.sortBy,
+			sortOrder: query.sortOrder,
+			skip: (query.page - 1) * query.pageSize,
+			take: query.pageSize,
+		})
+
+		return { items, pagination: { page: query.page, pageSize: query.pageSize, total, totalPages: Math.ceil(total / query.pageSize) } }
+	}
+
 	static async getAllProjects(){
 		return await ProjectRepository.findAll();
 	}
