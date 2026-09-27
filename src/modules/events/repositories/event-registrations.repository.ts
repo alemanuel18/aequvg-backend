@@ -1,4 +1,5 @@
-import type { EventStatus, Prisma } from '@prisma/client'
+import type { EventRegistrationStatus, EventStatus, Prisma } from '@prisma/client'
+import { prisma } from '../../../shared/database/prisma'
 
 export type LockedEvent = {
   id: number
@@ -12,6 +13,46 @@ type LockedEventRow = {
   estado: EventStatus
   inicia_en: Date
   capacidad_maxima: number
+}
+
+export type EventRegistrationAdminFilters = {
+  eventId: number
+  status?: EventRegistrationStatus
+  q?: string
+  page: number
+  pageSize: number
+}
+
+const adminSelect = {
+  id: true,
+  fullName: true,
+  email: true,
+  phone: true,
+  status: true,
+  registeredAt: true
+} satisfies Prisma.EventRegistrationSelect
+
+const whereForAdmin = ({
+  eventId,
+  status,
+  q
+}: {
+  eventId: number
+  status?: EventRegistrationStatus
+  q?: string
+}): Prisma.EventRegistrationWhereInput => {
+  const where: Prisma.EventRegistrationWhereInput = {
+    eventId,
+    ...(status ? { status } : {})
+  }
+  if (q) {
+    where.OR = [
+      { fullName: { contains: q, mode: 'insensitive' } },
+      { email: { contains: q, mode: 'insensitive' } },
+      { phone: { contains: q, mode: 'insensitive' } }
+    ]
+  }
+  return where
 }
 
 export const eventRegistrationsRepository = {
@@ -62,6 +103,22 @@ export const eventRegistrationsRepository = {
         status: true,
         registeredAt: true
       }
+    })
+  },
+
+  adminList({ eventId, status, q, page, pageSize }: EventRegistrationAdminFilters) {
+    return prisma.eventRegistration.findMany({
+      where: whereForAdmin({ eventId, status, q }),
+      select: adminSelect,
+      orderBy: [{ registeredAt: 'desc' }, { id: 'desc' }],
+      skip: (page - 1) * pageSize,
+      take: pageSize
+    })
+  },
+
+  adminCount({ eventId, status, q }: { eventId: number; status?: EventRegistrationStatus; q?: string }) {
+    return prisma.eventRegistration.count({
+      where: whereForAdmin({ eventId, status, q })
     })
   }
 }
