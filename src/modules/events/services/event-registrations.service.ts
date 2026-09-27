@@ -2,8 +2,9 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../../shared/database/prisma'
 import { AppError } from '../../../shared/errors/app-error'
 import { cleanText } from '../../../shared/utils/text'
-import type { EventRegistrationBody } from '../dtos/registration-schemas'
+import type { EventRegistrationAdminQuery, EventRegistrationBody } from '../dtos/registration-schemas'
 import { eventRegistrationsRepository } from '../repositories/event-registrations.repository'
+import { eventsRepository } from '../repositories/events.repository'
 
 export const eventRegistrationsService = {
   async register(eventId: number, input: EventRegistrationBody) {
@@ -92,5 +93,32 @@ export const eventRegistrationsService = {
       }
       throw error
     }
+  },
+
+  async adminList(eventId: number, query: EventRegistrationAdminQuery) {
+    const event = await eventsRepository.findById(eventId)
+    if (!event) {
+      throw new AppError(404, 'EVENT_NOT_FOUND', 'El evento solicitado no existe.')
+    }
+
+    const page = query.page ?? 1
+    const pageSize = query.pageSize ?? 20
+    const q = query.q ? cleanText(query.q) : undefined
+    const status = query.status
+
+    const filters = {
+      eventId,
+      status,
+      q: q || undefined,
+      page,
+      pageSize
+    }
+
+    const [items, total] = await Promise.all([
+      eventRegistrationsRepository.adminList(filters),
+      eventRegistrationsRepository.adminCount({ eventId, status, q: q || undefined })
+    ])
+
+    return { items, pagination: { page, pageSize, total } }
   }
 }
