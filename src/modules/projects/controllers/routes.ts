@@ -3,7 +3,7 @@ import { projectListQuery } from '../dtos/project.dto'
 import { ProjectService } from '../services/project.service'
 
 export const projectRoutes = new Elysia({ prefix: '/api/v1' })
-  .get('/projects', ({ query }) => ProjectService.listPublic(query), {
+  .get('/projects', ({ query }) => ProjectService.getFilteredProjects(query), {
     query: projectListQuery,
     detail: {
       tags: ['Proyectos'],

@@ -23,7 +23,7 @@ export const normalizeProjectListQuery = (input: ProjectListInput) => ({
 })
 
 export class ProjectService {
-	static async listPublic(input: ProjectListInput) {
+	static async getFilteredProjects(input: ProjectListInput) {
 		const query = normalizeProjectListQuery(input)
 		// El catálogo público nunca revela proyectos pendientes o rechazados.
 		if (query.type && query.type !== ProjectStatus.APROBADO) {
