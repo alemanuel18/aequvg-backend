@@ -113,6 +113,17 @@ Las rutas bajo `/api/v1/admin` requieren cabecera `Authorization: Bearer <ADMIN_
 - `DELETE /api/v1/admin/events/:id`: eliminación física únicamente si el evento no posee inscripciones registradas (`409 EVENT_HAS_REGISTRATIONS` en caso contrario).
 - `GET /api/v1/admin/events/:id/registrations`: listado paginado y filtrable (`q`, `status`) de participantes con PII operativa para la gestión del evento.
 
+### Modelo de concurrencia e integridad de cupos
+
+- **Cálculo dinámico:** `availableCapacity = Math.max(0, maximumCapacity - count(CONFIRMADA))`. No existe un contador persistido de disponibilidad en base de datos.
+- **Semántica de estados:** las inscripciones en estado `CONFIRMADA` consumen cupo disponible. Las inscripciones en estado `CANCELADA` no consumen cupo, pero conservan la fila y participan en la restricción de unicidad `UNIQUE(eventId, email)`.
+- **Snapshot vs autoridad:** los endpoints `GET /api/v1/events` y `GET /api/v1/events/:id` entregan un snapshot informativo para la interfaz; dicho snapshot **no reserva cupo**. El endpoint `POST /api/v1/events/:id/registrations` es la única autoridad definitiva para confirmar un registro.
+- **Aislamiento transaccional:** la inscripción se ejecuta en una transacción interactiva de Prisma mediante `SELECT ... FOR UPDATE` sobre la fila del evento en PostgreSQL. Las solicitudes concurrentes para un mismo evento quedan serializadas por este bloqueo a nivel de fila.
+- **Validación bajo lock:** tras adquirir el bloqueo, se validan atómicamente el estado del evento, la fecha de inicio, la unicidad del correo y la cantidad de inscripciones confirmadas antes de crear el nuevo registro. Si no queda capacidad disponible, se devuelve `409 EVENT_FULL`.
+- **Coordinación con administración:** el cambio administrativo de `maximumCapacity` (`PUT /api/v1/admin/events/:id`) utiliza el mismo bloqueo pesimista `SELECT ... FOR UPDATE` antes de verificar y actualizar, garantizando que `maximumCapacity` nunca quede por debajo de las confirmadas bajo los flujos soportados (`422 CAPACITY_BELOW_REGISTRATIONS`).
+- **Independencia entre eventos:** las operaciones sobre eventos distintos bloquean filas independientes en PostgreSQL, evitando contención cruzada o interferencia funcional entre diferentes actividades.
+- **Defensa definitiva contra duplicados:** la restricción de base de datos `UNIQUE(id_evento, correo)` junto con la extensión `CITEXT` actúa como salvaguarda estricta frente a carreras por el mismo correo en el mismo evento.
+
 ### Persistencia y base de datos (SCRUM-119 / SCRUM-123)
 
 El contrato de persistencia reside en `prisma/schema.prisma` y en la migración `20260922170000_sprint_2_public_content`:
