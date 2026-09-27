@@ -74,7 +74,11 @@ export const eventsRepository = {
       select: publicSelect
     }),
   create: (data: Prisma.EventUncheckedCreateInput) => prisma.event.create({ data, select }),
-  update: (id: number, data: Prisma.EventUncheckedUpdateInput) => prisma.event.update({ where: { id }, data, select }),
+  update: (
+    id: number,
+    data: Prisma.EventUncheckedUpdateInput,
+    client: Prisma.TransactionClient | typeof prisma = prisma
+  ) => client.event.update({ where: { id }, data, select }),
   remove: (id: number) => prisma.event.delete({ where: { id }, select }),
   findActiveUser: (id: number) => prisma.administrativeUser.findFirst({ where: { id, status: 'ACTIVO' }, select: { id: true } }),
   findImage: (id: number) => prisma.file.findUnique({ where: { id }, select: { id: true, mimeType: true } }),
