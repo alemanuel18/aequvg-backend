@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "test:smoke": "bun scripts/smoke.ts",
     "test:integration:news": "NEWS_DATABASE_TEST=true vitest run tests/integration/news.database.test.ts",
+    "test:integration:resources": "RESOURCE_DATABASE_TEST=true vitest run tests/integration/resource.database.test.ts",
     "test:integration:events": "EVENTS_DATABASE_TEST=true vitest run tests/integration/events.database.test.ts",
     "prisma:generate": "prisma generate",
     "migrate:dev": "prisma migrate dev",

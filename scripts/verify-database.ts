@@ -5,20 +5,24 @@ const prisma = new PrismaClient()
 const expectedTables = [
   'rol', 'permiso', 'rol_permiso', 'usuario_administrativo', 'credencial_administrativa', 'archivo',
   'publicacion_cientifica', 'persona_autora', 'publicacion_contribuyente', 'aprobacion_publicacion',
-  'noticia', 'evento', 'inscripcion_evento', 'recurso', 'miembro_junta', 'solicitud_contacto',
+  'noticia', 'evento', 'inscripcion_evento', 'categoria_recurso', 'enlace_recurso', 'recurso', 'miembro_junta', 'solicitud_contacto',
   'bloque_institucional', 'medio_contacto', 'proyecto'
 ]
 
 const expectedConstraints = [
   'archivo_cargado_por_fkey', 'noticia_creado_por_fkey', 'evento_creado_por_fkey', 'recurso_creado_por_fkey',
-  'recurso_destino_check', 'archivo_tamano_positivo_check', 'evento_capacidad_positiva_check',
+  'recurso_id_categoria_recurso_fkey', 'enlace_recurso_id_recurso_fkey', 'recurso_estado_publicacion_check',
+  'categoria_recurso_nombre_no_vacio_check', 'recurso_publicado_destino_check', 'enlace_recurso_publicado_destino_check',
+  'archivo_tamano_positivo_check', 'evento_capacidad_positiva_check',
   'reunion_fecha_preferida_check', 'proyecto_id_autor_fkey', 'proyecto_id_revisor_fkey',
   'proyecto_id_imagen_portada_fkey'
 ]
 
 const expectedIndexes = [
   'archivo_clave_almacenamiento_key', 'noticia_estado_publicado_en_idx', 'evento_estado_inicia_en_idx',
-  'recurso_estado_publicado_en_idx', 'miembro_junta_estado_orden_idx', 'solicitud_contacto_estado_atencion_enviado_en_idx',
+  'recurso_estado_publicado_en_idx', 'recurso_id_categoria_recurso_estado_publicado_en_idx',
+  'categoria_recurso_nombre_key', 'categoria_recurso_activa_nombre_idx', 'enlace_recurso_id_recurso_url_key',
+  'enlace_recurso_id_recurso_orden_idx', 'miembro_junta_estado_orden_idx', 'solicitud_contacto_estado_atencion_enviado_en_idx',
   'proyecto_slug_key', 'proyecto_estado_creado_en_idx', 'proyecto_id_autor_idx', 'proyecto_id_revisor_idx',
   'proyecto_id_imagen_portada_idx'
 ]
