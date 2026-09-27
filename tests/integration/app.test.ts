@@ -58,6 +58,23 @@ describe('contrato HTTP base', () => {
     expect(document.paths['/api/v1/admin/resources/{id}']?.delete?.responses['404']).toBeTruthy()
   })
 
+  it('documenta el contrato de eventos e inscripciones en OpenAPI', async () => {
+    const response = await app.handle(new Request('http://localhost/openapi/json'))
+    expect(response.status).toBe(200)
+    const document = await response.json() as {
+      tags: Array<{ name: string }>
+      paths: Record<string, Record<string, { responses: Record<string, unknown> }>>
+    }
+    expect(document.tags.some((tag) => tag.name === 'Eventos')).toBe(true)
+    expect(document.paths['/api/v1/events']?.get?.responses['200']).toBeTruthy()
+    expect(document.paths['/api/v1/events/{id}']?.get?.responses['200']).toBeTruthy()
+    expect(document.paths['/api/v1/events/{id}']?.get?.responses['404']).toBeTruthy()
+    expect(document.paths['/api/v1/events/{id}/registrations']?.post?.responses['201']).toBeTruthy()
+    expect(document.paths['/api/v1/events/{id}/registrations']?.post?.responses['409']).toBeTruthy()
+    expect(document.paths['/api/v1/admin/events']?.get?.responses['200']).toBeTruthy()
+    expect(document.paths['/api/v1/admin/events/{id}/registrations']?.get?.responses['200']).toBeTruthy()
+  })
+
   it('devuelve un error público estable cuando el cuerpo no es válido', async () => {
     const response = await app.handle(new Request('http://localhost/api/v1/contact-requests', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }))
     expect(response.status).toBe(422)
