@@ -1,6 +1,8 @@
 import type { EventStatus, Prisma } from '@prisma/client'
+import { prisma } from '../../../shared/database/prisma'
 import { AppError } from '../../../shared/errors/app-error'
 import { cleanText } from '../../../shared/utils/text'
+import { eventRegistrationsRepository } from '../repositories/event-registrations.repository'
 import { eventsRepository } from '../repositories/events.repository'
 
 export type EventCreateInput = {
@@ -81,25 +83,7 @@ const createData = async (input: EventCreateInput): Promise<Prisma.EventUnchecke
   }
 }
 
-const updateData = async (
-  eventId: number,
-  input: EventUpdateInput
-): Promise<Prisma.EventUncheckedUpdateInput> => {
-  if (input.imageId !== undefined) {
-    await verifyImage(input.imageId)
-  }
-
-  if (input.maximumCapacity !== undefined) {
-    const confirmedCount = await eventsRepository.countConfirmedRegistrations(eventId)
-    if (input.maximumCapacity < confirmedCount) {
-      throw new AppError(
-        422,
-        'CAPACITY_BELOW_REGISTRATIONS',
-        'La capacidad no puede ser menor al número de inscripciones confirmadas actuales.'
-      )
-    }
-  }
-
+const buildUpdateData = (input: EventUpdateInput): Prisma.EventUncheckedUpdateInput => {
   const data: Prisma.EventUncheckedUpdateInput = {}
 
   if (input.imageId !== undefined) data.imageId = input.imageId
@@ -167,7 +151,31 @@ export const eventsService = {
   async update(id: number, input: EventUpdateInput) {
     const current = await eventsRepository.findById(id)
     if (!current) throw notFound()
-    const data = await updateData(id, input)
+
+    if (input.imageId !== undefined) {
+      await verifyImage(input.imageId)
+    }
+
+    const data = buildUpdateData(input)
+
+    if (input.maximumCapacity !== undefined) {
+      return prisma.$transaction(async (tx) => {
+        const locked = await eventRegistrationsRepository.lockEvent(tx, id)
+        if (!locked) throw notFound()
+
+        const confirmedCount = await eventRegistrationsRepository.countConfirmed(tx, id)
+        if (input.maximumCapacity! < confirmedCount) {
+          throw new AppError(
+            422,
+            'CAPACITY_BELOW_REGISTRATIONS',
+            'La capacidad no puede ser menor al número de inscripciones confirmadas actuales.'
+          )
+        }
+
+        return eventsRepository.update(id, data, tx)
+      })
+    }
+
     return eventsRepository.update(id, data)
   },
 
