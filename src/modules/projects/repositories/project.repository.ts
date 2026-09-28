@@ -70,6 +70,18 @@ export class ProjectRepository {
 		});
 	}
 
+	static async findPublicById(id: number) {
+		return prisma.project.findFirst({
+			where: { id, status: ProjectStatus.APROBADO },
+			select: {
+				id: true, title: true, slug: true, description: true,
+				repositoryUrl: true, liveUrl: true, type: true, status: true, createdAt: true,
+				author: { select: { id: true, name: true } },
+				coverImage: { select: { id: true, originalName: true, storageKey: true } },
+			},
+		})
+	}
+
 	static async findApprovedOnly(){
 		return await prisma.project.findMany({
 			where: {status: ProjectStatus.APROBADO},
