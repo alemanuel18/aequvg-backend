@@ -34,13 +34,13 @@ export const ReviewProjectDTO = t.Object({
 })
 
 export const projectListQuery = t.Object({
-	search: t.Optional(t.String({ maxLength: 160 })),
-	year: t.Optional(t.Numeric({ minimum: 1970, maximum: 9999 })),
-	type: t.Optional(ProjectTypeEnum),
-	sortBy: t.Optional(t.Union([t.Literal('createdAt'), t.Literal('title'), t.Literal('author')])),
-	sortOrder: t.Optional(t.Union([t.Literal('asc'), t.Literal('desc')])),
-	page: t.Optional(t.Numeric({ minimum: 1 })),
-	pageSize: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
+	search: t.Optional(t.String({ maxLength: 160, description: 'Texto parcial a buscar en el título o nombre del autor.' })),
+	year: t.Optional(t.Numeric({ minimum: 1970, maximum: 9999, description: 'Año UTC de creación del proyecto.' })),
+	type: t.Optional(t.Union([t.Literal('TESIS', { description: 'Trabajo de tesis.' }), t.Literal('PROYECTO', { description: 'Proyecto académico o de investigación.' })], { description: 'Categoría del proyecto.' })),
+	sortBy: t.Optional(t.Union([t.Literal('createdAt'), t.Literal('title'), t.Literal('author')], { description: 'Campo de ordenamiento.' })),
+	sortOrder: t.Optional(t.Union([t.Literal('asc'), t.Literal('desc')], { description: 'Dirección del ordenamiento.' })),
+	page: t.Optional(t.Numeric({ minimum: 1, description: 'Página solicitada; el valor predeterminado es 1.' })),
+	pageSize: t.Optional(t.Numeric({ minimum: 1, maximum: 100, description: 'Elementos por página; el valor predeterminado es 12.' })),
 })
 
 export const projectIdParams = t.Object({ id: t.Integer({ minimum: 1 }) })
@@ -68,7 +68,7 @@ export const publicProjectResponse = t.Object({
 
 	export const projectListResponse = t.Object({
 		items: t.Array(publicProjectResponse),
-		pagination: t.Object({ page: t.Integer(), pageSize: t.Integer(), total: t.Integer(), totalPages: t.Integer() })
+	pagination: t.Object({ page: t.Integer({ description: 'Página actual.' }), pageSize: t.Integer({ description: 'Elementos solicitados por página.' }), total: t.Integer({ description: 'Total de resultados encontrados.' }), totalPages: t.Integer({ description: 'Total de páginas disponibles.' }) })
 		})
 
 	export const adminProjectResponse = t.Object({

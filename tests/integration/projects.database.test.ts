@@ -66,4 +66,41 @@ describeDatabase('CRUD HTTP de proyectos con PostgreSQL', () => {
     expect(second.status).toBe(409)
     expect((await second.json() as { error: { code: string } }).error.code).toBe('PROJECT_SLUG_EXISTS')
   })
+
+  it('combina filtros, pagina resultados y devuelve una lista vacía', async () => {
+    const app = createApp()
+    const prefix = `Filtro ${runId}`
+    const createAndApprove = async (title: string, type: 'TESIS' | 'PROYECTO') => {
+      const created = await app.handle(request('/api/v1/admin/projects', {
+        method: 'POST', headers: adminHeaders,
+        body: JSON.stringify({ authorId, title, slug: `${runId}-${type}-${title.slice(-1)}`, description: 'Descripción suficiente para comprobar filtros y paginación del catálogo.', type }),
+      }))
+      expect(created.status).toBe(201)
+      const id = (await created.json() as { id: number }).id
+      const reviewed = await app.handle(request(`/api/v1/admin/projects/${id}/review`, { method: 'PATCH', headers: adminHeaders, body: JSON.stringify({ status: 'APROBADO', reviewerId: authorId }) }))
+      expect(reviewed.status).toBe(200)
+      return id
+    }
+
+    const thesisId = await createAndApprove(`${prefix} tesis A`, 'TESIS')
+    const firstProjectId = await createAndApprove(`${prefix} proyecto A`, 'PROYECTO')
+    const secondProjectId = await createAndApprove(`${prefix} proyecto B`, 'PROYECTO')
+    const year = new Date().getUTCFullYear()
+
+    const combined = await app.handle(request(`/api/v1/projects?search=${encodeURIComponent(prefix)}&year=${year}&type=TESIS&sortBy=title&sortOrder=asc&page=1&pageSize=1`))
+    const combinedBody = await combined.json() as { items: { id: number; type: string }[]; pagination: { total: number; totalPages: number } }
+    expect(combined.status).toBe(200)
+    expect(combinedBody.items).toEqual([expect.objectContaining({ id: thesisId, type: 'TESIS' })])
+    expect(combinedBody.pagination).toEqual({ page: 1, pageSize: 1, total: 1, totalPages: 1 })
+
+    const firstPage = await app.handle(request(`/api/v1/projects?search=${encodeURIComponent(prefix)}&type=PROYECTO&sortBy=title&sortOrder=asc&page=1&pageSize=1`))
+    const secondPage = await app.handle(request(`/api/v1/projects?search=${encodeURIComponent(prefix)}&type=PROYECTO&sortBy=title&sortOrder=asc&page=2&pageSize=1`))
+    const firstBody = await firstPage.json() as { items: { id: number }[]; pagination: { page: number; pageSize: number; total: number; totalPages: number } }
+    const secondBody = await secondPage.json() as { items: { id: number }[] }
+    expect(firstBody.pagination).toEqual({ page: 1, pageSize: 1, total: 2, totalPages: 2 })
+    expect([firstBody.items[0]?.id, secondBody.items[0]?.id].sort()).toEqual([firstProjectId, secondProjectId].sort())
+
+    const empty = await app.handle(request(`/api/v1/projects?search=${encodeURIComponent(`${runId}-sin-resultados`)}`))
+    expect(await empty.json()).toEqual({ items: [], pagination: { page: 1, pageSize: 12, total: 0, totalPages: 0 } })
+  })
 })

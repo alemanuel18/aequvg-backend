@@ -92,4 +92,21 @@ describe('contrato HTTP base', () => {
     expect(response.status).toBe(422)
     expect(await response.json()).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'Revisa los datos enviados.' } })
   })
+
+  it('rechaza filtros y paginación fuera del contrato', async () => {
+    for (const query of ['year=1969', 'sortBy=status', 'sortOrder=up', 'pageSize=101']) {
+      const response = await app.handle(new Request(`http://localhost/api/v1/projects?${query}`))
+      expect(response.status).toBe(422)
+      expect(await response.json()).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'Revisa los datos enviados.' } })
+    }
+  })
+
+  it('documenta parámetros y respuestas del catálogo de proyectos en OpenAPI', async () => {
+    const response = await app.handle(new Request('http://localhost/openapi/json'))
+    const document = await response.json() as { paths: Record<string, { get?: { parameters?: Array<{ name: string }>; responses: Record<string, unknown> } }> }
+    const operation = document.paths['/api/v1/projects']?.get
+    expect(operation?.parameters?.map(parameter => parameter.name)).toEqual(expect.arrayContaining(['search', 'year', 'type', 'sortBy', 'sortOrder', 'page', 'pageSize']))
+    expect(operation?.responses['200']).toBeTruthy()
+    expect(operation?.responses['422']).toBeTruthy()
+  })
 })
