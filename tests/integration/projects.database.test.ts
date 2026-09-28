@@ -91,7 +91,7 @@ describeDatabase('CRUD HTTP de proyectos con PostgreSQL', () => {
     const combinedBody = await combined.json() as { items: { id: number; type: string }[]; pagination: { total: number; totalPages: number } }
     expect(combined.status).toBe(200)
     expect(combinedBody.items).toEqual([expect.objectContaining({ id: thesisId, type: 'TESIS' })])
-    expect(combinedBody.pagination).toEqual({ total: 1, totalPages: 1 })
+    expect(combinedBody.pagination).toEqual({ page: 1, pageSize: 1, total: 1, totalPages: 1 })
 
     const firstPage = await app.handle(request(`/api/v1/projects?search=${encodeURIComponent(prefix)}&type=PROYECTO&sortBy=title&sortOrder=asc&page=1&pageSize=1`))
     const secondPage = await app.handle(request(`/api/v1/projects?search=${encodeURIComponent(prefix)}&type=PROYECTO&sortBy=title&sortOrder=asc&page=2&pageSize=1`))
