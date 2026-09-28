@@ -92,7 +92,8 @@ async function main() {
   const projects = [
     { title: 'Plataforma de Control Académico', slug: 'plataforma-control-academico', description: 'Sistema web para la gestión de notas y asignación de cursos universitarios.', repositoryUrl: 'https://github.com/ejemplo/control-academico', liveUrl: 'https://demo.control-academico.edu', type: ProjectType.PROYECTO, status: ProjectStatus.APROBADO, reviewerId: developmentUser.id, reviewedAt: developmentPublishedAt },
     { title: 'Aplicación Móvil de Eventos Universitarios', slug: 'app-eventos-universitarios', description: 'App para consultar agenda institucional e inscribirse a talleres.', repositoryUrl: 'https://github.com/ejemplo/app-eventos', liveUrl: null, type: ProjectType.PROYECTO, status: ProjectStatus.EN_REVISION, reviewerId: null, reviewedAt: null },
-    { title: 'Script de Monitoreo de Redes', slug: 'script-monitoreo-redes', description: 'Herramienta en terminal para analizar tráfico local.', repositoryUrl: null, liveUrl: null, type: ProjectType.PROYECTO, status: ProjectStatus.NO_APROBADO, reviewerId: developmentUser.id, reviewedAt: developmentPublishedAt, rejectionReason: 'El proyecto debe ser una aplicación web expuesta con interfaz visual.' }
+    { title: 'Script de Monitoreo de Redes', slug: 'script-monitoreo-redes', description: 'Herramienta en terminal para analizar tráfico local.', repositoryUrl: null, liveUrl: null, type: ProjectType.PROYECTO, status: ProjectStatus.NO_APROBADO, reviewerId: developmentUser.id, reviewedAt: developmentPublishedAt, rejectionReason: 'El proyecto debe ser una aplicación web expuesta con interfaz visual.' },
+    { title: 'Análisis de microplásticos en fuentes hídricas urbanas (desarrollo)', slug: 'analisis-microplasticos-fuentes-hidricas', description: 'Investigación de desarrollo para explorar la identificación de microplásticos en muestras de agua mediante espectroscopía y clasificación de datos.', repositoryUrl: null, liveUrl: null, type: ProjectType.PROYECTO, status: ProjectStatus.APROBADO, reviewerId: developmentUser.id, reviewedAt: developmentPublishedAt }
   ]
   for (const project of projects) {
     await prisma.project.upsert({
@@ -101,6 +102,19 @@ async function main() {
       create: { ...project, authorId: developmentUser.id }
     })
   }
+
+  const developmentEvent = {
+    name: 'Taller de espectrometría UV-Vis (desarrollo)',
+    description: 'Evento de desarrollo para verificar que el sitio público consulta y presenta la agenda desde la API.',
+    startsAt: new Date('2030-04-20T16:00:00.000Z'),
+    location: 'Laboratorio de Química Analítica (E-302)',
+    maximumCapacity: 30,
+    additionalInformation: 'Registro de ejemplo; no corresponde a una convocatoria institucional.',
+    status: 'PUBLICADO' as const,
+  }
+  const existingEvent = await prisma.event.findFirst({ where: { createdById: developmentUser.id, name: developmentEvent.name } })
+  if (existingEvent) await prisma.event.update({ where: { id: existingEvent.id }, data: developmentEvent })
+  else await prisma.event.create({ data: { ...developmentEvent, createdById: developmentUser.id } })
 
   console.info('Seed completado')
 }

@@ -47,6 +47,10 @@ describeDatabase('CRUD HTTP de proyectos con PostgreSQL', () => {
     const publicList = await app.handle(request('/api/v1/projects?search=actualizado&type=TESIS'))
     expect((await publicList.json() as { items: { id: number }[] }).items.map(item => item.id)).toContain(projectId)
 
+    const publicDetail = await app.handle(request(`/api/v1/projects/${projectId}`))
+    expect(publicDetail.status).toBe(200)
+    expect(await publicDetail.json()).toEqual(expect.objectContaining({ id: projectId, title: 'Proyecto actualizado', status: 'APROBADO' }))
+
     const deleted = await app.handle(request(`/api/v1/admin/projects/${projectId}`, { method: 'DELETE', headers: adminHeaders }))
     expect(deleted.status).toBe(200)
     projectId = 0
@@ -57,6 +61,7 @@ describeDatabase('CRUD HTTP de proyectos con PostgreSQL', () => {
     expect((await app.handle(request('/api/v1/admin/projects'))).status).toBe(401)
     expect((await app.handle(request('/api/v1/admin/projects', { method: 'POST', headers: adminHeaders, body: JSON.stringify({ title: 'x' }) }))).status).toBe(422)
     expect((await app.handle(request('/api/v1/admin/projects/999999', { headers: adminHeaders }))).status).toBe(404)
+    expect((await app.handle(request('/api/v1/projects/999999'))).status).toBe(404)
 
     const duplicate = { authorId, title: 'Proyecto duplicado', slug: `${runId}-duplicate`, description: 'Descripción válida para comprobar el conflicto de slug.', type: 'PROYECTO' }
     const first = await app.handle(request('/api/v1/admin/projects', { method: 'POST', headers: adminHeaders, body: JSON.stringify(duplicate) }))

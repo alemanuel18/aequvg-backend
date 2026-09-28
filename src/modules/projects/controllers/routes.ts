@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia'
 import { requireAdmin } from '../../../middleware/admin'
-import { adminProjectResponse, AdminCreateProjectDTO, projectErrorResponse, projectIdParams, projectListQuery, projectListResponse, projectMessageResponse, ReviewProjectDTO, UpdateProjectDTO } from '../dtos/project.dto'
+import { adminProjectResponse, AdminCreateProjectDTO, projectErrorResponse, projectIdParams, projectListQuery, projectListResponse, projectMessageResponse, publicProjectResponse, ReviewProjectDTO, UpdateProjectDTO } from '../dtos/project.dto'
 import { ProjectService } from '../services/project.service'
 
 export const projectRoutes = new Elysia({ prefix: '/api/v1' })
@@ -13,6 +13,11 @@ export const projectRoutes = new Elysia({ prefix: '/api/v1' })
       summary: 'Lista proyectos aprobados con búsqueda, filtros, orden y paginación',
       description: 'year filtra el año UTC de creación y type corresponde a la categoría TESIS o PROYECTO. El catálogo público solo muestra proyectos APROBADO.',
     },
+  })
+  .get('/projects/:id', ({ params }) => ProjectService.getPublicProjectById(params.id), {
+    params: projectIdParams,
+    response: { 200: publicProjectResponse, 404: projectErrorResponse, 503: projectErrorResponse },
+    detail: { tags: ['Proyectos'], summary: 'Consulta un proyecto aprobado', description: 'Devuelve únicamente proyectos con estado APROBADO.' },
   })
 
   .get('/admin/projects', ({ headers }) => { requireAdmin(headers.authorization); return ProjectService.getAllProjects() }, {

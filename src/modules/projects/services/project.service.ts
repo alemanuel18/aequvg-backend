@@ -39,6 +39,12 @@ export class ProjectService {
 		return { items, pagination: { page: query.page, pageSize: query.pageSize, total, totalPages: Math.ceil(total / query.pageSize) } }
 	}
 
+	static async getPublicProjectById(id: number) {
+		const project = await ProjectRepository.findPublicById(id)
+		if (!project) throw new AppError(404, 'PROJECT_NOT_FOUND', 'El proyecto no existe.')
+		return project
+	}
+
 	static async getAllProjects(){
 		return await ProjectRepository.findAll();
 	}
