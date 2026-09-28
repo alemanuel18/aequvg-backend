@@ -126,34 +126,90 @@ fechas son `TIMESTAMPTZ(3)`; creación e inscripción tienen default de fecha ac
 - No se agregan IP, user agent ni datos personales adicionales. La retención y
   eliminación quedan pendientes de política UVG. Los logs no deben incluir PII.
 
+## Eventos e inscripciones
+
+### API pública de eventos
+
+La API pública expone:
+
+- `GET /api/v1/events`: listado paginado (`page`, `pageSize`, `q`), ordenado deterministamente por `inicia_en ASC, id_evento ASC`, únicamente para eventos en estado `PUBLICADO`.
+- `GET /api/v1/events/:id`: detalle de un evento público activo. Eventos en otro estado o inexistentes devuelven `404`.
+
+Ambos endpoints exponen el campo dinámico `availableCapacity` (entero >= 0), calculado como `Math.max(0, maximumCapacity - confirmedRegistrations)`. No exponen contadores internos ni datos personales (`registrations`).
+
+### Inscripción pública
+
+`POST /api/v1/events/:id/registrations` permite a los usuarios inscribirse a un evento público:
+
+- **Campos requeridos:** `fullName` (mínimo 2 caracteres), `email`, `phone` (mínimo 7 caracteres), `consent` (`true` obligatorio) y `privacyVersion` (cadena no vacía). Campo opcional: `website` (honeypot).
+- **Consentimiento y privacidad:** `consent: true` es obligatorio; el servidor genera y sella `consentedAt` con la fecha y hora de la solicitud y persiste `privacyVersion`. La respuesta pública `{ id, eventId, status, registeredAt }` no expone PII.
+- **Protección anti-spam y rate limit:** incluye campo honeypot invisible `website` (si viene lleno devuelve `400 INVALID_REQUEST`) y límite de tasa (`429 RATE_LIMITED`) de máximo 5 solicitudes por minuto por IP.
+- **Control atómico de cupos:** transacción con bloqueo de fila (`SELECT ... FOR UPDATE`) que decrementa cupos de forma atómica y previene sobreinscripción concurrente. Las inscripciones con estado `CANCELADA` no consumen cupo disponible.
+- **Errores principales:**
+  - `400 INVALID_REQUEST`: detección de spam por campo honeypot completado.
+  - `404 EVENT_NOT_FOUND`: el evento no existe, o está en estado `BORRADOR` o `ARCHIVADO`.
+  - `409 ALREADY_REGISTERED`: ya existe una inscripción registrada con ese correo (`CITEXT`, insensible a mayúsculas y minúsculas, incluso si estaba `CANCELADA`).
+  - `409 EVENT_FULL`: el evento ha alcanzado su capacidad máxima sin cupos disponibles.
+  - `422 EVENT_NOT_OPEN`: el evento está en estado `CANCELADO`, `FINALIZADO` o distinto de `PUBLICADO`.
+  - `422 EVENT_ALREADY_STARTED`: el evento ya inició o concluyó en el pasado.
+  - `422 VALIDATION_ERROR`: datos incompletos o con formato inválido (incluye consentimiento faltante o falso).
+  - `422 INVALID_PRIVACY_VERSION`: versión de privacidad vacía o con solo espacios.
+  - `429 RATE_LIMITED`: límite de solicitudes por IP excedido.
+
+### Administración de eventos y participantes
+
+Las rutas bajo `/api/v1/admin` requieren cabecera `Authorization: Bearer <ADMIN_API_KEY>`:
+
+- `GET /api/v1/admin/events`: listado administrativo con soporte de filtros por `status`, búsqueda `q` y paginación.
+- `GET /api/v1/admin/events/:id`: consulta de evento por identificador en cualquier estado.
+- `POST /api/v1/admin/events`: creación de evento (estado inicial `BORRADOR` por defecto).
+- `PUT /api/v1/admin/events/:id`: actualización de campos editables (rechaza reducir capacidad por debajo de confirmadas con `422 CAPACITY_BELOW_REGISTRATIONS`).
+- `PATCH /api/v1/admin/events/:id/archive`: archivado de eventos sin eliminar el registro.
+- `DELETE /api/v1/admin/events/:id`: eliminación física únicamente si el evento no posee inscripciones registradas (`409 EVENT_HAS_REGISTRATIONS` en caso contrario).
+- `GET /api/v1/admin/events/:id/registrations`: listado paginado y filtrable (`q`, `status`) de participantes con PII operativa para la gestión del evento.
+
+### Modelo de concurrencia e integridad de cupos
+
+- **Cálculo dinámico:** `availableCapacity = Math.max(0, maximumCapacity - count(CONFIRMADA))`. No existe un contador persistido de disponibilidad en base de datos.
+- **Semántica de estados:** las inscripciones en estado `CONFIRMADA` consumen cupo disponible. Las inscripciones en estado `CANCELADA` no consumen cupo, pero conservan la fila y participan en la restricción de unicidad `UNIQUE(eventId, email)`.
+- **Snapshot vs autoridad:** los endpoints `GET /api/v1/events` y `GET /api/v1/events/:id` entregan un snapshot informativo para la interfaz; dicho snapshot **no reserva cupo**. El endpoint `POST /api/v1/events/:id/registrations` es la única autoridad definitiva para confirmar un registro.
+- **Aislamiento transaccional:** la inscripción se ejecuta en una transacción interactiva de Prisma mediante `SELECT ... FOR UPDATE` sobre la fila del evento en PostgreSQL. Las solicitudes concurrentes para un mismo evento quedan serializadas por este bloqueo a nivel de fila.
+- **Validación bajo lock:** tras adquirir el bloqueo, se validan atómicamente el estado del evento, la fecha de inicio, la unicidad del correo y la cantidad de inscripciones confirmadas antes de crear el nuevo registro. Si no queda capacidad disponible, se devuelve `409 EVENT_FULL`.
+- **Coordinación con administración:** el cambio administrativo de `maximumCapacity` (`PUT /api/v1/admin/events/:id`) utiliza el mismo bloqueo pesimista `SELECT ... FOR UPDATE` antes de verificar y actualizar, garantizando que `maximumCapacity` nunca quede por debajo de las confirmadas bajo los flujos soportados (`422 CAPACITY_BELOW_REGISTRATIONS`).
+- **Independencia entre eventos:** las operaciones sobre eventos distintos bloquean filas independientes en PostgreSQL, evitando contención cruzada o interferencia funcional entre diferentes actividades.
+- **Defensa definitiva contra duplicados:** la restricción de base de datos `UNIQUE(id_evento, correo)` junto con la extensión `CITEXT` actúa como salvaguarda estricta frente a carreras por el mismo correo en el mismo evento.
+
+### Persistencia y base de datos (SCRUM-119 / SCRUM-123)
+
+El contrato de persistencia reside en `prisma/schema.prisma` y en la migración `20260922170000_sprint_2_public_content`:
+
+`Event` se mapea a `evento`: `id` → `id_evento`, `createdById` → `creado_por`, `imageId` → `id_imagen` (opcional), `name` → `nombre`, `description` → `descripcion`, `startsAt` → `inicia_en`, `location` → `ubicacion`, `maximumCapacity` → `capacidad_maxima`, `additionalInformation` → `informacion_adicional` (opcional), `status` → `estado` y `createdAt` → `creado_en`. Incluye la relación `registrations`. Los estados son `BORRADOR` (default), `PUBLICADO`, `FINALIZADO`, `CANCELADO` y `ARCHIVADO`. PostgreSQL garantiza capacidad positiva con `evento_capacidad_positiva_check`. Los índices cubren `(estado, inicia_en)`, creador e imagen. Las FK al administrador y archivo usan `ON DELETE RESTRICT` y `ON UPDATE CASCADE`.
+
+`EventRegistration` se mapea a `inscripcion_evento`: `id` → `id_inscripcion`, `eventId` → `id_evento`, `fullName` → `nombre_completo`, `email` → `correo`, `phone` → `telefono`, `status` → `estado`, `consentedAt` → `consentimiento_en`, `privacyVersion` → `version_privacidad` y `registeredAt` → `inscrito_en`. Todos son obligatorios. La FK al evento usa las mismas políticas RESTRICT/CASCADE. Los estados son `CONFIRMADA` (default) y `CANCELADA`; el índice `(id_evento, estado)` soporta el conteo de confirmadas. Los IDs son enteros autoincrementales y las fechas son `TIMESTAMPTZ(3)`.
+
+- `UNIQUE(eventId, email)` con `CITEXT` garantiza como máximo un registro por evento y correo, insensible a mayúsculas/minúsculas.
+- Los logs no registran PII (nombres, correos o teléfonos).
+
 ### Verificación con PostgreSQL aislado
 
-Las pruebas siguen el patrón Vitest/Prisma de noticias: habilitación explícita,
-fixtures ficticios y limpieza limitada al rol único creado por cada ejecución.
-Usan Prisma para persistir y SQL parametrizado para demostrar que CHECK/NOT NULL
-son restricciones de PostgreSQL, no solo validaciones del cliente.
-
-Con dependencias instaladas y una `DATABASE_URL` de pruebas ya migrada:
+Las pruebas siguen el patrón Vitest/Prisma con base de datos aislada:
 
 ```bash
-bun run test:integration:events
+bun run test:integration:events               # restricciones de esquema, CHECK y FKs
+bun run test:integration:events:api           # API pública, disponibilidad y administración
+bun run test:integration:events:registration  # inscripción pública, control de cupos y participantes
 ```
 
-El script habilita `EVENTS_DATABASE_TEST=true` solo para esta suite; `bun run test`
-la omite por defecto. Es una variable de pruebas, no de despliegue. CI ejecuta la
-suite en el servicio PostgreSQL 16 aislado del job existente `news-postgres`.
+Las suites se habilitan con `EVENTS_DATABASE_TEST=true`. `bun run test` las omite por defecto.
 
-Para reproducir desde una instalación limpia con Compose, elige un nombre de
-proyecto exclusivo y usa estos valores ficticios exclusivamente en ese proyecto:
+Para reproducir desde una instalación limpia con Compose:
 
 ```bash
 POSTGRES_DB=aequvg POSTGRES_USER=aequvg POSTGRES_PASSWORD=events-test docker compose -p aequvg-events-test up -d db
-DATABASE_URL=postgresql://aequvg:events-test@db:5432/aequvg docker compose -p aequvg-events-test run --rm --no-deps backend sh -c 'bun install --frozen-lockfile && bun run prisma:generate && bun run migrate:deploy && bun run test:integration:events && bun run test && bun run typecheck && bun run build'
+DATABASE_URL=postgresql://aequvg:events-test@db:5432/aequvg docker compose -p aequvg-events-test run --rm --no-deps backend sh -c 'bun install --frozen-lockfile && bun run prisma:generate && bun run migrate:deploy && bun run test:integration:events && bun run test:integration:events:api && bun run test:integration:events:registration && bun run test && bun run typecheck && bun run build'
 ```
 
-El comando explícito sustituye el arranque de desarrollo: no inicia la API ni
-ejecuta la seed. Tras revisar los resultados, se pueden eliminar exclusivamente
-los recursos de este proyecto de pruebas con `docker compose -p aequvg-events-test down -v`.
+Tras revisar los resultados, se pueden eliminar los recursos de prueba con `docker compose -p aequvg-events-test down -v`.
 
 ## Variables de entorno
 

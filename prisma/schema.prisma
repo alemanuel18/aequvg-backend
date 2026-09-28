@@ -425,26 +425,55 @@ model EventRegistration {
   @@map("inscripcion_evento")
 }
 
-/// La primera migración debe agregar CHECK (id_archivo IS NOT NULL OR enlace_externo IS NOT NULL).
+model ResourceCategory {
+  id        Int      @id @default(autoincrement()) @map("id_categoria_recurso")
+  name      String   @unique @map("nombre") @db.Citext
+  active    Boolean  @default(true) @map("activa")
+  createdAt DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  resources Resource[]
+
+  @@index([active, name])
+  @@map("categoria_recurso")
+}
+
 model Resource {
   id          Int           @id @default(autoincrement()) @map("id_recurso")
   createdById Int           @map("creado_por")
+  categoryId  Int           @map("id_categoria_recurso")
   fileId      Int?          @map("id_archivo")
   title       String        @map("titulo") @db.VarChar(220)
   description String        @map("descripcion") @db.Text
-  category    String        @map("categoria") @db.VarChar(100)
-  externalUrl String?       @map("enlace_externo") @db.VarChar(2048)
   status      ContentStatus @default(BORRADOR) @map("estado")
   createdAt   DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
   publishedAt DateTime?     @map("publicado_en") @db.Timestamptz(3)
 
   createdBy AdministrativeUser @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  category  ResourceCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   file      File?              @relation("ResourceFile", fields: [fileId], references: [id], onDelete: Restrict)
+  links     ResourceLink[]
 
   @@index([status, publishedAt])
+  @@index([categoryId, status, publishedAt])
   @@index([createdById])
   @@index([fileId])
   @@map("recurso")
+}
+
+model ResourceLink {
+  id         Int      @id @default(autoincrement()) @map("id_enlace_recurso")
+  resourceId Int      @map("id_recurso")
+  label      String   @map("etiqueta") @db.VarChar(160)
+  url        String   @map("url") @db.VarChar(2048)
+  displayOrder Int    @default(0) @map("orden")
+  createdAt  DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([resourceId, url])
+  @@index([resourceId, displayOrder])
+  @@map("enlace_recurso")
 }
 
 model BoardMember {

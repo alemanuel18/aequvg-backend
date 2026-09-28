@@ -14,12 +14,12 @@
 
 ## Rama origen y destino
 
-- **Rama origen:** 
+- **Rama origen:**
 - **Rama destino:** `develop`
 
 ## Cambios principales
 
-- 
+-
 
 ## Verificación y pruebas
 
