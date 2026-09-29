@@ -1,0 +1,90 @@
+name: ${COMPOSE_PROJECT_NAME:-aequvg-backend-prod}
+
+x-backend-environment: &backend-environment
+  NODE_ENV: production
+  HOST: 0.0.0.0
+  PORT: 3000
+  DATABASE_URL: postgresql://${POSTGRES_USER:?Define POSTGRES_USER}:${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:?Define POSTGRES_DB}
+  CORS_ORIGIN: ${CORS_ORIGIN:?Define CORS_ORIGIN}
+  SESSION_SECRET: ${SESSION_SECRET:?Define SESSION_SECRET}
+  ADMIN_API_KEY: ${ADMIN_API_KEY:?Define ADMIN_API_KEY}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  LOG_FORMAT: json
+  LOG_HEALTHCHECKS: ${LOG_HEALTHCHECKS:-false}
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Define POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?Define POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    logging: *default-logging
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    restart: unless-stopped
+    init: true
+    environment: *backend-environment
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    volumes:
+      - backend_storage:/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging: *default-logging
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: tooling
+    profiles: ["tools"]
+    environment: *backend-environment
+    command: ["bun", "run", "migrate:deploy"]
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *default-logging
+
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: tooling
+    profiles: ["tools"]
+    environment: *backend-environment
+    command: ["bun", "run", "db:seed"]
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *default-logging
+
+volumes:
+  postgres_data:
+  backend_storage:

@@ -1,0 +1,52 @@
+name: ${COMPOSE_PROJECT_NAME:-aequvg-backend}
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-aequvg}
+      POSTGRES_USER: ${POSTGRES_USER:-aequvg}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATABASE_URL: ${DATABASE_URL:-postgresql://aequvg:change-me@db:5432/aequvg}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-with-a-long-random-value}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-change-me-with-another-long-random-value}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      LOG_FORMAT: ${LOG_FORMAT:-pretty}
+      LOG_HEALTHCHECKS: ${LOG_HEALTHCHECKS:-false}
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    volumes:
+      - .:/app
+      - backend_modules:/app/node_modules
+      - backend_storage:/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["sh", "-c", "bun run prisma:generate && bun run migrate:deploy && bun run db:seed && bun run dev"]
+
+volumes:
+  postgres_data:
+  backend_modules:
+  backend_storage:
