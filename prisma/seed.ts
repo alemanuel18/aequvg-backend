@@ -12,24 +12,54 @@ const board = [
 ] as const
 
 async function main() {
-  const role = await prisma.role.upsert({
-    where: { name: 'CONTENT_ADMIN' },
-    update: { description: 'Rol de desarrollo para contenido público.', active: true },
-    create: { name: 'CONTENT_ADMIN', description: 'Rol de desarrollo para contenido público.' }
-  })
-
-  for (const permission of [
-    { code: 'CONTENT_MANAGE', description: 'Gestionar contenido público.' },
+  const permissions = [
+    { code: 'ADMIN_ACCESS', description: 'Acceder al panel administrativo.' },
+    { code: 'USERS_MANAGE', description: 'Crear y administrar usuarios administrativos.' },
+    { code: 'ROLES_READ', description: 'Consultar roles y permisos asignables.' },
+    { code: 'INSTITUTIONAL_MANAGE', description: 'Gestionar contenido institucional.' },
+    { code: 'BOARD_MANAGE', description: 'Gestionar la junta directiva.' },
+    { code: 'CONTACT_MANAGE', description: 'Gestionar medios y solicitudes de contacto.' },
+    { code: 'NEWS_MANAGE', description: 'Gestionar noticias.' },
+    { code: 'RESOURCES_MANAGE', description: 'Gestionar recursos.' },
+    { code: 'PROJECTS_MANAGE', description: 'Gestionar proyectos.' },
+    { code: 'EVENTS_MANAGE', description: 'Gestionar eventos e inscripciones.' },
+    { code: 'PAPERS_MANAGE', description: 'Gestionar publicaciones científicas.' },
     { code: 'FILES_MANAGE', description: 'Gestionar metadatos de archivos externos.' }
-  ]) {
+  ] as const
+  const savedPermissions: Array<{ id: number }> = []
+  for (const permission of permissions) {
     const savedPermission = await prisma.permission.upsert({
       where: { code: permission.code }, update: permission, create: permission
     })
-    await prisma.rolePermission.upsert({
-      where: { roleId_permissionId: { roleId: role.id, permissionId: savedPermission.id } },
-      update: {}, create: { roleId: role.id, permissionId: savedPermission.id }
-    })
+    savedPermissions.push(savedPermission)
   }
+
+  const roles = [
+    { name: 'ASSOCIATION_REPRESENTATIVE', description: 'Representante de la Asociación de Estudiantes de Química.' },
+    { name: 'FACULTY_REPRESENTATIVE', description: 'Representante de la Facultad de Química.' },
+    { name: 'CAREER_DIRECTOR', description: 'Directora de la carrera de Química.' },
+    { name: 'CAREER_SECRETARY', description: 'Secretaria de la carrera de Química.' }
+  ] as const
+  const savedRoles = new Map<string, { id: number }>()
+  for (const role of roles) {
+    const savedRole = await prisma.role.upsert({
+      where: { name: role.name }, update: { ...role, active: true }, create: role
+    })
+    savedRoles.set(role.name, savedRole)
+    for (const permission of savedPermissions) {
+      await prisma.rolePermission.upsert({
+        where: { roleId_permissionId: { roleId: savedRole.id, permissionId: permission.id } },
+        update: {}, create: { roleId: savedRole.id, permissionId: permission.id }
+      })
+    }
+  }
+
+  await prisma.role.updateMany({
+    where: { name: 'CONTENT_ADMIN' },
+    data: { active: false }
+  })
+
+  const role = savedRoles.get('ASSOCIATION_REPRESENTATIVE')!
 
   const developmentUser = await prisma.administrativeUser.upsert({
     where: { email: 'contenido.desarrollo@uvg.edu.gt' },
