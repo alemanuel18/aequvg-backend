@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia'
 import { clearAuthFailures, enforceAuthRateLimit, recordAuthFailure } from '../../../middleware/auth-rate-limit'
+import { AppError } from '../../../shared/errors/app-error'
 import { authErrorResponse, authenticatedUserResponse, loginBody, microsoftCallbackQuery, microsoftStartQuery } from '../dtos/auth.schemas'
 import { AUTH_COOKIE, authService, CSRF_COOKIE, DEVICE_COOKIE, MICROSOFT_STATE_COOKIE, MICROSOFT_VERIFIER_COOKIE } from '../services/auth.service'
 
@@ -10,11 +11,11 @@ const clearCookie = { maxAge: 0, path: '/' } as const
 export const authRoutes = new Elysia({ prefix: '/api/v1/auth' })
   .post('/login', async ({ body, cookie, request }) => {
     enforceAuthRateLimit(request, body.email)
-    await authService.revokeFromRequest(request, 'REPLACED_BY_LOGIN')
     const session = await authService.loginWithPassword(body.email, body.password, request.headers).catch(error => {
-      recordAuthFailure(request, body.email)
+      if (error instanceof AppError && error.code === 'INVALID_CREDENTIALS') recordAuthFailure(request, body.email)
       throw error
     })
+    await authService.revokeFromRequest(request, 'REPLACED_BY_LOGIN')
     clearAuthFailures(request, body.email)
     cookie[AUTH_COOKIE]!.set({ ...sessionCookieOptions(session.expiresAt), value: session.accessToken })
     cookie[DEVICE_COOKIE]!.set({ ...sessionCookieOptions(session.expiresAt), value: session.deviceSecret })
@@ -25,7 +26,9 @@ export const authRoutes = new Elysia({ prefix: '/api/v1/auth' })
     response: { 200: authenticatedUserResponse, 401: authErrorResponse, 403: authErrorResponse, 429: authErrorResponse, 503: authErrorResponse },
     detail: { tags: ['Autenticación'], summary: 'Inicia sesión con correo y contraseña' }
   })
-  .get('/microsoft', async ({ query, cookie }) => {
+  .get('/microsoft', async ({ query, cookie, request }) => {
+    enforceAuthRateLimit(request, 'microsoft')
+    recordAuthFailure(request, 'microsoft')
     const challenge = await authService.beginMicrosoft(query.returnTo)
     const options = { httpOnly: true, secure: secureCookies(), sameSite: 'lax' as const, path: '/api/v1/auth/microsoft/callback', maxAge: challenge.maxAge }
     cookie[MICROSOFT_STATE_COOKIE]!.set({ ...options, value: challenge.state })

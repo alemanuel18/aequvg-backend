@@ -42,7 +42,9 @@ describe('servicio de sesiones administrativas', () => {
     process.env.SESSION_SECRET = 'secreto-de-pruebas-con-al-menos-32-caracteres'
   })
 
-  afterEach(() => { delete process.env.SESSION_SECRET })
+  afterEach(() => {
+    for (const key of ['SESSION_SECRET', 'MICROSOFT_TENANT_ID', 'MICROSOFT_CLIENT_ID', 'MICROSOFT_CLIENT_SECRET', 'MICROSOFT_REDIRECT_URI']) delete process.env[key]
+  })
 
   it('vincula la sesión al dispositivo y revoca la cookie reutilizada en otro navegador', async () => {
     const passwordHash = await hashPassword('Clave-segura-123!')
@@ -85,5 +87,20 @@ describe('servicio de sesiones administrativas', () => {
     repositoryMocks.findSession.mockResolvedValue({ ...persisted, revokedAt: null, revocationReason: null, createdAt: new Date(), lastSeenAt: new Date(), user })
     const request = new Request('http://localhost/api/v1/admin/users', { headers: { cookie: `aequvg_session=${result.accessToken}; aequvg_device=${result.deviceSecret}`, 'user-agent': userAgent } })
     await expect(authService.authenticate(request, 'USERS_MANAGE')).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+
+  it('construye el flujo Microsoft para un tenant específico con PKCE y retorno local', async () => {
+    process.env.MICROSOFT_TENANT_ID = '11111111-1111-1111-1111-111111111111'
+    process.env.MICROSOFT_CLIENT_ID = '22222222-2222-2222-2222-222222222222'
+    process.env.MICROSOFT_CLIENT_SECRET = 'client-secret'
+    process.env.MICROSOFT_REDIRECT_URI = 'http://localhost:3000/api/v1/auth/microsoft/callback'
+    repositoryMocks.createMicrosoftChallenge.mockResolvedValue({})
+    const result = await authService.beginMicrosoft('//sitio-malicioso.example')
+    const url = new URL(result.authorizationUrl)
+    expect(url.hostname).toBe('login.microsoftonline.com')
+    expect(url.pathname).toContain(process.env.MICROSOFT_TENANT_ID)
+    expect(url.searchParams.get('code_challenge_method')).toBe('S256')
+    expect(url.searchParams.get('state')).toBe(result.state)
+    expect(repositoryMocks.createMicrosoftChallenge).toHaveBeenCalledWith(expect.objectContaining({ returnTo: null, verifierHash: expect.any(String), nonce: expect.any(String) }))
   })
 })
