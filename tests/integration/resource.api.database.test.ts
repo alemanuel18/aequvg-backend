@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app'
 import { prisma } from '../../src/shared/database/prisma'
+import { createAdminSessionHeaders } from '../helpers/admin-session'
 
 const runDatabaseTests = process.env.RESOURCE_DATABASE_TEST === 'true'
 const describeDatabase = runDatabaseTests ? describe : describe.skip
 const runId = `resource-api-test-${Date.now()}`
-const adminKey = 'resource-integration-test-key'
 let roleId = 0
 let authorId = 0
 let categoryId = 0
@@ -14,9 +14,8 @@ let fileId = 0
 let resourceId = 0
 
 const request = (path: string, options: RequestInit = {}) => new Request(`http://localhost${path}`, options)
-const adminHeaders = { authorization: `Bearer ${adminKey}`, 'content-type': 'application/json' }
+let adminHeaders: Record<string, string>
 const bodyFor = (title: string, overrides: Record<string, unknown> = {}) => ({
-  createdById: authorId,
   categoryId,
   fileId,
   title,
@@ -28,7 +27,6 @@ const bodyFor = (title: string, overrides: Record<string, unknown> = {}) => ({
 
 describeDatabase('CRUD HTTP de recursos con PostgreSQL', () => {
   beforeAll(async () => {
-    process.env.ADMIN_API_KEY = adminKey
     const role = await prisma.role.create({ data: { name: `${runId}-role`, description: 'Rol temporal para pruebas de recursos.' } })
     const author = await prisma.administrativeUser.create({ data: { roleId: role.id, name: 'Autor de recursos', email: `${runId}@uvg.edu.gt` } })
     const category = await prisma.resourceCategory.create({ data: { name: `${runId}-category` } })
@@ -39,6 +37,7 @@ describeDatabase('CRUD HTTP de recursos con PostgreSQL', () => {
     categoryId = category.id
     inactiveCategoryId = inactiveCategory.id
     fileId = file.id
+    adminHeaders = await createAdminSessionHeaders(prisma, author.id, role.id, ['RESOURCES_MANAGE'])
   })
 
   afterAll(async () => {
@@ -46,6 +45,7 @@ describeDatabase('CRUD HTTP de recursos con PostgreSQL', () => {
     await prisma.file.deleteMany({ where: { id: fileId } })
     await prisma.resourceCategory.deleteMany({ where: { id: { in: [categoryId, inactiveCategoryId] } } })
     await prisma.administrativeUser.deleteMany({ where: { id: authorId } })
+    await prisma.rolePermission.deleteMany({ where: { roleId } })
     await prisma.role.deleteMany({ where: { id: roleId } })
     await prisma.$disconnect()
   })

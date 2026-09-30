@@ -9,6 +9,7 @@ import { newsRoutes } from './modules/news/controllers/routes'
 import { projectRoutes } from './modules/projects/controllers/routes'
 import { resourceRoutes } from './modules/resources/controllers/routes'
 import { authRoutes } from './modules/users/controllers/auth.routes'
+import { usersRoutes } from './modules/users/controllers/users.routes'
 import { errorBody } from './shared/errors/app-error'
 import { requestIdFor, requestLogger } from './middleware/request-logger'
 
@@ -23,6 +24,7 @@ export const createApp = () => new Elysia()
   })
   .get('/health', () => ({ status: 'ok' }))
   .use(authRoutes)
+  .use(usersRoutes)
   .use(institutionalRoutes)
   .use(newsRoutes)
   .use(resourceRoutes)

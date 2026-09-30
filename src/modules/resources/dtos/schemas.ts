@@ -18,7 +18,7 @@ const resourceFields = {
   links: t.Optional(t.Array(resourceLinkBody, { maxItems: 50 }))
 }
 
-export const resourceCreateBody = t.Object({ createdById: t.Integer({ minimum: 1 }), ...resourceFields })
+export const resourceCreateBody = t.Object(resourceFields)
 export const resourceUpdateBody = t.Partial(t.Object(resourceFields))
 
 export const resourcePublicQuery = t.Object({

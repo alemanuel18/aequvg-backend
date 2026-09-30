@@ -2,16 +2,16 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app'
 import { clearRateLimitsForTests } from '../../src/middleware/rate-limit'
 import { prisma } from '../../src/shared/database/prisma'
+import { createAdminSessionHeaders } from '../helpers/admin-session'
 
 const runDatabaseTests = process.env.EVENTS_DATABASE_TEST === 'true'
 const describeDatabase = runDatabaseTests ? describe : describe.skip
 const runId = `events-reg-test-${Date.now()}`
-const adminKey = 'events-reg-test-admin-key'
 let roleId: number
 let authorId = 0
 
 const request = (path: string, options: RequestInit = {}) => new Request(`http://localhost${path}`, options)
-const adminHeaders = { authorization: `Bearer ${adminKey}`, 'content-type': 'application/json' }
+let adminHeaders: Record<string, string>
 
 const baseRegistrationPayload = (overrides: Record<string, unknown> = {}) => ({
   fullName: 'Estudiante Ejemplo',
@@ -26,8 +26,6 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
   const app = createApp()
 
   beforeAll(async () => {
-    process.env.ADMIN_API_KEY = adminKey
-
     const role = await prisma.role.create({
       data: { name: `${runId}-role`, description: 'Rol temporal para pruebas de inscripción a eventos.' }
     })
@@ -37,6 +35,7 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
       data: { roleId, name: 'Organizador de eventos', email: `${runId}@uvg.edu.gt`, status: 'ACTIVO' }
     })
     authorId = author.id
+    adminHeaders = await createAdminSessionHeaders(prisma, author.id, role.id, ['EVENTS_MANAGE'])
   })
 
   afterAll(async () => {
@@ -45,6 +44,7 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
         await prisma.eventRegistration.deleteMany({ where: { event: { createdBy: { roleId } } } })
         await prisma.event.deleteMany({ where: { createdBy: { roleId } } })
         await prisma.administrativeUser.deleteMany({ where: { roleId } })
+        await prisma.rolePermission.deleteMany({ where: { roleId } })
         await prisma.role.delete({ where: { id: roleId } })
       }
     } finally {

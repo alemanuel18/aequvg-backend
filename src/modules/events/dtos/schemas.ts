@@ -13,7 +13,6 @@ export const idParams = t.Object({
 })
 
 export const eventCreateBody = t.Object({
-  createdById: t.Integer({ minimum: 1 }),
   imageId: t.Optional(t.Nullable(t.Integer({ minimum: 1 }))),
   name: t.String({ minLength: 3, maxLength: 220 }),
   description: t.String({ minLength: 10, maxLength: 10000 }),
