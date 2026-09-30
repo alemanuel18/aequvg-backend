@@ -1,29 +1,592 @@
 {
   "v": 3,
-  "name": "AEQUVG Sprint 2",
+  "name": "AEQUVG - Autenticación y API",
   "folders": [
     {
       "v": 3,
       "name": "Público",
       "folders": [],
       "requests": [
-        { "v": "1", "name": "Contenido institucional", "method": "GET", "endpoint": "<<baseUrl>>/institutional-content", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Junta directiva", "method": "GET", "endpoint": "<<baseUrl>>/board-members", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Medios oficiales", "method": "GET", "endpoint": "<<baseUrl>>/contact-methods", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Enviar consulta", "method": "POST", "endpoint": "<<baseUrl>>/contact-requests", "params": [], "headers": [{ "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"name\": \"Persona de prueba\",\n  \"email\": \"persona@example.com\",\n  \"phone\": \"+502 5555-5555\",\n  \"type\": \"CONSULTA\",\n  \"subject\": \"Información de la carrera\",\n  \"message\": \"Quisiera recibir información sobre la carrera.\",\n  \"consent\": true,\n  \"privacyVersion\": \"2026-09\"\n}" } },
-        { "v": "1", "name": "Categorías de noticias", "method": "GET", "endpoint": "<<baseUrl>>/news/categories", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Buscar noticias activas", "method": "GET", "endpoint": "<<baseUrl>>/news?q=química&page=1&pageSize=20", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Detalle de noticia activa", "method": "GET", "endpoint": "<<baseUrl>>/news/1", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Noticia inexistente (404)", "method": "GET", "endpoint": "<<baseUrl>>/news/999999", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Proyectos: filtros combinados", "method": "GET", "endpoint": "<<baseUrl>>/projects", "params": [{ "key": "search", "value": "plataforma", "active": true }, { "key": "year", "value": "2026", "active": true }, { "key": "type", "value": "PROYECTO", "active": true }, { "key": "sortBy", "value": "title", "active": true }, { "key": "sortOrder", "value": "asc", "active": true }, { "key": "page", "value": "1", "active": true }, { "key": "pageSize", "value": "1", "active": true }], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Proyectos: segunda página", "method": "GET", "endpoint": "<<baseUrl>>/projects", "params": [{ "key": "type", "value": "PROYECTO", "active": true }, { "key": "sortBy", "value": "createdAt", "active": true }, { "key": "sortOrder", "value": "desc", "active": true }, { "key": "page", "value": "2", "active": true }, { "key": "pageSize", "value": "1", "active": true }], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Proyectos: sin resultados", "method": "GET", "endpoint": "<<baseUrl>>/projects", "params": [{ "key": "search", "value": "sin-coincidencias-999999", "active": true }], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Proyectos: parámetros inválidos (422)", "method": "GET", "endpoint": "<<baseUrl>>/projects", "params": [{ "key": "year", "value": "1969", "active": true }, { "key": "type", "value": "OTRO", "active": true }, { "key": "page", "value": "0", "active": true }, { "key": "pageSize", "value": "101", "active": true }], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Buscar eventos activos", "method": "GET", "endpoint": "<<baseUrl>>/events?page=1&pageSize=20", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Detalle de evento activo", "method": "GET", "endpoint": "<<baseUrl>>/events/1", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Evento inexistente (404)", "method": "GET", "endpoint": "<<baseUrl>>/events/999999", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Inscribir participante", "method": "POST", "endpoint": "<<baseUrl>>/events/1/registrations", "params": [], "headers": [{ "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"fullName\": \"Estudiante de Prueba\",\n  \"email\": \"estudiante.prueba@example.com\",\n  \"phone\": \"+502 5555-0123\",\n  \"consent\": true,\n  \"privacyVersion\": \"pendiente-validacion\"\n}" } },
-        { "v": "1", "name": "Inscribir en evento sin cupo (409 si está lleno)", "method": "POST", "endpoint": "<<baseUrl>>/events/1/registrations", "params": [], "headers": [{ "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"fullName\": \"Participante Excedente\",\n  \"email\": \"excedente@example.com\",\n  \"phone\": \"+502 5555-9876\",\n  \"consent\": true,\n  \"privacyVersion\": \"pendiente-validacion\"\n}" } }
+        {
+          "v": "1",
+          "name": "Contenido institucional",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/institutional-content",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Junta directiva",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/board-members",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Medios oficiales",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/contact-methods",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Enviar consulta",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/contact-requests",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"name\": \"Persona de prueba\",\n  \"email\": \"persona@example.com\",\n  \"phone\": \"+502 5555-5555\",\n  \"type\": \"CONSULTA\",\n  \"subject\": \"Información de la carrera\",\n  \"message\": \"Quisiera recibir información sobre la carrera.\",\n  \"consent\": true,\n  \"privacyVersion\": \"2026-09\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Categorías de noticias",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/news/categories",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Buscar noticias activas",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/news?q=química&page=1&pageSize=20",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Detalle de noticia activa",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/news/1",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Noticia inexistente (404)",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/news/999999",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Proyectos: filtros combinados",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/projects",
+          "params": [
+            {
+              "key": "search",
+              "value": "plataforma",
+              "active": true
+            },
+            {
+              "key": "year",
+              "value": "2026",
+              "active": true
+            },
+            {
+              "key": "type",
+              "value": "PROYECTO",
+              "active": true
+            },
+            {
+              "key": "sortBy",
+              "value": "title",
+              "active": true
+            },
+            {
+              "key": "sortOrder",
+              "value": "asc",
+              "active": true
+            },
+            {
+              "key": "page",
+              "value": "1",
+              "active": true
+            },
+            {
+              "key": "pageSize",
+              "value": "1",
+              "active": true
+            }
+          ],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Proyectos: segunda página",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/projects",
+          "params": [
+            {
+              "key": "type",
+              "value": "PROYECTO",
+              "active": true
+            },
+            {
+              "key": "sortBy",
+              "value": "createdAt",
+              "active": true
+            },
+            {
+              "key": "sortOrder",
+              "value": "desc",
+              "active": true
+            },
+            {
+              "key": "page",
+              "value": "2",
+              "active": true
+            },
+            {
+              "key": "pageSize",
+              "value": "1",
+              "active": true
+            }
+          ],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Proyectos: sin resultados",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/projects",
+          "params": [
+            {
+              "key": "search",
+              "value": "sin-coincidencias-999999",
+              "active": true
+            }
+          ],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Proyectos: parámetros inválidos (422)",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/projects",
+          "params": [
+            {
+              "key": "year",
+              "value": "1969",
+              "active": true
+            },
+            {
+              "key": "type",
+              "value": "OTRO",
+              "active": true
+            },
+            {
+              "key": "page",
+              "value": "0",
+              "active": true
+            },
+            {
+              "key": "pageSize",
+              "value": "101",
+              "active": true
+            }
+          ],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Buscar eventos activos",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/events?page=1&pageSize=20",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Detalle de evento activo",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/events/1",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Evento inexistente (404)",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/events/999999",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Inscribir participante",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/events/1/registrations",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"fullName\": \"Estudiante de Prueba\",\n  \"email\": \"estudiante.prueba@example.com\",\n  \"phone\": \"+502 5555-0123\",\n  \"consent\": true,\n  \"privacyVersion\": \"pendiente-validacion\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Inscribir en evento sin cupo (409 si está lleno)",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/events/1/registrations",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"fullName\": \"Participante Excedente\",\n  \"email\": \"excedente@example.com\",\n  \"phone\": \"+502 5555-9876\",\n  \"consent\": true,\n  \"privacyVersion\": \"pendiente-validacion\"\n}"
+          }
+        }
+      ]
+    },
+    {
+      "v": 3,
+      "name": "Autenticación y usuarios",
+      "folders": [],
+      "requests": [
+        {
+          "v": "1",
+          "name": "Iniciar sesión local",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/auth/login",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"email\": \"<<adminEmail>>\",\n  \"password\": \"<<adminPassword>>\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Consultar sesión",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/auth/me",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Iniciar flujo Microsoft",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/auth/microsoft?returnTo=/admin",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Cerrar sesión",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/auth/logout",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Listar roles",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/roles",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Listar usuarios",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/users",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Crear usuario",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/users",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"name\": \"Secretaria de prueba\",\n  \"email\": \"secretaria.prueba@uvg.edu.gt\",\n  \"roleId\": 1,\n  \"password\": \"Change-this-test-password-123!\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Actualizar rol o estado",
+          "method": "PATCH",
+          "endpoint": "<<baseUrl>>/admin/users/<<userId>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"roleId\": 1,\n  \"status\": \"ACTIVO\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Establecer contraseña",
+          "method": "PUT",
+          "endpoint": "<<baseUrl>>/admin/users/<<userId>>/password",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"password\": \"Change-this-new-password-123!\"\n}"
+          }
+        }
       ]
     },
     {
@@ -31,14 +594,179 @@
       "name": "Administración - Noticias",
       "folders": [],
       "requests": [
-        { "v": "1", "name": "Listar noticias", "method": "GET", "endpoint": "<<baseUrl>>/admin/news?page=1&pageSize=20", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Administración sin credencial (401)", "method": "GET", "endpoint": "<<baseUrl>>/admin/news", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Consultar noticia", "method": "GET", "endpoint": "<<baseUrl>>/admin/news/1", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Crear noticia", "method": "POST", "endpoint": "<<baseUrl>>/admin/news", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"createdById\": 1,\n  \"categoryId\": 1,\n  \"title\": \"Noticia de ejemplo\",\n  \"summary\": \"Resumen de ejemplo para una noticia administrativa.\",\n  \"content\": \"Contenido suficientemente extenso para crear una noticia de ejemplo desde Hoppscotch.\",\n  \"status\": \"BORRADOR\"\n}" } },
-        { "v": "1", "name": "Crear noticia inválida (422)", "method": "POST", "endpoint": "<<baseUrl>>/admin/news", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"createdById\": 1,\n  \"categoryId\": 0\n}" } },
-        { "v": "1", "name": "Actualizar noticia", "method": "PUT", "endpoint": "<<baseUrl>>/admin/news/1", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"status\": \"PUBLICADO\"\n}" } },
-        { "v": "1", "name": "Archivar noticia", "method": "PATCH", "endpoint": "<<baseUrl>>/admin/news/1/archive", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Eliminar noticia", "method": "DELETE", "endpoint": "<<baseUrl>>/admin/news/1", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } }
+        {
+          "v": "1",
+          "name": "Listar noticias",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/news?page=1&pageSize=20",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Administración sin credencial (401)",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/news",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Consultar noticia",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/news/1",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Crear noticia",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/news",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"categoryId\": 1,\n  \"title\": \"Noticia de ejemplo\",\n  \"summary\": \"Resumen de ejemplo para una noticia administrativa.\",\n  \"content\": \"Contenido suficientemente extenso para crear una noticia de ejemplo desde Hoppscotch.\",\n  \"status\": \"BORRADOR\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Crear noticia inválida (422)",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/news",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"categoryId\": 0\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Actualizar noticia",
+          "method": "PUT",
+          "endpoint": "<<baseUrl>>/admin/news/1",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"status\": \"PUBLICADO\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Archivar noticia",
+          "method": "PATCH",
+          "endpoint": "<<baseUrl>>/admin/news/1/archive",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Eliminar noticia",
+          "method": "DELETE",
+          "endpoint": "<<baseUrl>>/admin/news/1",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        }
       ]
     },
     {
@@ -46,10 +774,70 @@
       "name": "Público - Recursos",
       "folders": [],
       "requests": [
-        { "v": "1", "name": "Categorías de recursos", "method": "GET", "endpoint": "<<baseUrl>>/resources/categories", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Buscar recursos", "method": "GET", "endpoint": "<<baseUrl>>/resources?q=seguridad&categoryId=1&page=1&pageSize=20", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Detalle de recurso", "method": "GET", "endpoint": "<<baseUrl>>/resources/1", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Recurso inexistente (404)", "method": "GET", "endpoint": "<<baseUrl>>/resources/999999", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } }
+        {
+          "v": "1",
+          "name": "Categorías de recursos",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/resources/categories",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Buscar recursos",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/resources?q=seguridad&categoryId=1&page=1&pageSize=20",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Detalle de recurso",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/resources/1",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Recurso inexistente (404)",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/resources/999999",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        }
       ]
     },
     {
@@ -57,16 +845,233 @@
       "name": "Administración - Recursos",
       "folders": [],
       "requests": [
-        { "v": "1", "name": "Listar recursos", "method": "GET", "endpoint": "<<baseUrl>>/admin/resources?status=PUBLICADO&page=1&pageSize=20", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Administración sin credencial (401)", "method": "GET", "endpoint": "<<baseUrl>>/admin/resources", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Consultar recurso", "method": "GET", "endpoint": "<<baseUrl>>/admin/resources/1", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Crear recurso con archivo y enlace", "method": "POST", "endpoint": "<<baseUrl>>/admin/resources", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"createdById\": 1,\n  \"categoryId\": 1,\n  \"fileId\": 1,\n  \"title\": \"Guía de laboratorio\",\n  \"description\": \"Guía disponible para consulta desde el catálogo público.\",\n  \"status\": \"PUBLICADO\",\n  \"links\": [{ \"label\": \"Sitio UVG\", \"url\": \"https://www.uvg.edu.gt/\", \"displayOrder\": 1 }]\n}" } },
-        { "v": "1", "name": "Crear recurso sin destino (422)", "method": "POST", "endpoint": "<<baseUrl>>/admin/resources", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"createdById\": 1,\n  \"categoryId\": 1,\n  \"title\": \"Recurso inválido\",\n  \"description\": \"No tiene archivo ni enlace para su publicación.\",\n  \"status\": \"PUBLICADO\",\n  \"links\": []\n}" } },
-        { "v": "1", "name": "Crear recurso con archivo inexistente (422)", "method": "POST", "endpoint": "<<baseUrl>>/admin/resources", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"createdById\": 1,\n  \"categoryId\": 1,\n  \"fileId\": 999999,\n  \"title\": \"Archivo inexistente\",\n  \"description\": \"Debe devolver INVALID_RESOURCE_FILE.\",\n  \"status\": \"PUBLICADO\"\n}" } },
-        { "v": "1", "name": "Crear recurso con URL inválida (422)", "method": "POST", "endpoint": "<<baseUrl>>/admin/resources", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"createdById\": 1,\n  \"categoryId\": 1,\n  \"fileId\": 1,\n  \"title\": \"URL inválida\",\n  \"description\": \"Debe devolver VALIDATION_ERROR.\",\n  \"status\": \"PUBLICADO\",\n  \"links\": [{ \"label\": \"Enlace no permitido\", \"url\": \"ftp://example.org/archivo\" }]\n}" } },
-        { "v": "1", "name": "Actualizar enlaces de recurso", "method": "PUT", "endpoint": "<<baseUrl>>/admin/resources/1", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"links\": [{ \"label\": \"Referencia actualizada\", \"url\": \"https://www.uvg.edu.gt/\" }]\n}" } },
-        { "v": "1", "name": "Archivar recurso", "method": "PATCH", "endpoint": "<<baseUrl>>/admin/resources/1/archive", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Eliminar recurso", "method": "DELETE", "endpoint": "<<baseUrl>>/admin/resources/1", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } }
+        {
+          "v": "1",
+          "name": "Listar recursos",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/resources?status=PUBLICADO&page=1&pageSize=20",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Administración sin credencial (401)",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/resources",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Consultar recurso",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/resources/1",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Crear recurso con archivo y enlace",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/resources",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"categoryId\": 1,\n  \"fileId\": 1,\n  \"title\": \"Guía de laboratorio\",\n  \"description\": \"Guía disponible para consulta desde el catálogo público.\",\n  \"status\": \"PUBLICADO\",\n  \"links\": [\n    {\n      \"label\": \"Sitio UVG\",\n      \"url\": \"https://www.uvg.edu.gt/\",\n      \"displayOrder\": 1\n    }\n  ]\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Crear recurso sin destino (422)",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/resources",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"categoryId\": 1,\n  \"title\": \"Recurso inválido\",\n  \"description\": \"No tiene archivo ni enlace para su publicación.\",\n  \"status\": \"PUBLICADO\",\n  \"links\": []\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Crear recurso con archivo inexistente (422)",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/resources",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"categoryId\": 1,\n  \"fileId\": 999999,\n  \"title\": \"Archivo inexistente\",\n  \"description\": \"Debe devolver INVALID_RESOURCE_FILE.\",\n  \"status\": \"PUBLICADO\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Crear recurso con URL inválida (422)",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/resources",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"categoryId\": 1,\n  \"fileId\": 1,\n  \"title\": \"URL inválida\",\n  \"description\": \"Debe devolver VALIDATION_ERROR.\",\n  \"status\": \"PUBLICADO\",\n  \"links\": [\n    {\n      \"label\": \"Enlace no permitido\",\n      \"url\": \"ftp://example.org/archivo\"\n    }\n  ]\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Actualizar enlaces de recurso",
+          "method": "PUT",
+          "endpoint": "<<baseUrl>>/admin/resources/1",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"links\": [\n    {\n      \"label\": \"Referencia actualizada\",\n      \"url\": \"https://www.uvg.edu.gt/\"\n    }\n  ]\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Archivar recurso",
+          "method": "PATCH",
+          "endpoint": "<<baseUrl>>/admin/resources/1/archive",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Eliminar recurso",
+          "method": "DELETE",
+          "endpoint": "<<baseUrl>>/admin/resources/1",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        }
       ]
     },
     {
@@ -74,36 +1079,476 @@
       "name": "Administración - Eventos",
       "folders": [],
       "requests": [
-        { "v": "1", "name": "Listar eventos", "method": "GET", "endpoint": "<<baseUrl>>/admin/events?page=1&pageSize=20", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Administración sin credencial (401)", "method": "GET", "endpoint": "<<baseUrl>>/admin/events", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Consultar evento", "method": "GET", "endpoint": "<<baseUrl>>/admin/events/1", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Crear evento", "method": "POST", "endpoint": "<<baseUrl>>/admin/events", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"name\": \"Taller de Química General\",\n  \"description\": \"Taller práctico sobre técnicas básicas de laboratorio para estudiantes de primer ingreso.\",\n  \"startsAt\": \"2026-11-20T15:00:00.000Z\",\n  \"location\": \"Laboratorio Central, Edificio F\",\n  \"maximumCapacity\": 30,\n  \"status\": \"BORRADOR\"\n}" } },
-        { "v": "1", "name": "Crear evento inválido (422)", "method": "POST", "endpoint": "<<baseUrl>>/admin/events", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"name\": \"Evento inválido por capacidad\",\n  \"description\": \"Descripción para comprobar validación de capacidad positiva.\",\n  \"startsAt\": \"2026-11-20T15:00:00.000Z\",\n  \"location\": \"Laboratorio\",\n  \"maximumCapacity\": 0\n}" } },
-        { "v": "1", "name": "Actualizar evento", "method": "PUT", "endpoint": "<<baseUrl>>/admin/events/1", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"status\": \"PUBLICADO\",\n  \"maximumCapacity\": 35\n}" } },
-        { "v": "1", "name": "Archivar evento", "method": "PATCH", "endpoint": "<<baseUrl>>/admin/events/1/archive", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Eliminar evento", "method": "DELETE", "endpoint": "<<baseUrl>>/admin/events/1", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Consultar participantes", "method": "GET", "endpoint": "<<baseUrl>>/admin/events/1/registrations?page=1&pageSize=20", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Filtrar participantes confirmados", "method": "GET", "endpoint": "<<baseUrl>>/admin/events/1/registrations?status=CONFIRMADA", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } }
+        {
+          "v": "1",
+          "name": "Listar eventos",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/events?page=1&pageSize=20",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Administración sin credencial (401)",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/events",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Consultar evento",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/events/1",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Crear evento",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/events",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"name\": \"Taller de Química General\",\n  \"description\": \"Taller práctico sobre técnicas básicas de laboratorio para estudiantes de primer ingreso.\",\n  \"startsAt\": \"2026-11-20T15:00:00.000Z\",\n  \"location\": \"Laboratorio Central, Edificio F\",\n  \"maximumCapacity\": 30,\n  \"status\": \"BORRADOR\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Crear evento inválido (422)",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/events",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"name\": \"Evento inválido por capacidad\",\n  \"description\": \"Descripción para comprobar validación de capacidad positiva.\",\n  \"startsAt\": \"2026-11-20T15:00:00.000Z\",\n  \"location\": \"Laboratorio\",\n  \"maximumCapacity\": 0\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Actualizar evento",
+          "method": "PUT",
+          "endpoint": "<<baseUrl>>/admin/events/1",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"status\": \"PUBLICADO\",\n  \"maximumCapacity\": 35\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Archivar evento",
+          "method": "PATCH",
+          "endpoint": "<<baseUrl>>/admin/events/1/archive",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Eliminar evento",
+          "method": "DELETE",
+          "endpoint": "<<baseUrl>>/admin/events/1",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Consultar participantes",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/events/1/registrations?page=1&pageSize=20",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Filtrar participantes confirmados",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/events/1/registrations?status=CONFIRMADA",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        }
       ]
-    }
-    ,{
+    },
+    {
       "v": 3,
       "name": "Administración - Proyectos",
       "folders": [],
       "requests": [
-        { "v": "1", "name": "Listar proyectos", "method": "GET", "endpoint": "<<baseUrl>>/admin/projects", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Sin autorización (401)", "method": "GET", "endpoint": "<<baseUrl>>/admin/projects", "params": [], "headers": [], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Consultar proyecto", "method": "GET", "endpoint": "<<baseUrl>>/admin/projects/<<projectId>>", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Proyecto inexistente (404)", "method": "GET", "endpoint": "<<baseUrl>>/admin/projects/999999", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } },
-        { "v": "1", "name": "Crear proyecto", "method": "POST", "endpoint": "<<baseUrl>>/admin/projects", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"authorId\": <<authorId>>,\n  \"title\": \"Proyecto de ejemplo\",\n  \"slug\": \"proyecto-ejemplo-hoppscotch\",\n  \"description\": \"Descripción válida para crear un proyecto mediante Hoppscotch.\",\n  \"type\": \"PROYECTO\",\n  \"repositoryUrl\": \"https://github.com/ejemplo/proyecto\"\n}" } },
-        { "v": "1", "name": "Crear proyecto inválido (422)", "method": "POST", "endpoint": "<<baseUrl>>/admin/projects", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"authorId\": 0,\n  \"title\": \"x\"\n}" } },
-        { "v": "1", "name": "Slug duplicado (409)", "method": "POST", "endpoint": "<<baseUrl>>/admin/projects", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"authorId\": <<authorId>>,\n  \"title\": \"Proyecto duplicado\",\n  \"slug\": \"proyecto-ejemplo-hoppscotch\",\n  \"description\": \"Descripción válida que reutiliza el slug del ejemplo de creación.\",\n  \"type\": \"PROYECTO\"\n}" } },
-        { "v": "1", "name": "Actualizar proyecto", "method": "PUT", "endpoint": "<<baseUrl>>/admin/projects/<<projectId>>", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"title\": \"Proyecto actualizado\",\n  \"type\": \"TESIS\"\n}" } },
-        { "v": "1", "name": "Revisar proyecto", "method": "PATCH", "endpoint": "<<baseUrl>>/admin/projects/<<projectId>>/review", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }, { "key": "Content-Type", "value": "application/json", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": "application/json", "body": "{\n  \"status\": \"APROBADO\",\n  \"reviewerId\": <<authorId>>\n}" } },
-        { "v": "1", "name": "Eliminar proyecto", "method": "DELETE", "endpoint": "<<baseUrl>>/admin/projects/<<projectId>>", "params": [], "headers": [{ "key": "Authorization", "value": "Bearer <<adminApiKey>>", "active": true }], "auth": { "authType": "none", "authActive": true }, "body": { "contentType": null, "body": null } }
+        {
+          "v": "1",
+          "name": "Listar proyectos",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/projects",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Sin autorización (401)",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/projects",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Consultar proyecto",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/projects/<<projectId>>",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Proyecto inexistente (404)",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/projects/999999",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Crear proyecto",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/projects",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"title\": \"Proyecto de ejemplo\",\n  \"slug\": \"proyecto-ejemplo-hoppscotch\",\n  \"description\": \"Descripción válida para crear un proyecto mediante Hoppscotch.\",\n  \"type\": \"PROYECTO\",\n  \"repositoryUrl\": \"https://github.com/ejemplo/proyecto\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Crear proyecto inválido (422)",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/projects",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"title\": \"x\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Slug duplicado (409)",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/projects",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"title\": \"Proyecto duplicado\",\n  \"slug\": \"proyecto-ejemplo-hoppscotch\",\n  \"description\": \"Descripción válida que reutiliza el slug del ejemplo de creación.\",\n  \"type\": \"PROYECTO\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Actualizar proyecto",
+          "method": "PUT",
+          "endpoint": "<<baseUrl>>/admin/projects/<<projectId>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"title\": \"Proyecto actualizado\",\n  \"type\": \"TESIS\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Revisar proyecto",
+          "method": "PATCH",
+          "endpoint": "<<baseUrl>>/admin/projects/<<projectId>>/review",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"status\": \"APROBADO\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Eliminar proyecto",
+          "method": "DELETE",
+          "endpoint": "<<baseUrl>>/admin/projects/<<projectId>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        }
       ]
     }
   ],
   "requests": [],
-  "environments": [{ "name": "Local", "variables": [{ "key": "baseUrl", "value": "http://localhost:3000/api/v1" }, { "key": "adminApiKey", "value": "change-me" }, { "key": "authorId", "value": "1" }, { "key": "projectId", "value": "1" }] }]
+  "environments": [
+    {
+      "name": "Local",
+      "variables": [
+        {
+          "key": "baseUrl",
+          "value": "http://localhost:3000/api/v1"
+        },
+        {
+          "key": "adminEmail",
+          "value": "contenido.desarrollo@uvg.edu.gt"
+        },
+        {
+          "key": "adminPassword",
+          "value": "change-me"
+        },
+        {
+          "key": "csrfToken",
+          "value": "copy-from-login-response"
+        },
+        {
+          "key": "roleId",
+          "value": "1"
+        },
+        {
+          "key": "userId",
+          "value": "1"
+        },
+        {
+          "key": "projectId",
+          "value": "1"
+        }
+      ]
+    }
+  ]
 }
