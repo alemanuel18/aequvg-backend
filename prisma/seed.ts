@@ -1,4 +1,5 @@
 import { PrismaClient, ProjectStatus, ProjectType } from '@prisma/client'
+import { hashPassword } from '../src/shared/utils/auth-crypto'
 
 const prisma = new PrismaClient()
 const developmentPublishedAt = new Date('2026-01-15T12:00:00.000Z')
@@ -66,6 +67,14 @@ async function main() {
     update: { name: 'Contenido de desarrollo', roleId: role.id, status: 'ACTIVO' },
     create: { name: 'Contenido de desarrollo', email: 'contenido.desarrollo@uvg.edu.gt', roleId: role.id }
   })
+  if (process.env.SEED_ADMIN_PASSWORD) {
+    const passwordHash = await hashPassword(process.env.SEED_ADMIN_PASSWORD)
+    await prisma.administrativeCredential.upsert({
+      where: { userId: developmentUser.id },
+      update: { passwordHash },
+      create: { userId: developmentUser.id, passwordHash }
+    })
+  }
 
   const methods = [
     { type: 'EMAIL' as const, label: 'Correo oficial', value: 'asoquimica@uvg.edu.gt', url: 'mailto:asoquimica@uvg.edu.gt', displayOrder: 1 },

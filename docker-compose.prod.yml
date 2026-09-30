@@ -6,8 +6,13 @@ x-backend-environment: &backend-environment
   PORT: 3000
   DATABASE_URL: postgresql://${POSTGRES_USER:?Define POSTGRES_USER}:${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:?Define POSTGRES_DB}
   CORS_ORIGIN: ${CORS_ORIGIN:?Define CORS_ORIGIN}
+  FRONTEND_URL: ${FRONTEND_URL:?Define FRONTEND_URL}
   SESSION_SECRET: ${SESSION_SECRET:?Define SESSION_SECRET}
-  ADMIN_API_KEY: ${ADMIN_API_KEY:?Define ADMIN_API_KEY}
+  COOKIE_SECURE: "true"
+  MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID:?Define MICROSOFT_TENANT_ID}
+  MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:?Define MICROSOFT_CLIENT_ID}
+  MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:?Define MICROSOFT_CLIENT_SECRET}
+  MICROSOFT_REDIRECT_URI: ${MICROSOFT_REDIRECT_URI:?Define MICROSOFT_REDIRECT_URI}
   LOG_LEVEL: ${LOG_LEVEL:-info}
   LOG_FORMAT: json
   LOG_HEALTHCHECKS: ${LOG_HEALTHCHECKS:-false}
@@ -78,7 +83,9 @@ services:
       dockerfile: Dockerfile
       target: tooling
     profiles: ["tools"]
-    environment: *backend-environment
+    environment:
+      <<: *backend-environment
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
     command: ["bun", "run", "db:seed"]
     depends_on:
       db:
