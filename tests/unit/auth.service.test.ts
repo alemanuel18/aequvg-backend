@@ -89,6 +89,45 @@ describe('servicio de sesiones administrativas', () => {
     await expect(authService.authenticate(request, 'USERS_MANAGE')).rejects.toMatchObject({ code: 'FORBIDDEN' })
   })
 
+  it('no permite iniciar sesión a una cuenta externa aunque la contraseña sea correcta', async () => {
+    await expect(authService.loginWithPassword('persona@example.com', 'Clave-segura-123!', new Headers({ 'user-agent': userAgent })))
+      .rejects.toMatchObject({ status: 401, code: 'INVALID_CREDENTIALS' })
+    expect(repositoryMocks.findUserByEmail).not.toHaveBeenCalled()
+  })
+
+  it('distingue una cuenta institucional inactiva de credenciales inválidas', async () => {
+    const passwordHash = await hashPassword('Clave-segura-123!')
+    repositoryMocks.findUserByEmail.mockResolvedValue({
+      ...baseUser,
+      status: 'INACTIVO',
+      credential: { userId: baseUser.id, passwordHash, updatedAt: new Date() }
+    })
+
+    await expect(authService.loginWithPassword(baseUser.email, 'Clave-segura-123!', new Headers({ 'user-agent': userAgent })))
+      .rejects.toMatchObject({ status: 403, code: 'ACCOUNT_DISABLED' })
+    expect(repositoryMocks.createSession).not.toHaveBeenCalled()
+  })
+
+  it('permite autenticar una cuenta activa pero rechaza una operación sin el permiso del módulo', async () => {
+    const passwordHash = await hashPassword('Clave-segura-123!')
+    const user = { ...baseUser, credential: { userId: baseUser.id, passwordHash, updatedAt: new Date() } }
+    repositoryMocks.findUserByEmail.mockResolvedValue(user)
+    let persisted: Record<string, unknown> = {}
+    repositoryMocks.createSession.mockImplementation(async data => { persisted = data; return data })
+    const session = await authService.loginWithPassword(user.email, 'Clave-segura-123!', new Headers({ 'user-agent': userAgent }))
+    repositoryMocks.findSession.mockResolvedValue({ ...persisted, revokedAt: null, revocationReason: null, createdAt: new Date(), lastSeenAt: new Date(), user })
+
+    const request = new Request('http://localhost/api/v1/admin/events', {
+      method: 'POST',
+      headers: {
+        cookie: `aequvg_session=${session.accessToken}; aequvg_device=${session.deviceSecret}`,
+        'user-agent': userAgent,
+        'x-csrf-token': session.csrfToken
+      }
+    })
+    await expect(authService.authenticate(request, 'EVENTS_MANAGE')).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' })
+  })
+
   it('construye el flujo Microsoft para un tenant específico con PKCE y retorno local', async () => {
     process.env.MICROSOFT_TENANT_ID = '11111111-1111-1111-1111-111111111111'
     process.env.MICROSOFT_CLIENT_ID = '22222222-2222-2222-2222-222222222222'
