@@ -1526,11 +1526,11 @@
         },
         {
           "key": "adminEmail",
-          "value": "contenido.desarrollo@uvg.edu.gt"
+          "value": "admin.pruebas@uvg.edu.gt"
         },
         {
           "key": "adminPassword",
-          "value": "change-me"
+          "value": "AEQUVG-Pruebas-2026!"
         },
         {
           "key": "csrfToken",

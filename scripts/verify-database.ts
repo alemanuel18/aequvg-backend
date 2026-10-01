@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { verifyPassword } from '../src/shared/utils/auth-crypto'
 
 const prisma = new PrismaClient()
 
@@ -58,7 +59,7 @@ async function main() {
   `
   if (binaryColumns.length) throw new Error(`No se permiten binarios en PostgreSQL: ${binaryColumns.map(column => `${column.table_name}.${column.column_name}`).join(', ')}`)
 
-  const [boardMembers, contactMethods, blocks, news, resources, projects, pdfMetadata, administrativeRoles] = await Promise.all([
+  const [boardMembers, contactMethods, blocks, news, resources, projects, pdfMetadata, administrativeRoles, testAdministrator] = await Promise.all([
     prisma.boardMember.count(),
     prisma.contactMethod.count(),
     prisma.institutionalBlock.count(),
@@ -66,9 +67,14 @@ async function main() {
     prisma.resource.count(),
     prisma.project.count(),
     prisma.file.findUnique({ where: { storageKey: 'development/resources/guia-seguridad-laboratorio.pdf' } }),
-    prisma.role.count({ where: { active: true, name: { in: ['ASSOCIATION_REPRESENTATIVE', 'FACULTY_REPRESENTATIVE', 'CAREER_DIRECTOR', 'CAREER_SECRETARY'] } } })
+    prisma.role.count({ where: { active: true, name: { in: ['ASSOCIATION_REPRESENTATIVE', 'FACULTY_REPRESENTATIVE', 'CAREER_DIRECTOR', 'CAREER_SECRETARY'] } } }),
+    prisma.administrativeUser.findUnique({ where: { email: 'admin.pruebas@uvg.edu.gt' }, include: { credential: true } })
   ])
   if (!boardMembers || !contactMethods || !blocks || !news || !resources || !projects || !pdfMetadata || administrativeRoles !== 4) throw new Error('Faltan datos de desarrollo después de ejecutar la seed.')
+  if (process.env.NODE_ENV !== 'production') {
+    if (!testAdministrator || !testAdministrator.credential || testAdministrator.status !== 'ACTIVO') throw new Error('Falta el administrador de pruebas después de ejecutar la seed.')
+    if (!await verifyPassword('AEQUVG-Pruebas-2026!', testAdministrator.credential.passwordHash)) throw new Error('La credencial del administrador de pruebas no coincide con la documentación.')
+  }
   if (pdfMetadata.mimeType !== 'application/pdf' || !pdfMetadata.storageKey || pdfMetadata.sizeBytes <= 0n) throw new Error('Los metadatos del PDF de desarrollo son inválidos.')
 
   console.info(JSON.stringify({ tables: tables.length, boardMembers, contactMethods, blocks, news, resources, projects, pdfStorage: pdfMetadata.storageKey }))

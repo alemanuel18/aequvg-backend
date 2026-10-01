@@ -3,6 +3,11 @@ import { hashPassword } from '../src/shared/utils/auth-crypto'
 
 const prisma = new PrismaClient()
 const developmentPublishedAt = new Date('2026-01-15T12:00:00.000Z')
+const testAdministrator = {
+  name: 'Administrador de pruebas',
+  email: 'admin.pruebas@uvg.edu.gt',
+  password: 'AEQUVG-Pruebas-2026!'
+} as const
 
 const board = [
   ['Pablo José', 'Presidente', 'ros23193@uvg.edu.gt'],
@@ -73,6 +78,20 @@ async function main() {
       where: { userId: developmentUser.id },
       update: { passwordHash },
       create: { userId: developmentUser.id, passwordHash }
+    })
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    const user = await prisma.administrativeUser.upsert({
+      where: { email: testAdministrator.email },
+      update: { name: testAdministrator.name, roleId: role.id, status: 'ACTIVO' },
+      create: { name: testAdministrator.name, email: testAdministrator.email, roleId: role.id }
+    })
+    const passwordHash = await hashPassword(testAdministrator.password)
+    await prisma.administrativeCredential.upsert({
+      where: { userId: user.id },
+      update: { passwordHash },
+      create: { userId: user.id, passwordHash }
     })
   }
 

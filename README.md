@@ -68,6 +68,18 @@ Las cuentas administrativas deben aprovisionarse previamente con un correo `@uvg
 
 Los perfiles permanecen separados para poder especializarlos después. Conforme al contrato vigente, los cuatro reciben inicialmente los mismos permisos. La seed crea de forma idempotente los roles, permisos y relaciones. `CONTENT_ADMIN`, el rol provisional anterior, queda inactivo.
 
+### Administrador local de pruebas
+
+Al ejecutar la seed con `NODE_ENV` distinto de `production`, se crea o restablece esta cuenta ficticia:
+
+```text
+Correo: admin.pruebas@uvg.edu.gt
+Contraseña: AEQUVG-Pruebas-2026!
+Rol: ASSOCIATION_REPRESENTATIVE
+```
+
+Estas credenciales son públicas y sirven exclusivamente para desarrollo y pruebas locales. La seed no crea esta cuenta cuando `NODE_ENV=production`; no debe copiarse manualmente ni utilizarse en un despliegue real.
+
 La API admite dos formas de inicio de sesión:
 
 - `POST /api/v1/auth/login`: correo institucional y contraseña. Las contraseñas se almacenan con `scrypt`; el JWT HS256 nunca se devuelve a JavaScript y se guarda en una cookie `HttpOnly`.
@@ -377,7 +389,9 @@ No uses ese último comando con el nombre de tu proyecto de desarrollo habitual.
 
 El seed está en `prisma/seed.ts`. Carga de forma idempotente:
 
-- Cuatro roles administrativos, permisos RBAC y un usuario ficticio de la Asociación; si se define `SEED_ADMIN_PASSWORD`, también recibe credencial local.
+- Cuatro roles administrativos y permisos RBAC.
+- Un usuario ficticio de contenido; si se define `SEED_ADMIN_PASSWORD`, recibe credencial local.
+- El administrador local `admin.pruebas@uvg.edu.gt`, con la contraseña documentada en la sección de autenticación, únicamente fuera de producción.
 - Medios de contacto, integrantes y orden de la junta directiva.
 - Bloques institucionales, una noticia y un recurso publicados de ejemplo.
 - Metadatos de un PDF de ejemplo para comprobar la relación entre recursos y archivos.
