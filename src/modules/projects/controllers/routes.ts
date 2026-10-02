@@ -20,41 +20,44 @@ export const projectRoutes = new Elysia({ prefix: '/api/v1' })
     detail: { tags: ['Proyectos'], summary: 'Consulta un proyecto aprobado', description: 'Devuelve únicamente proyectos con estado APROBADO.' },
   })
 
-  .get('/admin/projects', ({ headers }) => { requireAdmin(headers.authorization); return ProjectService.getAllProjects() }, {
+  .get('/admin/projects', async ({ request }) => { await requireAdmin(request, 'PROJECTS_MANAGE'); return ProjectService.getAllProjects() }, {
     response: { 200: t.Array(adminProjectResponse), 401: projectErrorResponse, 503: projectErrorResponse },
-    detail: { tags: ['Administración'], summary: 'Lista todos los proyectos', description: 'Requiere Authorization: Bearer <ADMIN_API_KEY>.' },
+    detail: { tags: ['Administración'], summary: 'Lista todos los proyectos', description: 'Requiere una sesión con PROJECTS_MANAGE.' },
   })
 
-  .get('/admin/projects/:id', ({ headers, params }) => { requireAdmin(headers.authorization); return ProjectService.getProjectById(params.id) }, {
+  .get('/admin/projects/:id', async ({ request, params }) => { await requireAdmin(request, 'PROJECTS_MANAGE'); return ProjectService.getProjectById(params.id) }, {
     params: projectIdParams,
     response: { 200: adminProjectResponse, 401: projectErrorResponse, 404: projectErrorResponse, 503: projectErrorResponse },
     detail: { tags: ['Administración'], summary: 'Consulta un proyecto por identificador' },
   })
 
-  .post('/admin/projects', ({ headers, body, set }) => {
-    requireAdmin(headers.authorization)
+  .post('/admin/projects', async ({ request, body, set }) => {
+    const authenticated = await requireAdmin(request, 'PROJECTS_MANAGE')
     set.status = 201
-    return ProjectService.createProject(body, body.authorId)
+    return ProjectService.createProject(body, authenticated.user.id)
   }, {
     body: AdminCreateProjectDTO,
     response: { 201: adminProjectResponse, 401: projectErrorResponse, 409: projectErrorResponse, 422: projectErrorResponse, 503: projectErrorResponse },
-    detail: { tags: ['Administración'], summary: 'Crea un proyecto', description: 'El proyecto inicia en EN_REVISION; authorId debe referir a un usuario administrativo existente.' },
+    detail: { tags: ['Administración'], summary: 'Crea un proyecto', description: 'El proyecto inicia en EN_REVISION y se atribuye al usuario de la sesión.' },
   })
-  .put('/admin/projects/:id', ({ headers, params, body }) => { requireAdmin(headers.authorization); return ProjectService.updateProject(params.id, body) }, {
+  .put('/admin/projects/:id', async ({ request, params, body }) => { await requireAdmin(request, 'PROJECTS_MANAGE'); return ProjectService.updateProject(params.id, body) }, {
     params: projectIdParams,
     body: UpdateProjectDTO,
     response: { 200: adminProjectResponse, 401: projectErrorResponse, 404: projectErrorResponse, 422: projectErrorResponse, 503: projectErrorResponse },
     detail: { tags: ['Administración'], summary: 'Actualiza parcialmente un proyecto' },
   })
 
-  .patch('/admin/projects/:id/review', ({ headers, params, body }) => { requireAdmin(headers.authorization); return ProjectService.reviewProject(params.id, body.status, body.reviewerId, body.rejectionReason) }, {
+  .patch('/admin/projects/:id/review', async ({ request, params, body }) => {
+    const authenticated = await requireAdmin(request, 'PROJECTS_MANAGE')
+    return ProjectService.reviewProject(params.id, body.status, authenticated.user.id, body.rejectionReason)
+  }, {
     params: projectIdParams,
     body: ReviewProjectDTO,
     response: { 200: adminProjectResponse, 401: projectErrorResponse, 404: projectErrorResponse, 422: projectErrorResponse, 503: projectErrorResponse },
     detail: { tags: ['Administración'], summary: 'Revisa un proyecto', description: 'Registra revisor y fecha; el motivo se conserva únicamente para NO_APROBADO.' },
   })
-  .delete('/admin/projects/:id', async ({ headers, params }) => {
-    requireAdmin(headers.authorization)
+  .delete('/admin/projects/:id', async ({ request, params }) => {
+    await requireAdmin(request, 'PROJECTS_MANAGE')
     await ProjectService.deleteProject(params.id)
     return { message: 'Proyecto eliminado correctamente' }
   }, {

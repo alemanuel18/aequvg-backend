@@ -44,6 +44,20 @@ describe('contrato HTTP base', () => {
     expect(document.paths['/api/v1/news/{id}']?.get?.responses['404']).toBeTruthy()
   })
 
+  it('documenta autenticación, usuarios y protecciones de cookie en OpenAPI', async () => {
+    const response = await app.handle(new Request('http://localhost/openapi/json'))
+    const document = await response.json() as {
+      components: { securitySchemes: Record<string, unknown> }
+      paths: Record<string, Record<string, unknown>>
+    }
+    expect(document.components.securitySchemes.cookieAuth).toBeTruthy()
+    expect(document.components.securitySchemes.csrfToken).toBeTruthy()
+    expect(document.paths['/api/v1/auth/login']?.post).toBeTruthy()
+    expect(document.paths['/api/v1/auth/microsoft']?.get).toBeTruthy()
+    expect(document.paths['/api/v1/admin/users']?.post).toBeTruthy()
+    expect(document.paths['/api/v1/admin/roles']?.get).toBeTruthy()
+  })
+
   it('documenta el contrato de recursos en OpenAPI', async () => {
     const response = await app.handle(new Request('http://localhost/openapi/json'))
     expect(response.status).toBe(200)

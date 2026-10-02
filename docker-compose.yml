@@ -30,8 +30,14 @@ services:
       PORT: 3000
       DATABASE_URL: ${DATABASE_URL:-postgresql://aequvg:change-me@db:5432/aequvg}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
-      SESSION_SECRET: ${SESSION_SECRET:-change-me-with-a-long-random-value}
-      ADMIN_API_KEY: ${ADMIN_API_KEY:-change-me-with-another-long-random-value}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-with-at-least-32-random-characters}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID:-}
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+      MICROSOFT_REDIRECT_URI: ${MICROSOFT_REDIRECT_URI:-http://localhost:3000/api/v1/auth/microsoft/callback}
       LOG_LEVEL: ${LOG_LEVEL:-debug}
       LOG_FORMAT: ${LOG_FORMAT:-pretty}
       LOG_HEALTHCHECKS: ${LOG_HEALTHCHECKS:-false}

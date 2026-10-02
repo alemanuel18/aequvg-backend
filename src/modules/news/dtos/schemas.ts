@@ -3,7 +3,6 @@ import { t } from 'elysia'
 export const newsStatus = t.Union([t.Literal('BORRADOR'), t.Literal('PUBLICADO'), t.Literal('ARCHIVADO')])
 
 export const newsCreateBody = t.Object({
-  createdById: t.Integer({ minimum: 1 }),
   categoryId: t.Integer({ minimum: 1 }),
   imageId: t.Optional(t.Nullable(t.Integer({ minimum: 1 }))),
   title: t.String({ minLength: 3, maxLength: 220 }),

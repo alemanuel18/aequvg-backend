@@ -57,11 +57,59 @@ Cada módulo separa responsabilidades:
 
 La API usa el prefijo `/api/v1`. OpenAPI se publica en `http://localhost:3000/openapi` y el healthcheck en `http://localhost:3000/health`.
 
+## Autenticación y perfiles administrativos
+
+Las cuentas administrativas deben aprovisionarse previamente con un correo `@uvg.edu.gt`. No existe registro público de administradores. Los cuatro perfiles definidos en la planificación son:
+
+- `ASSOCIATION_REPRESENTATIVE`: representante de la Asociación.
+- `FACULTY_REPRESENTATIVE`: representante de la Facultad de Química.
+- `CAREER_DIRECTOR`: directora de la carrera.
+- `CAREER_SECRETARY`: secretaria de la carrera.
+
+Los perfiles permanecen separados para poder especializarlos después. Conforme al contrato vigente, los cuatro reciben inicialmente los mismos permisos. La seed crea de forma idempotente los roles, permisos y relaciones. `CONTENT_ADMIN`, el rol provisional anterior, queda inactivo.
+
+### Administrador local de pruebas
+
+Al ejecutar la seed con `NODE_ENV` distinto de `production`, se crea o restablece esta cuenta ficticia:
+
+```text
+Correo: admin.pruebas@uvg.edu.gt
+Contraseña: AEQUVG-Pruebas-2026!
+Rol: ASSOCIATION_REPRESENTATIVE
+```
+
+Estas credenciales son públicas y sirven exclusivamente para desarrollo y pruebas locales. La seed no crea esta cuenta cuando `NODE_ENV=production`; no debe copiarse manualmente ni utilizarse en un despliegue real.
+
+La API admite dos formas de inicio de sesión:
+
+- `POST /api/v1/auth/login`: correo institucional y contraseña. Las contraseñas se almacenan con `scrypt`; el JWT HS256 nunca se devuelve a JavaScript y se guarda en una cookie `HttpOnly`.
+- `GET /api/v1/auth/microsoft`: crea un desafío OpenID Connect con Authorization Code, PKCE, `state` y `nonce`, y devuelve `authorizationUrl`. El callback es `GET /api/v1/auth/microsoft/callback`. Se validan firma RS256, tenant, audiencia, expiración y `nonce` del ID token.
+
+Microsoft no crea administradores automáticamente. La cuenta debe existir en `usuario_administrativo`, estar activa y pertenecer a un rol activo; el primer acceso enlaza su `sub` de Microsoft con el usuario ya aprobado.
+
+Otros endpoints:
+
+```text
+GET  /api/v1/auth/me
+POST /api/v1/auth/logout
+GET  /api/v1/admin/roles
+GET  /api/v1/admin/users
+POST /api/v1/admin/users
+PATCH /api/v1/admin/users/:id
+PUT   /api/v1/admin/users/:id/password
+```
+
+Las rutas administrativas usan cookies y requieren `credentials: "include"` en el frontend. Para `POST`, `PUT`, `PATCH` y `DELETE`, el cliente debe reenviar en `X-CSRF-Token` el `csrfToken` recibido al iniciar sesión. El autor o revisor de una operación se obtiene de la sesión y no puede elegirse en el cuerpo.
+
+Cada JWT referencia una sesión persistida y no contiene roles ni permisos. En cada solicitud se consulta el usuario y su rol vigente. Cambiar rol, estado o contraseña revoca sus sesiones. El JWT se vincula además a una cookie secreta de dispositivo y al contexto básico del navegador; una copia incompleta o usada desde otro contexto revoca la sesión. Si un atacante clona todas las cookies y suplanta exactamente el navegador, las cookies por sí solas no permiten distinguir físicamente ambos dispositivos; una garantía superior requiere WebAuthn o una credencial ligada por hardware.
+
+Para configurar Microsoft Entra ID, registra una aplicación de tenant único, agrega exactamente `MICROSOFT_REDIRECT_URI` como redirect URI de tipo Web y crea un secreto de cliente. No configures el tenant `common`: el backend exige el identificador del tenant UVG.
+
 ## Noticias
 
 La API pública expone `GET /api/v1/news`, `GET /api/v1/news/:id` y `GET /api/v1/news/categories`. El listado acepta `q`, `categoryId`, `page` y `pageSize`; solo devuelve publicaciones `PUBLICADO` cuya fecha ya llegó y cuya categoría está activa.
 
-Las rutas administrativas bajo `/api/v1/admin/news` requieren `Authorization: Bearer <ADMIN_API_KEY>` y permiten listar, consultar, crear, actualizar, archivar y eliminar noticias. Los contratos de entrada, respuesta y errores están disponibles en [OpenAPI](http://localhost:3000/openapi) y en `docs/aequvg-hoppscotch.json`.
+Las rutas administrativas bajo `/api/v1/admin/news` requieren una sesión con `NEWS_MANAGE` y permiten listar, consultar, crear, actualizar, archivar y eliminar noticias. Los contratos de entrada, respuesta y errores están disponibles en [OpenAPI](http://localhost:3000/openapi) y en `docs/aequvg-hoppscotch.json`.
 
 La integración real del módulo se ejecuta únicamente contra una PostgreSQL aislada para no modificar datos locales:
 
@@ -77,7 +125,7 @@ GitHub Actions ejecuta esa misma prueba contra PostgreSQL 16 en cada pull reques
 
 La respuesta contiene `{ items, pagination: { page, pageSize, total, totalPages } }`. La búsqueda parcial se apoya en índices trigram de PostgreSQL sobre título y nombre de autor; el filtro de estado y fecha usa el índice compuesto existente.
 
-El CRUD administrativo vive bajo `/api/v1/admin/projects` y requiere `Authorization: Bearer <ADMIN_API_KEY>`. Incluye listar, consultar, crear, actualizar, revisar y eliminar. Al crear, `authorId` identifica al usuario administrativo autor; el proyecto inicia en `EN_REVISION`.
+El CRUD administrativo vive bajo `/api/v1/admin/projects` y requiere una sesión con `PROJECTS_MANAGE`. Incluye listar, consultar, crear, actualizar, revisar y eliminar. Autor y revisor se obtienen de la sesión; el proyecto inicia en `EN_REVISION`.
 
 La integración del CRUD usa una base PostgreSQL aislada y se habilita con `bun run test:integration:projects`.
 
@@ -158,7 +206,7 @@ Ambos endpoints exponen el campo dinámico `availableCapacity` (entero >= 0), ca
 
 ### Administración de eventos y participantes
 
-Las rutas bajo `/api/v1/admin` requieren cabecera `Authorization: Bearer <ADMIN_API_KEY>`:
+Las rutas bajo `/api/v1/admin` requieren una sesión administrativa y el permiso del módulo:
 
 - `GET /api/v1/admin/events`: listado administrativo con soporte de filtros por `status`, búsqueda `q` y paginación.
 - `GET /api/v1/admin/events/:id`: consulta de evento por identificador en cualquier estado.
@@ -226,8 +274,14 @@ cp .env.example .env
 | `BACKEND_PORT` | Puerto público de la API, normalmente `3000`. |
 | `DATABASE_URL` | Cadena de conexión utilizada por Prisma. |
 | `CORS_ORIGIN` | Origen autorizado del frontend. |
-| `SESSION_SECRET` | Secreto reservado para sesiones administrativas. |
-| `ADMIN_API_KEY` | Protección temporal de `/admin`; no usar el ejemplo en producción. |
+| `FRONTEND_URL` | URL base usada al regresar del inicio con Microsoft. |
+| `SESSION_SECRET` | Secreto aleatorio de al menos 32 bytes para firmar JWT y vínculos de sesión. |
+| `COOKIE_SECURE` | Debe ser `true` con HTTPS; producción lo fuerza en Compose. |
+| `SEED_ADMIN_PASSWORD` | Contraseña local opcional para el usuario de desarrollo creado por la seed. |
+| `MICROSOFT_TENANT_ID` | UUID del tenant Microsoft Entra ID de UVG. |
+| `MICROSOFT_CLIENT_ID` | UUID de la aplicación registrada en Entra ID. |
+| `MICROSOFT_CLIENT_SECRET` | Secreto de cliente; nunca debe versionarse. |
+| `MICROSOFT_REDIRECT_URI` | Callback exacto registrado en Entra ID. |
 | `LOG_LEVEL` | Nivel mínimo: `debug`, `info`, `warn`, `error` o `silent`. |
 | `LOG_FORMAT` | `pretty` para desarrollo o `json` para agregadores de producción. |
 | `LOG_HEALTHCHECKS` | Define si `/health` debe aparecer en los logs HTTP. |
@@ -335,7 +389,9 @@ No uses ese último comando con el nombre de tu proyecto de desarrollo habitual.
 
 El seed está en `prisma/seed.ts`. Carga de forma idempotente:
 
-- Rol, permisos y usuario ficticio para contenido de desarrollo.
+- Cuatro roles administrativos y permisos RBAC.
+- Un usuario ficticio de contenido; si se define `SEED_ADMIN_PASSWORD`, recibe credencial local.
+- El administrador local `admin.pruebas@uvg.edu.gt`, con la contraseña documentada en la sección de autenticación, únicamente fuera de producción.
 - Medios de contacto, integrantes y orden de la junta directiva.
 - Bloques institucionales, una noticia y un recurso publicados de ejemplo.
 - Metadatos de un PDF de ejemplo para comprobar la relación entre recursos y archivos.
@@ -499,6 +555,7 @@ bun run typecheck     # TypeScript
 bun run test          # Pruebas unitarias e integración HTTP
 bun run build         # Comprobación de compilación
 bun run test:smoke    # Requiere PostgreSQL migrado y con seed
+bun run test:integration:auth # Requiere PostgreSQL migrado
 bun audit --production
 ```
 
@@ -513,4 +570,4 @@ GET  /api/v1/contact-methods
 POST /api/v1/contact-requests
 ```
 
-Las operaciones administrativas están bajo `/api/v1/admin` y requieren `Authorization: Bearer <ADMIN_API_KEY>` mientras se integra el módulo definitivo de sesiones.
+Las operaciones administrativas están bajo `/api/v1/admin`, usan la sesión JWT en cookie y validan el permiso correspondiente en PostgreSQL.

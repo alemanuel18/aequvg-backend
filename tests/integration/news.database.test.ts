@@ -1,20 +1,20 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app'
 import { prisma } from '../../src/shared/database/prisma'
+import { createAdminSessionHeaders } from '../helpers/admin-session'
 
 const runDatabaseTests = process.env.NEWS_DATABASE_TEST === 'true'
 const describeDatabase = runDatabaseTests ? describe : describe.skip
 const runId = `news-test-${Date.now()}`
-const adminKey = 'news-integration-test-key'
+let roleId = 0
 let authorId = 0
 let categoryId = 0
 let inactiveCategoryId = 0
 let newsId = 0
 
 const request = (path: string, options: RequestInit = {}) => new Request(`http://localhost${path}`, options)
-const adminHeaders = { authorization: `Bearer ${adminKey}`, 'content-type': 'application/json' }
+let adminHeaders: Record<string, string>
 const bodyFor = (title: string, overrides: Record<string, unknown> = {}) => ({
-  createdById: authorId,
   categoryId,
   title,
   summary: `Resumen suficiente para ${title}.`,
@@ -25,12 +25,13 @@ const bodyFor = (title: string, overrides: Record<string, unknown> = {}) => ({
 
 describeDatabase('CRUD HTTP de noticias con PostgreSQL', () => {
   beforeAll(async () => {
-    process.env.ADMIN_API_KEY = adminKey
     const role = await prisma.role.create({ data: { name: `${runId}-role`, description: 'Rol temporal para pruebas de noticias.' } })
     const author = await prisma.administrativeUser.create({ data: { roleId: role.id, name: 'Autor de pruebas', email: `${runId}@uvg.edu.gt` } })
     const category = await prisma.newsCategory.create({ data: { name: `${runId}-category` } })
     const inactiveCategory = await prisma.newsCategory.create({ data: { name: `${runId}-inactive`, active: false } })
     authorId = author.id
+    roleId = role.id
+    adminHeaders = await createAdminSessionHeaders(prisma, author.id, role.id, ['NEWS_MANAGE'])
     categoryId = category.id
     inactiveCategoryId = inactiveCategory.id
   })
@@ -40,6 +41,7 @@ describeDatabase('CRUD HTTP de noticias con PostgreSQL', () => {
     await prisma.newsCategory.deleteMany({ where: { id: inactiveCategoryId } })
     await prisma.newsCategory.deleteMany({ where: { id: categoryId } })
     await prisma.administrativeUser.deleteMany({ where: { id: authorId } })
+    await prisma.rolePermission.deleteMany({ where: { roleId } })
     await prisma.role.deleteMany({ where: { name: `${runId}-role` } })
     await prisma.$disconnect()
   })

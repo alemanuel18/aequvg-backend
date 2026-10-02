@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app'
 import { prisma } from '../../src/shared/database/prisma'
+import { createAdminSessionHeaders } from '../helpers/admin-session'
 
 const runDatabaseTests = process.env.EVENTS_DATABASE_TEST === 'true'
 const describeDatabase = runDatabaseTests ? describe : describe.skip
 const runId = `events-api-test-${Date.now()}`
-const adminKey = 'events-api-test-key'
 let roleId: number
 let authorId = 0
 let inactiveAuthorId = 0
@@ -13,10 +13,9 @@ let imageId = 0
 let nonImageId = 0
 
 const request = (path: string, options: RequestInit = {}) => new Request(`http://localhost${path}`, options)
-const adminHeaders = { authorization: `Bearer ${adminKey}`, 'content-type': 'application/json' }
+let adminHeaders: Record<string, string>
 
 const baseEventPayload = (name: string, overrides: Record<string, unknown> = {}) => ({
-  createdById: authorId,
   name,
   description: `Descripción detallada y válida para ${name}.`,
   startsAt: '2030-05-15T18:00:00.000Z',
@@ -29,8 +28,6 @@ describeDatabase('CRUD administrativo de eventos con PostgreSQL', () => {
   const app = createApp()
 
   beforeAll(async () => {
-    process.env.ADMIN_API_KEY = adminKey
-
     const role = await prisma.role.create({
       data: { name: `${runId}-role`, description: 'Rol temporal para pruebas de API de eventos.' }
     })
@@ -40,6 +37,7 @@ describeDatabase('CRUD administrativo de eventos con PostgreSQL', () => {
       data: { roleId, name: 'Autor de eventos', email: `${runId}@uvg.edu.gt`, status: 'ACTIVO' }
     })
     authorId = author.id
+    adminHeaders = await createAdminSessionHeaders(prisma, author.id, role.id, ['EVENTS_MANAGE'])
 
     const inactiveAuthor = await prisma.administrativeUser.create({
       data: { roleId, name: 'Autor inactivo', email: `${runId}-inactive@uvg.edu.gt`, status: 'INACTIVO' }
@@ -78,6 +76,7 @@ describeDatabase('CRUD administrativo de eventos con PostgreSQL', () => {
         await prisma.event.deleteMany({ where: { createdBy: { roleId } } })
         await prisma.file.deleteMany({ where: { uploadedBy: { roleId } } })
         await prisma.administrativeUser.deleteMany({ where: { roleId } })
+        await prisma.rolePermission.deleteMany({ where: { roleId } })
         await prisma.role.delete({ where: { id: roleId } })
       }
     } finally {
@@ -189,26 +188,16 @@ describeDatabase('CRUD administrativo de eventos con PostgreSQL', () => {
       }
     })
 
-    it('rechaza si createdById no existe o está inactivo', async () => {
-      const missingAuthor = await app.handle(
+    it('atribuye el evento a la sesión e ignora intentos de suplantar al autor', async () => {
+      const response = await app.handle(
         request('/api/v1/admin/events', {
           method: 'POST',
           headers: adminHeaders,
-          body: JSON.stringify(baseEventPayload('Autor inexistente', { createdById: 999999 }))
+          body: JSON.stringify(baseEventPayload('Autor de la sesión', { createdById: inactiveAuthorId }))
         })
       )
-      expect(missingAuthor.status).toBe(422)
-      expect((await missingAuthor.json() as { error: { code: string } }).error.code).toBe('INVALID_EVENT_AUTHOR')
-
-      const inactiveAuthor = await app.handle(
-        request('/api/v1/admin/events', {
-          method: 'POST',
-          headers: adminHeaders,
-          body: JSON.stringify(baseEventPayload('Autor inactivo', { createdById: inactiveAuthorId }))
-        })
-      )
-      expect(inactiveAuthor.status).toBe(422)
-      expect((await inactiveAuthor.json() as { error: { code: string } }).error.code).toBe('INVALID_EVENT_AUTHOR')
+      expect(response.status).toBe(201)
+      expect((await response.json() as { createdById: number }).createdById).toBe(authorId)
     })
 
     it('rechaza si imageId no existe o no corresponde a una imagen', async () => {

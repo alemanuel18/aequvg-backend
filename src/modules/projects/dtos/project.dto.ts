@@ -23,14 +23,11 @@ export const CreateProjectDTO = t.Object({
 
 export const UpdateProjectDTO = t.Partial(CreateProjectDTO);
 
-export const AdminCreateProjectDTO = t.Intersect([CreateProjectDTO, t.Object({
-	authorId: t.Integer({ minimum: 1 }),
-})]);
+export const AdminCreateProjectDTO = CreateProjectDTO;
 
 export const ReviewProjectDTO = t.Object({
 	status: ProjectStatusEnum,
 	rejectionReason: t.Optional(t.String()),
-	reviewerId: t.Numeric(),
 })
 
 export const projectListQuery = t.Object({
