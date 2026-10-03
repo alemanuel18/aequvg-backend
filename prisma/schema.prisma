@@ -435,6 +435,7 @@ model News {
   createdBy AdministrativeUser @relation(fields: [createdById], references: [id], onDelete: Restrict)
   category  NewsCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   image     File?              @relation("NewsImage", fields: [imageId], references: [id], onDelete: Restrict)
+  featuredItems FeaturedItem[]
 
   @@index([status, publishedAt])
   @@index([categoryId, status, publishedAt])
@@ -460,6 +461,7 @@ model Event {
   createdBy     AdministrativeUser  @relation(fields: [createdById], references: [id], onDelete: Restrict)
   image         File?               @relation("EventImage", fields: [imageId], references: [id], onDelete: Restrict)
   registrations EventRegistration[]
+  featuredItems FeaturedItem[]
 
   @@index([status, startsAt])
   @@index([createdById])
@@ -596,6 +598,22 @@ model InstitutionalBlock {
 
   @@index([status, type, displayOrder])
   @@map("bloque_institucional")
+}
+
+model FeaturedItem {
+  id           Int      @id @default(autoincrement()) @map("id_destacado")
+  newsId       Int?     @map("id_noticia")
+  eventId      Int?     @map("id_evento")
+  displayOrder Int      @default(0) @map("orden")
+  createdAt    DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+
+  news  News?  @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  event Event? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([newsId])
+  @@unique([eventId])
+  @@index([displayOrder])
+  @@map("destacado_inicio")
 }
 
 model ContactMethod {
