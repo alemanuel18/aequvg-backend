@@ -170,9 +170,67 @@ async function main() {
     additionalInformation: 'Registro de ejemplo; no corresponde a una convocatoria institucional.',
     status: 'PUBLICADO' as const,
   }
-  const existingEvent = await prisma.event.findFirst({ where: { createdById: developmentUser.id, name: developmentEvent.name } })
-  if (existingEvent) await prisma.event.update({ where: { id: existingEvent.id }, data: developmentEvent })
-  else await prisma.event.create({ data: { ...developmentEvent, createdById: developmentUser.id } })
+  const additionalNews = [
+    {
+      title: 'Inauguración del nuevo laboratorio de fisicoquímica',
+      summary: 'Espacio renovado con equipos de alta precisión para prácticas y proyectos de investigación.',
+      content: 'La carrera de Química y la Asociación celebran la apertura de nuevas instalaciones de laboratorio.'
+    },
+    {
+      title: 'Semana de la Química 2026: Conferencias y talleres',
+      summary: 'Una serie de charlas magistrales y actividades prácticas abiertas a toda la comunidad estudiantil.',
+      content: 'Cronograma y detalles de los expositores invitados nacionales e internacionales para este ciclo.'
+    }
+  ]
+  for (const item of additionalNews) {
+    const existing = await prisma.news.findFirst({ where: { createdById: developmentUser.id, title: item.title } })
+    const data = { categoryId: newsCategory.id, title: item.title, summary: item.summary, content: item.content, status: 'PUBLICADO' as const, publishedAt: developmentPublishedAt }
+    if (existing) await prisma.news.update({ where: { id: existing.id }, data })
+    else await prisma.news.create({ data: { ...data, createdById: developmentUser.id } })
+  }
+
+  const additionalEvents = [
+    {
+      name: 'Simposio de Innovación en Materiales y Polímeros',
+      description: 'Conferencia técnica sobre polímeros biodegradables y síntesis verde en la industria actual.',
+      startsAt: new Date('2030-05-15T15:00:00.000Z'),
+      location: 'Auditorio I-100, Campus Central',
+      maximumCapacity: 50,
+      additionalInformation: 'Dirigido a estudiantes de ingeniería y ciencias químicas.',
+      status: 'PUBLICADO' as const
+    },
+    {
+      name: 'Visita técnica a la planta de tratamiento de aguas',
+      description: 'Recorrido guiado para conocer procesos físico-químicos aplicados a escala industrial.',
+      startsAt: new Date('2030-06-10T14:00:00.000Z'),
+      location: 'Planta de Tratamiento Metrópoli',
+      maximumCapacity: 25,
+      additionalInformation: 'Se requiere equipo de protección personal completo.',
+      status: 'PUBLICADO' as const
+    }
+  ]
+  for (const item of additionalEvents) {
+    const existing = await prisma.event.findFirst({ where: { createdById: developmentUser.id, name: item.name } })
+    if (existing) await prisma.event.update({ where: { id: existing.id }, data: item })
+    else await prisma.event.create({ data: { ...item, createdById: developmentUser.id } })
+  }
+
+  const firstNews = await prisma.news.findFirst({ where: { status: 'PUBLICADO' } })
+  const firstEvent = await prisma.event.findFirst({ where: { status: 'PUBLICADO' } })
+  if (firstNews) {
+    await prisma.featuredItem.upsert({
+      where: { newsId: firstNews.id },
+      update: { displayOrder: 0 },
+      create: { newsId: firstNews.id, displayOrder: 0 }
+    })
+  }
+  if (firstEvent) {
+    await prisma.featuredItem.upsert({
+      where: { eventId: firstEvent.id },
+      update: { displayOrder: 0 },
+      create: { eventId: firstEvent.id, displayOrder: 0 }
+    })
+  }
 
   console.info('Seed completado')
 }
