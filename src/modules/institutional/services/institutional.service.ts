@@ -47,27 +47,29 @@ export const institutionalService = {
   adminList: institutionalRepository.listAll,
 
   create: async (input: BlockInput) => {
-    if (input.type !== 'HERO') {
+    const data = normalize(input)
+    if (data.type !== 'HERO') {
       const activeCount = await institutionalRepository.countActiveAnnouncements()
       if (activeCount >= 3) {
         throw new AppError(422, 'ANNOUNCEMENT_LIMIT_EXCEEDED', 'No se pueden tener más de 3 anuncios activos en Conocer la Licenciatura de Química.')
       }
     }
-    return institutionalRepository.create(normalize(input))
+    return institutionalRepository.create(data)
   },
 
   update: async (id: number, input: BlockInput) => {
+    const data = normalize(input)
     const existing = await institutionalRepository.findById(id)
     if (!existing) {
       throw new AppError(404, 'BLOCK_NOT_FOUND', 'El bloque institucional no existe.')
     }
-    if (input.type !== 'HERO' && input.status !== 'ARCHIVADO') {
+    if (data.type !== 'HERO' && data.status !== 'ARCHIVADO') {
       const activeCount = await institutionalRepository.countActiveAnnouncements(id)
       if (activeCount >= 3) {
         throw new AppError(422, 'ANNOUNCEMENT_LIMIT_EXCEEDED', 'No se pueden tener más de 3 anuncios activos en Conocer la Licenciatura de Química.')
       }
     }
-    return institutionalRepository.update(id, normalize(input))
+    return institutionalRepository.update(id, data)
   },
 
   archive: async (id: number) => {
