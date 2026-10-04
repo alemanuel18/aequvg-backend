@@ -25,6 +25,22 @@
         },
         {
           "v": "1",
+          "name": "Destacados de inicio",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/institutional-content/featured",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
           "name": "Junta directiva",
           "method": "GET",
           "endpoint": "<<baseUrl>>/board-members",
@@ -1513,6 +1529,164 @@
           }
         }
       ]
+    },
+    {
+      "v": 3,
+      "name": "Administración - Contenido Institucional",
+      "folders": [],
+      "requests": [
+        {
+          "v": "1",
+          "name": "Listar bloques institucionales",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/institutional-content",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Administración sin credencial (401)",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/institutional-content",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Crear bloque institucional (anuncio)",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/institutional-content",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"type\": \"LABORATORIO\",\n  \"title\": \"Laboratorio de Química Orgánica\",\n  \"subtitle\": \"Investigación de vanguardia\",\n  \"body\": \"Espacio especializado para el desarrollo de síntesis y caracterización molecular.\",\n  \"actionLabel\": \"Ver más\",\n  \"actionUrl\": \"/laboratorios\",\n  \"displayOrder\": 1,\n  \"status\": \"PUBLICADO\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Actualizar bloque institucional",
+          "method": "PUT",
+          "endpoint": "<<baseUrl>>/admin/institutional-content/<<blockId>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"type\": \"HERO\",\n  \"title\": \"Licenciatura en Química UVG\",\n  \"subtitle\": \"Liderazgo científico con excelencia analítica\",\n  \"body\": \"Formamos profesionales con capacidad innovadora para resolver los retos del país.\",\n  \"actionLabel\": \"Conocer el programa\",\n  \"actionUrl\": \"#conocer-carrera\",\n  \"displayOrder\": 0,\n  \"status\": \"PUBLICADO\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Archivar bloque institucional",
+          "method": "DELETE",
+          "endpoint": "<<baseUrl>>/admin/institutional-content/<<blockId>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Consultar destacados de inicio",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/institutional-content/featured",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Actualizar destacados de inicio",
+          "method": "PUT",
+          "endpoint": "<<baseUrl>>/admin/institutional-content/featured",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"newsIds\": [1],\n  \"eventIds\": [1]\n}"
+          }
+        }
+      ]
     }
   ],
   "requests": [],
@@ -1546,6 +1720,10 @@
         },
         {
           "key": "projectId",
+          "value": "1"
+        },
+        {
+          "key": "blockId",
           "value": "1"
         }
       ]

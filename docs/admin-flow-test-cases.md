@@ -32,7 +32,7 @@ El dominio `@uvg.edu.gt` solo es una condición de identidad institucional. No c
 
 Todas las rutas siguientes llaman `requireAdmin` antes del servicio:
 
-- Institucional: `POST /api/v1/admin/institutional-content`, `PUT /api/v1/admin/institutional-content/:id`, `DELETE /api/v1/admin/institutional-content/:id` (`INSTITUTIONAL_MANAGE`).
+- Institucional: `POST /api/v1/admin/institutional-content`, `PUT /api/v1/admin/institutional-content/:id`, `DELETE /api/v1/admin/institutional-content/:id`, `PUT /api/v1/admin/institutional-content/featured` (`INSTITUTIONAL_MANAGE`).
 - Junta: `POST /api/v1/admin/board-members`, `PUT /api/v1/admin/board-members/:id`, `PUT /api/v1/admin/board-members/order`, `DELETE /api/v1/admin/board-members/:id` (`BOARD_MANAGE`).
 - Contacto: `POST/PUT/DELETE /api/v1/admin/contact-methods`, `PUT /api/v1/admin/contact-requests/:id` (`CONTACT_MANAGE`).
 - Noticias: `POST/PUT/PATCH/DELETE /api/v1/admin/news` y `/:id` según el método (`NEWS_MANAGE`).
@@ -40,6 +40,41 @@ Todas las rutas siguientes llaman `requireAdmin` antes del servicio:
 - Proyectos: `POST/PUT/PATCH/DELETE /api/v1/admin/projects` y `/:id` según el método (`PROJECTS_MANAGE`).
 - Eventos: `POST/PUT/PATCH/DELETE /api/v1/admin/events` y `/:id` según el método (`EVENTS_MANAGE`).
 - Usuarios: `POST /api/v1/admin/users`, `PATCH /api/v1/admin/users/:id`, `PUT /api/v1/admin/users/:id/password` (`USERS_MANAGE`).
+
+## Flujo de Inicio e Información Institucional (S3)
+
+### 1. Pantallas y Vistas
+- **Página de Inicio (`/`)**:
+  - **Hero dinámico**: Título principal, subtítulo, descripción y botón de acción configurables.
+  - **Conocer la Licenciatura de Química**: Despliega hasta un máximo de 3 anuncios activos publicados, sin importar si pertenecen a Laboratorio, Testimonio, Campo Laboral o Plan de Estudios.
+  - **Destacados de Inicio**: Bloques dedicados para mostrar hasta 3 eventos próximos y hasta 3 noticias recientes seleccionadas por el administrador.
+  - **Accesos y enlaces**: Enlaces directos a `/eventos`, `/noticias` y `/contacto` que no se pierden al actualizar el contenido.
+- **Panel Administrativo (`/administrador/contenido`)**:
+  - Requiere autenticación con rol administrativo y permiso `INSTITUTIONAL_MANAGE`.
+  - Tarjeta de edición del Hero con validación de URLs y textos obligatorios.
+  - Formulario unificado para anuncios con selector desplegable de categoría (`LABORATORIO`, `TESTIMONIO`, `CAMPO_LABORAL`, `PLAN_ESTUDIOS`) y contador visual de cupos utilizados (máx. 3 activos).
+  - Selector de noticias y eventos destacados con casillas de verificación que impiden superar el límite de 3 elementos por categoría.
+
+### 2. Estándar de Confirmación y Notificaciones
+- **Modal de Confirmación (`AppConfirmModal.vue`)**:
+  - Intercepta toda acción de guardado, creación, edición o archivado.
+  - Atrapa el foco de teclado, responde a la tecla `Escape` y solicita confirmación explícita antes de contactar a la API.
+- **Notificaciones Toast (`useToast.ts` / `AppToastContainer.vue`)**:
+  - Muestra avisos no invasivos (`toast.success`, `toast.error`, `toast.warning`) con auto-cierre y animación accesible.
+  - Se eliminaron las alertas estáticas superiores.
+
+### 3. Reglas de Validación y Códigos de Error
+- **Límite de anuncios en Conocer la Licenciatura**: Máximo 3 anuncios activos en total. Si se intenta crear un 4to anuncio activo, el backend rechaza con `422 ANNOUNCEMENT_LIMIT_EXCEEDED` y el frontend previene el envío.
+- **Límite de destacados**: Máximo 3 noticias y máximo 3 eventos. Si se supera el límite o se envían duplicados, el backend rechaza con `422 FEATURED_LIMIT_EXCEEDED` o `422 DUPLICATE_FEATURED`.
+- **Integridad de IDs**:
+  - Si el ID enviado en la ruta no es numérico, Elysia responde `422 VALIDATION_ERROR`.
+  - Si el ID no existe en la base de datos, el servicio responde `404 BLOCK_NOT_FOUND`.
+  - Si los IDs de noticias o eventos en destacados no existen, el servicio responde `422 INVALID_FEATURED_NEWS` o `422 INVALID_FEATURED_EVENT`.
+
+### 4. Defectos Identificados y Resueltos
+1. **Precedencia de rutas en Elysia**: La ruta `/admin/institutional-content/featured` debía declararse antes de `/admin/institutional-content/:id` para evitar que el parámetro `:id` capturara el string `featured` produciendo un error 422 de conversión numérica.
+2. **Sincronización transaccional de destacados**: La sincronización de destacados se ejecuta dentro de una transacción Prisma (`prisma.$transaction`) para garantizar atomicidad y prevenir estados inconsistentes si un ID falla.
+3. **Resiliencia de `useToast` en tests**: Se añadió compatibilidad en `useToast` para inicializar con estado reactivo local (`ref`) cuando `useState` de Nuxt no está en el scope (ej. suites Vitest puras).
 
 ## Casos de sesión y panel
 

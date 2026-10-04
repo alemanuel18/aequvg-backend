@@ -20,7 +20,7 @@ El backend es un monolito modular para el sitio público de la Asociación de Es
   - Sincronización atómica mediante transacción Prisma en `institutional.repository.ts`.
 - **Rutas asociadas**:
   - Públicas: `GET /api/v1/institutional-content` y `GET /api/v1/institutional-content/featured`.
-  - Administrativas: `GET/PUT /api/v1/admin/institutional-content/hero`, `GET/POST /api/v1/admin/institutional-content`, `PUT/DELETE /api/v1/admin/institutional-content/:id`, y `GET/PUT /api/v1/admin/institutional-content/featured`.
+  - Administrativas: `GET/POST /api/v1/admin/institutional-content`, `PUT/DELETE /api/v1/admin/institutional-content/:id`, y `GET/PUT /api/v1/admin/institutional-content/featured`.
 
 ## Arquitectura
 
