@@ -6,7 +6,21 @@ Estas reglas aplican a todo `Back/aequvg-backend`. Antes de cambiar un contrato,
 
 ## Estado actual
 
-El backend es un monolito modular para el sitio público de la Asociación de Estudiantes de Química de UVG. En este sprint están implementados `institutional` (contenido de inicio/promoción), `board` (junta directiva) y `contact` (medios y solicitudes). `events`, `news`, `papers`, `projects`, `resources` y `users` solo tienen carpetas reservadas con `.gitkeep`; no agregues endpoints ficticios hasta que exista una tarea y contrato aprobado.
+El backend es un monolito modular para el sitio público de la Asociación de Estudiantes de Química de UVG. En este sprint están implementados `institutional` (contenido institucional de inicio, promoción de la carrera y destacados), `board` (junta directiva) y `contact` (medios y solicitudes). `events`, `news`, `papers`, `projects`, `resources` y `users` solo tienen carpetas reservadas con `.gitkeep`; no agregues endpoints ficticios hasta que exista una tarea y contrato aprobado.
+
+### Módulo de Contenido Institucional (`institutional`)
+
+- **Secciones fijas y bloques promocionales**:
+  - `HERO`: Bloque principal de la página de inicio (título, subtítulo, llamada a la acción y estado).
+  - Bloques de "Conocer la Licenciatura en Química": Soportan 4 categorías (`LABORATORIO`, `TESTIMONIO`, `CAMPO_LABORAL`, `PLAN_ESTUDIOS`).
+  - **Regla estricta de cupo**: Se permite un **máximo de 3 anuncios activos en total** en "Conocer la Licenciatura", independientemente de la categoría (ej. 3 de laboratorio y ninguno de los otros; o uno de cada uno). El servicio valida este límite antes de crear o reactivar anuncios.
+- **Destacados para la página de inicio (`FeaturedItem` / `destacado_inicio`)**:
+  - Permite vincular noticias y eventos existentes como destacados en el home.
+  - **Límites de destacados**: Máximo 3 noticias destacadas y máximo 3 eventos destacados.
+  - Sincronización atómica mediante transacción Prisma en `institutional.repository.ts`.
+- **Rutas asociadas**:
+  - Públicas: `GET /api/v1/institutional-content` y `GET /api/v1/institutional-content/featured`.
+  - Administrativas: `GET/POST /api/v1/admin/institutional-content`, `PUT/DELETE /api/v1/admin/institutional-content/:id`, y `GET/PUT /api/v1/admin/institutional-content/featured`.
 
 ## Arquitectura
 

@@ -123,4 +123,21 @@ describe('contrato HTTP base', () => {
     expect(operation?.responses['200']).toBeTruthy()
     expect(operation?.responses['422']).toBeTruthy()
   })
+
+  it('documenta el contenido institucional y destacados en OpenAPI', async () => {
+    const response = await app.handle(new Request('http://localhost/openapi/json'))
+    expect(response.status).toBe(200)
+    const document = await response.json() as { paths: Record<string, Record<string, { responses: Record<string, unknown> }>> }
+    expect(document.paths['/api/v1/institutional-content']?.get).toBeTruthy()
+    expect(document.paths['/api/v1/institutional-content/featured']?.get).toBeTruthy()
+    expect(document.paths['/api/v1/admin/institutional-content']?.get).toBeTruthy()
+    expect(document.paths['/api/v1/admin/institutional-content/featured']?.put).toBeTruthy()
+    expect(document.paths['/api/v1/admin/institutional-content']?.post).toBeTruthy()
+    expect(document.paths['/api/v1/admin/institutional-content/{id}']?.put).toBeTruthy()
+  })
+
+  it('deniega la modificación administrativa de contenido institucional sin credencial', async () => {
+    const response = await app.handle(new Request('http://localhost/api/v1/admin/institutional-content'))
+    expect([401, 503]).toContain(response.status)
+  })
 })
