@@ -109,7 +109,7 @@ Para configurar Microsoft Entra ID, registra una aplicación de tenant único, a
 
 La API pública expone `GET /api/v1/news`, `GET /api/v1/news/:id` y `GET /api/v1/news/categories`. El listado acepta `q`, `categoryId`, `page` y `pageSize`; solo devuelve publicaciones `PUBLICADO` cuya fecha ya llegó y cuya categoría está activa.
 
-Las rutas administrativas bajo `/api/v1/admin/news` requieren una sesión con `NEWS_MANAGE` y permiten listar, consultar, crear, actualizar, archivar y eliminar noticias. Los contratos de entrada, respuesta y errores están disponibles en [OpenAPI](http://localhost:3000/openapi) y en `docs/aequvg-hoppscotch.json`.
+Las rutas administrativas bajo `/api/v1/admin/news` requieren una sesión con `NEWS_MANAGE` y permiten listar, consultar, crear, actualizar, archivar y eliminar noticias. Los contratos de entrada, respuesta y errores están disponibles en [OpenAPI](http://localhost:3000/openapi) y en `docs/aequvg-hoppscotch.json`. El flujo completo de pantallas, permisos, validaciones, ejemplos y evidencia está en [`docs/admin-news-institutional-flow.md`](docs/admin-news-institutional-flow.md).
 
 La integración real del módulo se ejecuta únicamente contra una PostgreSQL aislada para no modificar datos locales:
 
