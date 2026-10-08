@@ -1,6 +1,7 @@
 import { t } from 'elysia'
 
 export const boardMemberBody = t.Object({
+  photoId: t.Optional(t.Nullable(t.Integer({ minimum: 1 }))),
   name: t.String({ minLength: 2, maxLength: 160 }),
   position: t.String({ minLength: 2, maxLength: 120 }),
   description: t.Optional(t.Nullable(t.String({ maxLength: 2000 }))),
