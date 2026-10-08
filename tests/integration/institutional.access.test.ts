@@ -52,6 +52,7 @@ describe('Verificación de acceso administrativo en contenido institucional', ()
     status?: 'ACTIVO' | 'INACTIVO'
     roleActive?: boolean
     permissions?: string[]
+    expired?: boolean
   } = {}) => {
     const sid = 'session-uuid-1234'
     const jti = randomToken()
@@ -64,7 +65,7 @@ describe('Verificación de acceso administrativo en contenido institucional', ()
       sid,
       jti,
       iat: issuedAt,
-      exp: issuedAt + 3600,
+      exp: options.expired ? issuedAt - 60 : issuedAt + 3600,
       iss: 'aequvg',
       aud: 'aequvg-admin'
     })
@@ -161,6 +162,26 @@ describe('Verificación de acceso administrativo en contenido institucional', ()
         expect(institutionalRepoMocks.saveFeatured).not.toHaveBeenCalled()
       })
     }
+
+    it('rechaza un JWT válido pero expirado antes de ejecutar la mutación', async () => {
+      const auth = createAuthSession({ expired: true })
+
+      const response = await app.handle(new Request('http://localhost/api/v1/admin/institutional-content', {
+        method: 'POST',
+        headers: {
+          cookie: auth.cookies,
+          'x-csrf-token': auth.csrfToken,
+          'user-agent': USER_AGENT,
+          'sec-ch-ua-platform': PLATFORM,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({ type: 'LABORATORIO', title: 'Expirada', body: 'No debe guardarse' })
+      }))
+
+      expect(response.status).toBe(401)
+      expect((await response.json() as { error: { code: string } }).error.code).toBe('INVALID_SESSION')
+      expect(institutionalRepoMocks.create).not.toHaveBeenCalled()
+    })
   })
 
   describe('3. Cuenta externa sin provisión institucional', () => {
@@ -211,6 +232,26 @@ describe('Verificación de acceso administrativo en contenido institucional', ()
       expect(response.status).toBe(403)
       const body = await response.json() as { error: { code: string } }
       expect(body.error.code).toBe('ACCOUNT_DISABLED')
+      expect(institutionalRepoMocks.create).not.toHaveBeenCalled()
+    })
+
+    it('rechaza con 403 ACCOUNT_DISABLED un rol inactivo aunque la cuenta esté activa', async () => {
+      const auth = createAuthSession({ roleActive: false })
+
+      const response = await app.handle(new Request('http://localhost/api/v1/admin/institutional-content', {
+        method: 'POST',
+        headers: {
+          cookie: auth.cookies,
+          'x-csrf-token': auth.csrfToken,
+          'user-agent': USER_AGENT,
+          'sec-ch-ua-platform': PLATFORM,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({ type: 'LABORATORIO', title: 'Rol inactivo', body: 'No debe guardarse' })
+      }))
+
+      expect(response.status).toBe(403)
+      expect((await response.json() as { error: { code: string } }).error.code).toBe('ACCOUNT_DISABLED')
       expect(institutionalRepoMocks.create).not.toHaveBeenCalled()
     })
   })
@@ -324,6 +365,35 @@ describe('Verificación de acceso administrativo en contenido institucional', ()
 
       expect(response.status).toBe(200)
       expect(institutionalRepoMocks.saveFeatured).toHaveBeenCalledWith([1], [2])
+    })
+
+    it('permite actualizar un bloque institucional a un administrador autorizado', async () => {
+      const auth = createAuthSession()
+      institutionalRepoMocks.findById.mockResolvedValue({
+        id: 10,
+        type: 'HERO',
+        status: 'PUBLICADO',
+        publishedAt: new Date()
+      })
+      institutionalRepoMocks.update.mockResolvedValue({ id: 10, title: 'Hero actualizado' })
+
+      const response = await app.handle(new Request('http://localhost/api/v1/admin/institutional-content/10', {
+        method: 'PUT',
+        headers: {
+          cookie: auth.cookies,
+          'x-csrf-token': auth.csrfToken,
+          'user-agent': USER_AGENT,
+          'sec-ch-ua-platform': PLATFORM,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({ type: 'HERO', title: 'Hero actualizado', body: 'Contenido actualizado' })
+      }))
+
+      expect(response.status).toBe(200)
+      expect(institutionalRepoMocks.update).toHaveBeenCalledWith(10, expect.objectContaining({
+        title: 'Hero actualizado',
+        body: 'Contenido actualizado'
+      }))
     })
 
     it('permite archivar un bloque institucional', async () => {
