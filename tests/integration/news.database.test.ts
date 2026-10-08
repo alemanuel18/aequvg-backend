@@ -11,6 +11,7 @@ let authorId = 0
 let categoryId = 0
 let inactiveCategoryId = 0
 let newsId = 0
+let invalidImageId = 0
 
 const request = (path: string, options: RequestInit = {}) => new Request(`http://localhost${path}`, options)
 let adminHeaders: Record<string, string>
@@ -38,6 +39,7 @@ describeDatabase('CRUD HTTP de noticias con PostgreSQL', () => {
 
   afterAll(async () => {
     await prisma.news.deleteMany({ where: { createdById: authorId } })
+    if (invalidImageId) await prisma.file.delete({ where: { id: invalidImageId } })
     await prisma.newsCategory.deleteMany({ where: { id: inactiveCategoryId } })
     await prisma.newsCategory.deleteMany({ where: { id: categoryId } })
     await prisma.administrativeUser.deleteMany({ where: { id: authorId } })
@@ -70,6 +72,46 @@ describeDatabase('CRUD HTTP de noticias con PostgreSQL', () => {
     const deleted = await app.handle(request(`/api/v1/admin/news/${newsId}`, { method: 'DELETE', headers: adminHeaders }))
     expect(deleted.status).toBe(200)
     newsId = 0
+  })
+
+  it('rechaza contenido vacío o malicioso e imágenes que no son imágenes sin persistirlos', async () => {
+    const app = createApp()
+    const invalidImage = await prisma.file.create({ data: {
+      uploadedById: authorId,
+      originalName: 'documento.pdf',
+      storageKey: `${runId}/documento.pdf`,
+      mimeType: 'application/pdf',
+      sizeBytes: 4n,
+      sha256: '1'.repeat(64)
+    } })
+    invalidImageId = invalidImage.id
+
+    const empty = await app.handle(request('/api/v1/admin/news', {
+      method: 'POST', headers: adminHeaders,
+      body: JSON.stringify(bodyFor('Noticia vacía', { content: '<script>alert(1)</script>' }))
+    }))
+    expect(empty.status).toBe(422)
+    expect((await empty.json() as { error: { code: string } }).error.code).toBe('INVALID_NEWS_CONTENT')
+
+    const invalidImageResponse = await app.handle(request('/api/v1/admin/news', {
+      method: 'POST', headers: adminHeaders,
+      body: JSON.stringify(bodyFor('Noticia con imagen inválida', { imageId: invalidImageId }))
+    }))
+    expect(invalidImageResponse.status).toBe(422)
+    expect((await invalidImageResponse.json() as { error: { code: string } }).error.code).toBe('INVALID_NEWS_IMAGE')
+
+    const safeMarkup = await app.handle(request('/api/v1/admin/news', {
+      method: 'POST', headers: adminHeaders,
+      body: JSON.stringify(bodyFor('<strong>Noticia limpia</strong>', {
+        summary: '<em>Resumen limpio y suficiente.</em>',
+        content: '<p>Contenido limpio y suficiente.</p><script>alert(1)</script>'
+      }))
+    }))
+    expect(safeMarkup.status).toBe(201)
+    const persisted = await safeMarkup.json() as { id: number; title: string; content: string }
+    expect(persisted.title).toBe('Noticia limpia')
+    expect(persisted.content).not.toContain('<script>')
+    await app.handle(request(`/api/v1/admin/news/${persisted.id}`, { method: 'DELETE', headers: adminHeaders }))
   })
 
   it('busca, filtra, pagina y excluye publicaciones programadas', async () => {
