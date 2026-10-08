@@ -21,3 +21,7 @@ export const contactMethodBody = t.Object({
   displayOrder: t.Optional(t.Integer({ minimum: 0 })),
   active: t.Optional(t.Boolean())
 })
+
+export const contactMethodOrderBody = t.Object({
+  orderedIds: t.Array(t.Integer({ minimum: 1 }), { minItems: 1, uniqueItems: true })
+})

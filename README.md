@@ -1,6 +1,6 @@
 # AEQUVG Backend
 
-API REST de la Asociación de Estudiantes de Química de la Universidad del Valle de Guatemala. Expone contenido institucional, junta directiva y medios de contacto, y recibe consultas o solicitudes de reunión desde el sitio público.
+API REST de la Asociación de Estudiantes de Química de la Universidad del Valle de Guatemala. Expone contenido institucional, junta directiva y medios de contacto, y entrega por correo las consultas o solicitudes de reunión del sitio público.
 
 ## Tecnologías
 
@@ -24,7 +24,7 @@ src/
   modules/
     institutional/       # Inicio y promoción de la carrera
     board/               # Junta directiva
-    contact/             # Medios y solicitudes de contacto
+    contact/             # Medios oficiales y entrega directa por correo
     events/              # Estructura reservada para eventos
     news/                # Estructura reservada para noticias
     papers/              # Estructura reservada para papers
@@ -173,6 +173,22 @@ fechas son `TIMESTAMPTZ(3)`; creación e inscripción tienen default de fecha ac
   servidor y registrar la versión de privacidad aplicable.
 - No se agregan IP, user agent ni datos personales adicionales. La retención y
   eliminación quedan pendientes de política UVG. Los logs no deben incluir PII.
+
+## Contacto y entrega por correo
+
+`GET /api/v1/contact-methods` devuelve solo medios activos, ordenados de forma estable por `displayOrder` e ID. Las ubicaciones exigen una URL de Google Maps y siempre se entregan después de los demás medios, independientemente de su orden almacenado. Las redes conocidas usan `INSTAGRAM` o `FACEBOOK`; cualquier red futura se registra como `OTRO` con etiqueta, valor y URL HTTPS, sin requerir una migración.
+
+`POST /api/v1/contact-requests` permanece público, exige consentimiento, versión de privacidad y el honeypot vacío, y conserva el rate limit por IP. Ya no persiste una bandeja ni acepta estados internos: normaliza la entrada, selecciona el medio `EMAIL` activo con menor orden y entrega el mensaje mediante la API de Resend. Cada contenido genera una clave de idempotencia por minuto para que reintentos o dobles envíos equivalentes no dupliquen el correo. Responde `202 { "accepted": true }` únicamente cuando el proveedor aceptó el correo. La tabla histórica `solicitud_contacto` se conserva sin uso para evitar una migración destructiva.
+
+Configura:
+
+- `RESEND_API_KEY`: secreto del proveedor; nunca se expone al frontend.
+- `CONTACT_FROM_EMAIL`: remitente verificado en Resend, por ejemplo `AsoQuimica UVG <contacto@dominio-verificado.gt>`.
+- El destinatario se cambia desde `PUT /api/v1/admin/contact-methods/:id` o desde `/administrador/contacto`, no mediante variables de entorno.
+
+Las rutas administrativas disponibles son `GET`, `POST`, `PUT` y `DELETE /api/v1/admin/contact-methods`. Requieren sesión activa, permiso `CONTACT_MANAGE` y CSRF en escrituras. `PUT /api/v1/admin/contact-methods/order` recibe `{ "orderedIds": [3, 1, 4] }`: debe incluir una sola vez todos los medios que no sean ubicaciones y persiste posiciones únicas en una transacción. Crear un medio lo añade al final y editarlo conserva su posición; si deja de ser ubicación, pasa al final. `DELETE` desactiva el medio, no lo elimina. Las antiguas rutas `/api/v1/admin/contact-requests` fueron retiradas porque el producto no administra solicitudes.
+
+Errores propios: `422 INVALID_CONTACT_EMAIL`, `INVALID_CONTACT_PHONE`, `CONTACT_URL_REQUIRED`, `GOOGLE_MAPS_URL_REQUIRED` o `INVALID_CONTACT_ORDER`; `404 CONTACT_METHOD_NOT_FOUND`; `503 CONTACT_RECIPIENT_NOT_CONFIGURED` o `CONTACT_DELIVERY_NOT_CONFIGURED`; `502 CONTACT_DELIVERY_FAILED`.
 
 ## Eventos e inscripciones
 
@@ -559,7 +575,7 @@ bun run test:integration:auth # Requiere PostgreSQL migrado
 bun audit --production
 ```
 
-El smoke test consulta junta y medios reales y crea una solicitud de contacto. Ejecútalo únicamente sobre una base local o de pruebas.
+El smoke test consulta junta y medios reales y envía un correo de contacto mediante el proveedor configurado. Ejecútalo únicamente con una dirección receptora de pruebas.
 
 ## Contrato público principal
 
@@ -571,3 +587,11 @@ POST /api/v1/contact-requests
 ```
 
 Las operaciones administrativas están bajo `/api/v1/admin`, usan la sesión JWT en cookie y validan el permiso correspondiente en PostgreSQL.
+
+## Junta Directiva e historial
+
+`GET /api/v1/board-members` devuelve todos los integrantes con estado `ACTIVO`, no solo el periodo más reciente. La respuesta se ordena por inicio de periodo descendente, etiqueta de periodo, orden público y nombre; el frontend calcula los años comprendidos entre ambas fechas, muestra por defecto el más reciente y replica visualmente al integrante en cada año abarcado.
+
+El panel usa `GET/POST/PUT/DELETE /api/v1/admin/board-members` con el permiso `BOARD_MANAGE` y CSRF en las escrituras. `DELETE` es un retiro lógico: cambia el estado a `INACTIVO` y conserva el registro. El cuerpo de alta/edición acepta nombre, cargo del catálogo permitido, descripción, correo institucional exacto `@uvg.edu.gt`, fechas obligatorias de inicio/fin, orden y estado. El servidor deriva `term` como `AAAA` o `AAAA–AAAA`; no acepta una etiqueta manual ni fotografía en este flujo.
+
+Errores propios: `422 INVALID_BOARD_CONTENT`, `INVALID_INSTITUTIONAL_EMAIL`, `INVALID_TERM` o `INVALID_BOARD_ORDER`; `404 BOARD_MEMBER_NOT_FOUND`. El dominio institucional del integrante no concede acceso al panel ni crea permisos administrativos.
