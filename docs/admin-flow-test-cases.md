@@ -28,18 +28,14 @@ Para todas las escrituras administrativas se envían `aequvg_session`, `aequvg_d
 
 El dominio `@uvg.edu.gt` solo es una condición de identidad institucional. No crea un usuario, rol, permiso ni acceso administrativo.
 
-## Inventario de escrituras
+## Inventario de escrituras en este flujo
 
-Todas las rutas siguientes llaman `requireAdmin` antes del servicio:
+Todas las rutas siguientes validan el permiso correspondiente antes de ejecutar el servicio:
 
 - Institucional: `POST /api/v1/admin/institutional-content`, `PUT /api/v1/admin/institutional-content/:id`, `DELETE /api/v1/admin/institutional-content/:id`, `PUT /api/v1/admin/institutional-content/featured` (`INSTITUTIONAL_MANAGE`).
-- Junta: `POST /api/v1/admin/board-members`, `PUT /api/v1/admin/board-members/:id`, `PUT /api/v1/admin/board-members/order`, `DELETE /api/v1/admin/board-members/:id` (`BOARD_MANAGE`).
-- Contacto: `POST/PUT/DELETE /api/v1/admin/contact-methods`, `PUT /api/v1/admin/contact-requests/:id` (`CONTACT_MANAGE`).
-- Noticias: `POST/PUT/PATCH/DELETE /api/v1/admin/news` y `/:id` según el método (`NEWS_MANAGE`).
-- Recursos: `POST/PUT/PATCH/DELETE /api/v1/admin/resources` y `/:id` según el método (`RESOURCES_MANAGE`).
-- Proyectos: `POST/PUT/PATCH/DELETE /api/v1/admin/projects` y `/:id` según el método (`PROJECTS_MANAGE`).
-- Eventos: `POST/PUT/PATCH/DELETE /api/v1/admin/events` y `/:id` según el método (`EVENTS_MANAGE`).
-- Usuarios: `POST /api/v1/admin/users`, `PATCH /api/v1/admin/users/:id`, `PUT /api/v1/admin/users/:id/password` (`USERS_MANAGE`).
+- Noticias: `POST /api/v1/admin/news`, `PUT /api/v1/admin/news/:id`, `PATCH /api/v1/admin/news/:id/archive` y `DELETE /api/v1/admin/news/:id` (`NEWS_MANAGE`).
+
+Las rutas de otros módulos no forman parte de la evidencia S3 de anuncios y noticias; no deben inferirse a partir de esta guía.
 
 ## Flujo de Inicio e Información Institucional (S3)
 
