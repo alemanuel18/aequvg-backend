@@ -119,6 +119,16 @@ bun run test:integration:news
 
 GitHub Actions ejecuta esa misma prueba contra PostgreSQL 16 en cada pull request, después de aplicar las migraciones. El job se llama `news-postgres`; configúralo como required status check de la rama `develop` desde las reglas de protección del repositorio.
 
+## Recursos para estudiantes
+
+La API pública expone `GET /api/v1/resources/categories`, `GET /api/v1/resources` y `GET /api/v1/resources/:id`; solo devuelve recursos `PUBLICADO`, vigentes y asociados a categorías activas. La administración usa `/api/v1/admin/resources` y requiere `RESOURCES_MANAGE` para listar, consultar, crear, actualizar, archivar o eliminar.
+
+Un recurso publicado necesita un archivo existente (`fileId`) o al menos un enlace HTTP/HTTPS. S2 no define un endpoint multipart: la carga física y la creación del registro de archivo deben ocurrir en el flujo de almacenamiento aprobado antes de llamar a recursos. `PUT` permite sustituir el archivo con otro `fileId`, reemplazar todos los enlaces enviando `links` y cambiar el estado. El servicio valida que los metadatos del archivo referenciado tengan MIME presente, `storageKey` y tamaño utilizables; actualmente no existe una lista restrictiva de MIME permitidos. El catálogo de archivos es compartido y no restringe el recurso al propietario del archivo.
+
+El servicio limpia título, descripción y etiquetas antes de validar sus mínimos; contenido vacío después de limpiar HTML devuelve `422 INVALID_RESOURCE_CONTENT`. Categorías inactivas, archivos inexistentes o con metadatos inválidos y enlaces repetidos también se rechazan sin persistir cambios. La integración verifica además `401` sin sesión, `403 FORBIDDEN` sin `RESOURCES_MANAGE`, `403 ACCOUNT_DISABLED` para cuenta inactiva y `401 INVALID_SESSION` para sesión expirada.
+
+La integración PostgreSQL se ejecuta con `bun run test:integration:resources`; los ejemplos HTTP están en `docs/aequvg-hoppscotch.json` y el contrato completo en [OpenAPI](http://localhost:3000/openapi).
+
 ### Catálogo público de proyectos
 
 `GET /api/v1/projects` devuelve únicamente proyectos con estado `APROBADO`. Acepta los parámetros opcionales `search` (coincidencia parcial en título o nombre de autor), `year` (año UTC de `createdAt`), `type` (`TESIS` o `PROYECTO`), `sortBy` (`createdAt`, `title` o `author`), `sortOrder` (`asc` o `desc`), `page` (predeterminado `1`) y `pageSize` (predeterminado `12`, máximo `100`).

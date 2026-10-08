@@ -11,14 +11,26 @@ export type ResourceQuery = { q?: string; categoryId?: number; status?: ContentS
 const notFound = () => new AppError(404, 'RESOURCE_NOT_FOUND', 'El recurso solicitado no existe.')
 const publicationDate = (status: ContentStatus, requested: string | null | undefined, current: Date | null = null) => status === 'PUBLICADO' ? (requested ? new Date(requested) : current ?? new Date()) : null
 
+export const normalizeResourceText = (value: string, field: string, minimum: number) => {
+  const normalized = cleanText(value)
+  if (normalized.length < minimum) {
+    throw new AppError(422, 'INVALID_RESOURCE_CONTENT', `El campo ${field} debe contener texto válido.`)
+  }
+  return normalized
+}
+
 const verifyCategory = async (categoryId: number) => {
   if (!await resourceRepository.findActiveCategory(categoryId)) throw new AppError(422, 'INVALID_RESOURCE_CATEGORY', 'La categoría indicada no existe o está inactiva.')
 }
 const verifyFile = async (fileId: number | null | undefined) => {
-  if (fileId && !await resourceRepository.findFile(fileId)) throw new AppError(422, 'INVALID_RESOURCE_FILE', 'El archivo indicado no existe.')
+  if (!fileId) return
+  const file = await resourceRepository.findFile(fileId)
+  if (!file || !file.mimeType.trim() || !file.storageKey.trim() || file.sizeBytes <= 0n) {
+    throw new AppError(422, 'INVALID_RESOURCE_FILE', 'El archivo indicado no existe o sus metadatos no son utilizables.')
+  }
 }
 const normalizeLinks = (links: ResourceLinkInput[]) => {
-  const normalized = links.map((link, index) => ({ label: cleanText(link.label), url: link.url.trim(), displayOrder: link.displayOrder ?? index }))
+  const normalized = links.map((link, index) => ({ label: normalizeResourceText(link.label, 'label', 2), url: link.url.trim(), displayOrder: link.displayOrder ?? index }))
   if (new Set(normalized.map(link => link.url)).size !== normalized.length) throw new AppError(422, 'DUPLICATE_RESOURCE_LINK', 'No se permiten enlaces repetidos en un recurso.')
   return normalized
 }
@@ -37,7 +49,7 @@ const createData = async (input: ResourceCreateInput): Promise<Prisma.ResourceCr
     createdBy: { connect: { id: input.createdById } },
     category: { connect: { id: input.categoryId } },
     ...(fileId ? { file: { connect: { id: fileId } } } : {}),
-    title: cleanText(input.title), description: cleanText(input.description), status,
+    title: normalizeResourceText(input.title, 'title', 3), description: normalizeResourceText(input.description, 'description', 10), status,
     publishedAt: publicationDate(status, input.publishedAt),
     ...(links.length ? { links: { create: links } } : {})
   }
@@ -53,8 +65,8 @@ const updateData = async (current: { categoryId: number; fileId: number | null; 
   return {
     ...(input.categoryId !== undefined ? { category: { connect: { id: categoryId } } } : {}),
     ...(input.fileId !== undefined ? (fileId ? { file: { connect: { id: fileId } } } : { file: { disconnect: true } }) : {}),
-    ...(input.title !== undefined ? { title: cleanText(input.title) } : {}),
-    ...(input.description !== undefined ? { description: cleanText(input.description) } : {}),
+    ...(input.title !== undefined ? { title: normalizeResourceText(input.title, 'title', 3) } : {}),
+    ...(input.description !== undefined ? { description: normalizeResourceText(input.description, 'description', 10) } : {}),
     ...(input.status !== undefined ? { status } : {}),
     publishedAt: publicationDate(status, input.publishedAt, current.publishedAt),
     ...(input.links !== undefined ? { links: { deleteMany: {}, create: links } } : {})
