@@ -41,7 +41,7 @@
         },
         {
           "v": "1",
-          "name": "Junta directiva",
+          "name": "Junta Directiva por periodos",
           "method": "GET",
           "endpoint": "<<baseUrl>>/board-members",
           "params": [],

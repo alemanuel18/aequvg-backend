@@ -28,6 +28,42 @@ Para todas las escrituras administrativas se envían `aequvg_session`, `aequvg_d
 
 El dominio `@uvg.edu.gt` solo es una condición de identidad institucional. No crea un usuario, rol, permiso ni acceso administrativo.
 
+## Flujo de Junta Directiva (S3)
+
+### Pantallas, historial y permisos
+
+- `/junta-directiva` muestra el título oficial “Junta Directiva” y permite cambiar entre periodos publicados; el periodo más reciente aparece primero.
+- `/administrador/junta-directiva` requiere `BOARD_MANAGE`. Lista todos los estados, filtra por periodo y permite alta, edición y retiro lógico confirmado.
+- Crear, editar o retirar usa modal accesible y toast; la validación enfoca el primer campo, los controles tienen etiquetas y el envío queda bloqueado mientras está en curso. El layout se adapta a 320 px.
+- Un integrante `ACTIVO` aparece dentro de su periodo en el sitio público. `DELETE` lo marca `INACTIVO`, no elimina su fila ni archivos. Reactivarlo se hace editando el estado.
+
+### Contrato y validaciones
+
+- El cuerpo incluye `name`, `position`, `institutionalEmail`, `term`, `displayOrder`, `status` y opcionalmente `description`, fechas de periodo y `photoId`.
+- El correo debe coincidir exactamente con `usuario@uvg.edu.gt`; subdominios y sufijos simulados se rechazan con `422 INVALID_INSTITUTIONAL_EMAIL`.
+- Si ambas fechas existen, inicio no puede superar fin (`422 INVALID_TERM`). La interfaz exige ambas fechas o ninguna para evitar periodos ambiguos.
+- `photoId` referencia una imagen ya cargada; un ID inexistente o un MIME distinto de `image/*` produce `422 INVALID_BOARD_PHOTO`. No se crean ni eliminan archivos durante un rechazo.
+- Un ID de integrante inexistente produce `404 BOARD_MEMBER_NOT_FOUND`; uno no numérico se rechaza como `422 VALIDATION_ERROR` antes del servicio.
+
+### Casos automatizados y evidencia reproducible
+
+`tests/integration/board.access.test.ts` invoca directamente GET, POST, PUT, PUT de orden y DELETE. Cubre ausencia de sesión, cookie inválida, sesión expirada, cuenta inactiva, cuenta sin `BOARD_MANAGE`, CSRF ausente, login institucional no aprovisionado, Origin externo, ID manipulado y administrador autorizado; en cada rechazo comprueba que los repositorios de escritura no fueron llamados.
+
+`tests/unit/board.service.test.ts` cubre correo exacto, fechas, fotografía y IDs inexistentes. `tests/unit/board-validation.test.ts` replica la validación visible. Playwright verifica historial entre 2025/2026, viewport de 320 px, foco, confirmación, alta y reflejo del cambio en el sitio público.
+
+Resultados reproducibles del 8 de octubre de 2026:
+
+| Evidencia | Resultado |
+| --- | --- |
+| Backend `bun run typecheck` | Aprobado |
+| Backend `bun run test` | 107 aprobadas, 98 omitidas por requerir PostgreSQL/configuración específica |
+| Frontend `bun run typecheck` | Aprobado; advertencia conocida del plugin Volar de `vue-router` |
+| Frontend `bun run test` | 34 aprobadas |
+| Playwright focalizado en Junta Directiva | 2/2 aprobadas |
+| Build SSR frontend | Aprobado desde copia temporal limpia; `.output` local preexistente no permite escritura al usuario actual |
+
+No se remodeló la base de datos: se completó el contrato de `photoId`, periodo y estado que ya existía desde S2. La carga binaria de fotografías sigue dependiendo del flujo general de archivos y no se duplicó dentro del CRUD de Junta Directiva.
+
 ## Inventario de escrituras
 
 Todas las rutas siguientes llaman `requireAdmin` antes del servicio:
