@@ -23,7 +23,11 @@ const verifyCategory = async (categoryId: number) => {
   if (!await resourceRepository.findActiveCategory(categoryId)) throw new AppError(422, 'INVALID_RESOURCE_CATEGORY', 'La categoría indicada no existe o está inactiva.')
 }
 const verifyFile = async (fileId: number | null | undefined) => {
-  if (fileId && !await resourceRepository.findFile(fileId)) throw new AppError(422, 'INVALID_RESOURCE_FILE', 'El archivo indicado no existe.')
+  if (!fileId) return
+  const file = await resourceRepository.findFile(fileId)
+  if (!file || !file.mimeType.trim() || !file.storageKey.trim() || file.sizeBytes <= 0n) {
+    throw new AppError(422, 'INVALID_RESOURCE_FILE', 'El archivo indicado no existe o sus metadatos no son utilizables.')
+  }
 }
 const normalizeLinks = (links: ResourceLinkInput[]) => {
   const normalized = links.map((link, index) => ({ label: normalizeResourceText(link.label, 'label', 2), url: link.url.trim(), displayOrder: link.displayOrder ?? index }))

@@ -44,5 +44,5 @@ export const resourceRepository = {
   activeCategories: () => prisma.resourceCategory.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),
   findActiveCategory: (id: number) => prisma.resourceCategory.findFirst({ where: { id, active: true }, select: { id: true } }),
   findActiveUser: (id: number) => prisma.administrativeUser.findFirst({ where: { id, status: 'ACTIVO' }, select: { id: true } }),
-  findFile: (id: number) => prisma.file.findUnique({ where: { id }, select: { id: true } })
+  findFile: (id: number) => prisma.file.findUnique({ where: { id }, select: { id: true, mimeType: true, storageKey: true, sizeBytes: true } })
 }
