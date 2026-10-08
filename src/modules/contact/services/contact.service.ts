@@ -16,6 +16,7 @@ export const normalizeContactRequest = (input: RequestInput) => {
 }
 
 const normalizeMethod = (input: MethodInput) => {
+  const { displayOrder: _displayOrder, ...method } = input
   const label = cleanText(input.label)
   const value = cleanText(input.value)
   const suppliedUrl = input.url?.trim() || null
@@ -36,7 +37,7 @@ const normalizeMethod = (input: MethodInput) => {
     }
   }
 
-  return { ...input, label, value: input.type === 'EMAIL' ? value.toLowerCase() : value, url, displayOrder: input.displayOrder ?? 0, active: input.active ?? true }
+  return { ...method, label, value: input.type === 'EMAIL' ? value.toLowerCase() : value, url, active: input.active ?? true }
 }
 
 const translateMissingMethod = (error: unknown): never => {
@@ -46,12 +47,45 @@ const translateMissingMethod = (error: unknown): never => {
   throw error
 }
 
+const sortMethods = <T extends { id: number; type: ContactMethodType; displayOrder: number }>(methods: T[]) =>
+  [...methods].sort((a, b) =>
+    Number(a.type === 'UBICACION') - Number(b.type === 'UBICACION')
+    || a.displayOrder - b.displayOrder
+    || a.id - b.id
+  )
+
 export const contactService = {
-  publicMethods: contactRepository.publicMethods,
-  allMethods: contactRepository.allMethods,
-  createMethod: (input: MethodInput) => contactRepository.createMethod(normalizeMethod(input)),
-  updateMethod: (id: number, input: MethodInput) => contactRepository.updateMethod(id, normalizeMethod(input)).catch(translateMissingMethod),
+  async publicMethods() { return sortMethods(await contactRepository.publicMethods()) },
+  async allMethods() { return sortMethods(await contactRepository.allMethods()) },
+  createMethod(input: MethodInput) {
+    const method = normalizeMethod(input)
+    return contactRepository.allMethods().then(methods => {
+      const lastOrder = Math.max(-1, ...methods.filter(item => item.type !== 'UBICACION').map(item => item.displayOrder))
+      return contactRepository.createMethod({ ...method, displayOrder: method.type === 'UBICACION' ? 0 : lastOrder + 1 })
+    })
+  },
+  updateMethod(id: number, input: MethodInput) {
+    const method = normalizeMethod(input)
+    return contactRepository.allMethods().then(methods => {
+      const current = methods.find(item => item.id === id)
+      if (!current) throw new AppError(404, 'CONTACT_METHOD_NOT_FOUND', 'El medio de contacto no existe.')
+      const lastOrder = Math.max(-1, ...methods.filter(item => item.type !== 'UBICACION').map(item => item.displayOrder))
+      const displayOrder = method.type === 'UBICACION' ? 0 : current.type === 'UBICACION' ? lastOrder + 1 : current.displayOrder
+      return contactRepository.updateMethod(id, { ...method, displayOrder }).catch(translateMissingMethod)
+    })
+  },
   deactivateMethod: (id: number) => contactRepository.deactivateMethod(id).catch(translateMissingMethod),
+  async reorderMethods(orderedIds: number[]) {
+    const methods = await contactRepository.allMethods()
+    const reorderableIds = methods.filter(method => method.type !== 'UBICACION').map(method => method.id)
+    const expected = [...reorderableIds].sort((a, b) => a - b)
+    const received = [...orderedIds].sort((a, b) => a - b)
+    if (expected.length !== received.length || expected.some((id, index) => id !== received[index])) {
+      throw new AppError(422, 'INVALID_CONTACT_ORDER', 'El orden debe incluir una sola vez todos los medios que no son ubicaciones.')
+    }
+    await contactRepository.reorderMethods(orderedIds)
+    return sortMethods(await contactRepository.allMethods())
+  },
   async sendRequest(input: RequestInput) {
     const request = normalizeContactRequest(input)
     const recipient = await contactRepository.primaryEmailMethod()
