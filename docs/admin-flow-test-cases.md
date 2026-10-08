@@ -71,7 +71,7 @@ Las rutas de otros módulos no forman parte de la evidencia S3 de anuncios y not
 1. **Límite global de anuncios**: el contador considera únicamente anuncios activos/publicados; los borradores no consumen el cupo de tres.
 2. **Contenido sanitizado**: títulos y cuerpos vacíos después de limpiar HTML se rechazan antes de persistir.
 3. **Previsualización de noticias**: el selector E2E del título se limita al formulario cuando la previsualización está abierta.
-4. **Hidratación del panel**: la ejecución actual todavía registra discrepancias SSR en `/administrador/**`; queda pendiente adjuntar la corrección y repetir el E2E.
+4. **Hidratación del panel**: se desactivó SSR para `/administrador/**` y la ejecución E2E final no registró discrepancias de hidratación.
 
 ## Casos de sesión y panel
 

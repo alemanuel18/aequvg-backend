@@ -126,18 +126,16 @@ Los E2E comprueban confirmaciones, eliminación, reflejo de una noticia en `/not
 
 ### Evidencia de la ejecución actual
 
-Ejecución realizada el `2026-10-08T16:48:47-06:00`:
+Ejecución realizada el `2026-10-08T16:57:18-06:00`:
 
 | Área | Commit | Comando | Resultado |
 | --- | --- | --- | --- |
-| Backend autorización | `fa067fac4253e16d9441e8231d527f33a2456f32` | `INSTITUTIONAL_DATABASE_TEST=true bunx vitest run tests/integration/institutional.access.test.ts` | `25/25` pasaron |
-| Backend PostgreSQL noticias | `fa067fac4253e16d9441e8231d527f33a2456f32` | `NEWS_DATABASE_TEST=true bunx vitest run tests/integration/news.database.test.ts` | Bloqueada: el contenedor no publica `5432` al host |
-| Frontend unitarias | `996869a2ebc0b619078ea9d1bfe353afddd2d862` | `bun run test` | `28/28` pasaron |
-| Frontend E2E administrativas | `996869a2ebc0b619078ea9d1bfe353afddd2d862` | `bunx playwright test tests/e2e/public-site.spec.ts --grep "administra noticias|módulo administrativo de contenido institucional|protege el panel"` | `2/3` pasaron; falló contenido institucional |
+| Backend autorización | `c246a4925725271045dd53bb8ef31febb08b4c52` | `INSTITUTIONAL_DATABASE_TEST=true bunx vitest run tests/integration/institutional.access.test.ts` | `25/25` pasaron |
+| Backend PostgreSQL noticias | `c246a4925725271045dd53bb8ef31febb08b4c52` | `NEWS_DATABASE_TEST=true bunx vitest run tests/integration/news.database.test.ts` | `3/3` pasaron |
+| Frontend unitarias | `2e1d3778c1737b4dda69a21fa8849acce5da1ca6` | `bun run test` | `28/28` pasaron |
+| Frontend E2E administrativas | `2e1d3778c1737b4dda69a21fa8849acce5da1ca6` | `bunx playwright test tests/e2e/public-site.spec.ts --grep "administra noticias|módulo administrativo de contenido institucional|protege el panel"` | `3/3` pasaron |
 
-La prueba E2E fallida no pudo encontrar `Título del Hero` después de que el mock devolvió `404` para `/api/v1/admin/events?pageSize=50`. La ejecución también registró advertencias de hidratación SSR en el panel administrativo. Estos defectos quedan pendientes de corrección y deben reflejarse en el PR.
-
-La evidencia técnica se conserva en los archivos de integración y E2E indicados arriba; el PR debe adjuntar las salidas completas, incluidos métodos, rutas y códigos HTTP.
+La ejecución final corrigió el mock de `GET /api/v1/admin/events?pageSize=50`, actualizó los selectores y textos E2E al contrato visual vigente y desactivó SSR para `/administrador/**`; no quedaron fallos administrativos ni advertencias de hidratación en esa ejecución. La evidencia técnica se conserva en los archivos de integración y E2E indicados arriba; el PR debe adjuntar las salidas completas, incluidos métodos, rutas y códigos HTTP.
 
 ### Evidencia requerida para el Pull Request
 
