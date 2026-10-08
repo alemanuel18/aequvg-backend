@@ -344,6 +344,46 @@ describe('Verificación de acceso administrativo en contenido institucional', ()
       expect(response.status).toBe(200)
       expect(institutionalRepoMocks.archive).toHaveBeenCalledWith(10)
     })
+
+    it('rechaza imagen inválida y contenido vacío después de normalizar', async () => {
+      const auth = createAuthSession()
+      const requestHeaders = {
+        cookie: auth.cookies,
+        'x-csrf-token': auth.csrfToken,
+        'user-agent': USER_AGENT,
+        'sec-ch-ua-platform': PLATFORM,
+        'content-type': 'application/json'
+      }
+
+      const invalidImage = await app.handle(new Request('http://localhost/api/v1/admin/institutional-content', {
+        method: 'POST',
+        headers: requestHeaders,
+        body: JSON.stringify({ type: 'LABORATORIO', title: 'Laboratorio', body: 'Contenido válido', imageUrl: 'javascript:alert(1)' })
+      }))
+      expect(invalidImage.status).toBe(422)
+      expect((await invalidImage.json() as { error: { code: string } }).error.code).toBe('INVALID_IMAGE_URL')
+
+      const emptyContent = await app.handle(new Request('http://localhost/api/v1/admin/institutional-content', {
+        method: 'POST',
+        headers: requestHeaders,
+        body: JSON.stringify({ type: 'LABORATORIO', title: '<p></p>', body: 'Contenido válido' })
+      }))
+      expect(emptyContent.status).toBe(422)
+      expect((await emptyContent.json() as { error: { code: string } }).error.code).toBe('INVALID_INSTITUTIONAL_CONTENT')
+      expect(institutionalRepoMocks.create).not.toHaveBeenCalled()
+    })
+
+    it('rechaza una cuenta autenticada sin INSTITUTIONAL_MANAGE con 403', async () => {
+      const auth = createAuthSession({ permissions: ['NEWS_MANAGE'] })
+      const response = await app.handle(new Request('http://localhost/api/v1/admin/institutional-content', {
+        method: 'GET',
+        headers: { cookie: auth.cookies, 'user-agent': USER_AGENT, 'sec-ch-ua-platform': PLATFORM }
+      }))
+
+      expect(response.status).toBe(403)
+      expect((await response.json() as { error: { code: string } }).error.code).toBe('FORBIDDEN')
+      expect(institutionalRepoMocks.listAll).not.toHaveBeenCalled()
+    })
   })
 
   describe('7. Manipulación de identificadores (IDs)', () => {
