@@ -47,7 +47,7 @@ Todas las rutas siguientes llaman `requireAdmin` antes del servicio:
 
 - `/contacto` muestra carga, error, vacío y éxito; cada red usa un icono y la ubicación se representa con un mapa que enlaza a Google Maps.
 - El footer consulta los mismos medios activos, por lo que los cambios administrativos se reflejan en todas las páginas.
-- `/administrador/contacto` requiere `CONTACT_MANAGE`. Permite listar, crear, editar, reactivar y desactivar medios; no muestra solicitudes.
+- `/administrador/contacto` requiere `CONTACT_MANAGE`. Permite listar, crear, editar, reactivar, desactivar y reordenar medios con flechas; no muestra números de orden ni solicitudes. La ubicación permanece fija después de los demás medios.
 - Toda mutación solicita confirmación y usa toast. Los formularios anuncian errores, enfocan el primer campo inválido, deshabilitan envíos en curso y funcionan desde 320 px.
 
 ### Contrato y validaciones
@@ -56,20 +56,21 @@ Todas las rutas siguientes llaman `requireAdmin` antes del servicio:
 - El destinatario es el medio `EMAIL` activo con menor `displayOrder` (desempate por ID). Si no existe, responde `503 CONTACT_RECIPIENT_NOT_CONFIGURED` sin aceptar el mensaje.
 - El proveedor debe aceptar la entrega para responder `202 { accepted: true }`. Los mensajes no se persisten ni se exponen mediante una bandeja.
 - `EMAIL` valida el correo; `TELEFONO` valida el número; ubicación exige Google Maps; Instagram, Facebook y `OTRO` exigen HTTPS. `OTRO` permite agregar redes futuras sin cambiar el esquema.
+- `PUT /admin/contact-methods/order` guarda atómicamente los IDs de todos los medios no geográficos. Rechaza duplicados, omisiones, IDs ajenos y ubicaciones con `422 INVALID_CONTACT_ORDER`.
 
 ### Casos automatizados y evidencia reproducible
 
 `tests/integration/contact.access.test.ts` invoca las rutas con cliente HTTP directo y verifica: ausencia de sesión, token expirado, cuenta inactiva, cuenta sin `CONTACT_MANAGE`, CSRF ausente, administrador autorizado, ID no numérico, Origin sin sesión, login institucional no aprovisionado, POST público válido/ inválido y ausencia de la bandeja descartada. Cada rechazo comprueba que no se llamó al repositorio de escritura.
 
-`tests/unit/contact.service.test.ts` verifica normalización, consentimiento, honeypot, correo receptor, ausencia de destinatario y validación por tipo. En frontend, `contact-method-validation.test.ts` cubre redes futuras; Playwright cubre mapa, iconos/footer, consentimiento, envío único, confirmación administrativa y foco tras validación.
+`tests/unit/contact.service.test.ts` verifica normalización, consentimiento, honeypot, correo receptor, ausencia de destinatario, validación por tipo, desempate estable y ubicación al final. En frontend, `contact-method-validation.test.ts` cubre redes futuras y orden estable; Playwright cubre mapa, iconos/footer, consentimiento, envío único, reordenamiento visual, persistencia, ubicación fija, confirmación administrativa y foco tras validación.
 
 Resultados del 8 de octubre de 2026 en el entorno local:
 
 | Evidencia | Resultado |
 | --- | --- |
-| Backend contacto + acceso | 19/19 pruebas aprobadas |
+| Backend contacto + acceso | 20/20 pruebas aprobadas |
 | Integración PostgreSQL aislada | 2/2 pruebas aprobadas; volumen temporal eliminado |
-| Frontend unitarias | 30/30 pruebas aprobadas |
+| Frontend unitarias | 31/31 pruebas aprobadas |
 | Playwright contacto focalizado | 4/4 pruebas aprobadas |
 | Regresión Playwright completa | 16/24 aprobadas; las 8 fallas restantes corresponden a Inicio, Eventos y pruebas administrativas previas, no al flujo de Contacto |
 | Typecheck backend | Aprobado |

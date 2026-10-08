@@ -1716,7 +1716,7 @@
           "auth": { "authType": "none", "authActive": true },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"type\": \"OTRO\",\n  \"label\": \"TikTok\",\n  \"value\": \"@aeq_uvg\",\n  \"url\": \"https://www.tiktok.com/@aeq_uvg\",\n  \"displayOrder\": 5,\n  \"active\": true\n}"
+            "body": "{\n  \"type\": \"OTRO\",\n  \"label\": \"TikTok\",\n  \"value\": \"@aeq_uvg\",\n  \"url\": \"https://www.tiktok.com/@aeq_uvg\",\n  \"active\": true\n}"
           }
         },
         {
@@ -1732,7 +1732,23 @@
           "auth": { "authType": "none", "authActive": true },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"type\": \"EMAIL\",\n  \"label\": \"Correo oficial\",\n  \"value\": \"contacto@uvg.edu.gt\",\n  \"displayOrder\": 1,\n  \"active\": true\n}"
+            "body": "{\n  \"type\": \"EMAIL\",\n  \"label\": \"Correo oficial\",\n  \"value\": \"contacto@uvg.edu.gt\",\n  \"active\": true\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Guardar orden de medios",
+          "method": "PUT",
+          "endpoint": "<<baseUrl>>/admin/contact-methods/order",
+          "params": [],
+          "headers": [
+            { "key": "Content-Type", "value": "application/json", "active": true },
+            { "key": "X-CSRF-Token", "value": "<<csrfToken>>", "active": true }
+          ],
+          "auth": { "authType": "none", "authActive": true },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"orderedIds\": [3, 1, 4]\n}"
           }
         },
         {
