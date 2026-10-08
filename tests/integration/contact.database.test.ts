@@ -45,18 +45,36 @@ databaseDescribe('Integración PostgreSQL del flujo de contacto', () => {
       body: JSON.stringify({ type: 'OTRO', label: `TikTok ${runId}`, value: `@${runId}`, url: `https://www.tiktok.com/@${runId}`, displayOrder: 90, active: true })
     }))
     expect(create.status).toBe(201)
-    const created = await create.json() as { id: number }
+    const created = await create.json() as { id: number; displayOrder: number }
     createdMethodIds.push(created.id)
+    const location = await prisma.contactMethod.create({
+      data: { type: 'UBICACION', label: `Ubicación ${runId}`, value: 'Campus Central UVG', url: 'https://www.google.com/maps/search/?api=1&query=UVG', displayOrder: 0, active: true }
+    })
+    createdMethodIds.push(location.id)
 
     const publicBefore = await app.handle(new Request('http://localhost/api/v1/contact-methods'))
     expect((await publicBefore.json() as Array<{ id: number }>).some(item => item.id === created.id)).toBe(true)
 
     const update = await app.handle(new Request(`http://localhost/api/v1/admin/contact-methods/${created.id}`, {
       method: 'PUT', headers,
-      body: JSON.stringify({ type: 'OTRO', label: `YouTube ${runId}`, value: `@${runId}`, url: `https://www.youtube.com/@${runId}`, displayOrder: 91, active: true })
+      body: JSON.stringify({ type: 'OTRO', label: `YouTube ${runId}`, value: `@${runId}`, url: `https://www.youtube.com/@${runId}`, active: true })
     }))
     expect(update.status).toBe(200)
-    expect(await prisma.contactMethod.findUnique({ where: { id: created.id } })).toMatchObject({ label: `YouTube ${runId}`, displayOrder: 91 })
+    expect(await prisma.contactMethod.findUnique({ where: { id: created.id } })).toMatchObject({ label: `YouTube ${runId}`, displayOrder: created.displayOrder })
+
+    const configuredResponse = await app.handle(new Request('http://localhost/api/v1/admin/contact-methods', { headers }))
+    const configured = await configuredResponse.json() as Array<{ id: number; type: string }>
+    const reorderableIds = configured.filter(method => method.type !== 'UBICACION').map(method => method.id)
+    const orderedIds = [created.id, ...reorderableIds.filter(id => id !== created.id)]
+    const reorder = await app.handle(new Request('http://localhost/api/v1/admin/contact-methods/order', {
+      method: 'PUT', headers, body: JSON.stringify({ orderedIds })
+    }))
+    expect(reorder.status).toBe(200)
+    const reordered = await reorder.json() as Array<{ id: number; type: string; displayOrder: number }>
+    const nonLocations = reordered.filter(method => method.type !== 'UBICACION')
+    expect(nonLocations.map(method => method.id)).toEqual(orderedIds)
+    expect(new Set(nonLocations.map(method => method.displayOrder)).size).toBe(nonLocations.length)
+    expect(reordered.findIndex(method => method.type === 'UBICACION')).toBeGreaterThanOrEqual(nonLocations.length)
 
     const remove = await app.handle(new Request(`http://localhost/api/v1/admin/contact-methods/${created.id}`, { method: 'DELETE', headers }))
     expect(remove.status).toBe(200)

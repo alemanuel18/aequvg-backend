@@ -4,7 +4,7 @@ import { hmacSha256, randomToken, sha256, signSessionJwt } from '../../src/share
 const authRepoMocks = vi.hoisted(() => ({ findUserByEmail: vi.fn(), findSession: vi.fn(), revokeSession: vi.fn(), touchSession: vi.fn() }))
 const contactRepoMocks = vi.hoisted(() => ({
   publicMethods: vi.fn(), allMethods: vi.fn(), primaryEmailMethod: vi.fn(),
-  createMethod: vi.fn(), updateMethod: vi.fn(), deactivateMethod: vi.fn()
+  createMethod: vi.fn(), updateMethod: vi.fn(), deactivateMethod: vi.fn(), reorderMethods: vi.fn()
 }))
 const emailMocks = vi.hoisted(() => ({ send: vi.fn() }))
 
@@ -71,6 +71,7 @@ describe('Acceso administrativo y entrega pública de contacto', () => {
   const adminRoutes = [
     { method: 'GET', path: '/api/v1/admin/contact-methods' },
     { method: 'POST', path: '/api/v1/admin/contact-methods', body: validMethod },
+    { method: 'PUT', path: '/api/v1/admin/contact-methods/order', body: { orderedIds: [7, 8] } },
     { method: 'PUT', path: '/api/v1/admin/contact-methods/8', body: validMethod },
     { method: 'DELETE', path: '/api/v1/admin/contact-methods/8' }
   ]
@@ -81,6 +82,7 @@ describe('Acceso administrativo y entrega pública de contacto', () => {
     expect(contactRepoMocks.createMethod).not.toHaveBeenCalled()
     expect(contactRepoMocks.updateMethod).not.toHaveBeenCalled()
     expect(contactRepoMocks.deactivateMethod).not.toHaveBeenCalled()
+    expect(contactRepoMocks.reorderMethods).not.toHaveBeenCalled()
   })
 
   it('distingue sesión expirada, cuenta inactiva y cuenta sin permiso', async () => {
@@ -109,13 +111,18 @@ describe('Acceso administrativo y entrega pública de contacto', () => {
     }
   })
 
-  it('permite al administrador autorizado consultar, crear, editar y desactivar', async () => {
-    contactRepoMocks.allMethods.mockResolvedValue([])
+  it('permite al administrador autorizado consultar, crear, editar, ordenar y desactivar', async () => {
+    contactRepoMocks.allMethods.mockResolvedValue([
+      { id: 7, type: 'EMAIL', displayOrder: 0 },
+      { id: 8, type: 'INSTAGRAM', displayOrder: 1 }
+    ])
     contactRepoMocks.createMethod.mockResolvedValue({ id: 7, ...validMethod })
     contactRepoMocks.updateMethod.mockResolvedValue({ id: 8, ...validMethod })
     contactRepoMocks.deactivateMethod.mockResolvedValue({ id: 8, ...validMethod, active: false })
+    contactRepoMocks.reorderMethods.mockResolvedValue(undefined)
     expect((await request('GET', '/api/v1/admin/contact-methods', session())).status).toBe(200)
     expect((await request('POST', '/api/v1/admin/contact-methods', session(), validMethod)).status).toBe(201)
+    expect((await request('PUT', '/api/v1/admin/contact-methods/order', session(), { orderedIds: [8, 7] })).status).toBe(200)
     expect((await request('PUT', '/api/v1/admin/contact-methods/8', session(), validMethod)).status).toBe(200)
     expect((await request('DELETE', '/api/v1/admin/contact-methods/8', session())).status).toBe(200)
   })

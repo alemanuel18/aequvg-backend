@@ -7,7 +7,8 @@ const repositoryMocks = vi.hoisted(() => ({
   allMethods: vi.fn(),
   createMethod: vi.fn(),
   updateMethod: vi.fn(),
-  deactivateMethod: vi.fn()
+  deactivateMethod: vi.fn(),
+  reorderMethods: vi.fn()
 }))
 const emailMocks = vi.hoisted(() => ({ send: vi.fn() }))
 
@@ -58,8 +59,37 @@ describe('normalización de solicitudes de contacto', () => {
     expect(() => contactService.createMethod({ type: 'UBICACION', label: 'Sede', value: 'Zona 15', url: 'https://example.com/mapa' }))
       .toThrow(expect.objectContaining({ code: 'GOOGLE_MAPS_URL_REQUIRED' }))
 
+    repositoryMocks.allMethods.mockResolvedValue([])
     repositoryMocks.createMethod.mockResolvedValue({ id: 1 })
     await contactService.createMethod({ type: 'OTRO', label: 'TikTok', value: '@aeq', url: 'https://tiktok.com/@aeq' })
-    expect(repositoryMocks.createMethod).toHaveBeenCalledWith(expect.objectContaining({ type: 'OTRO', url: 'https://tiktok.com/@aeq' }))
+    expect(repositoryMocks.createMethod).toHaveBeenCalledWith(expect.objectContaining({ type: 'OTRO', url: 'https://tiktok.com/@aeq', displayOrder: 0 }))
+  })
+
+  it('ordena ubicaciones al final y resuelve empates por ID', async () => {
+    repositoryMocks.publicMethods.mockResolvedValue([
+      { id: 4, type: 'UBICACION', displayOrder: 0 },
+      { id: 3, type: 'EMAIL', displayOrder: 1 },
+      { id: 2, type: 'TELEFONO', displayOrder: 1 }
+    ])
+    await expect(contactService.publicMethods()).resolves.toEqual([
+      expect.objectContaining({ id: 2 }),
+      expect.objectContaining({ id: 3 }),
+      expect.objectContaining({ id: 4 })
+    ])
+  })
+
+  it('guarda un orden único sin permitir ubicaciones ni IDs omitidos', async () => {
+    const configured = [
+      { id: 1, type: 'EMAIL', displayOrder: 0 },
+      { id: 2, type: 'UBICACION', displayOrder: 0 },
+      { id: 3, type: 'OTRO', displayOrder: 0 }
+    ]
+    repositoryMocks.allMethods.mockResolvedValue(configured)
+    repositoryMocks.reorderMethods.mockResolvedValue(undefined)
+
+    await contactService.reorderMethods([3, 1])
+    expect(repositoryMocks.reorderMethods).toHaveBeenCalledWith([3, 1])
+    await expect(contactService.reorderMethods([1, 2, 3])).rejects.toMatchObject({ code: 'INVALID_CONTACT_ORDER' })
+    await expect(contactService.reorderMethods([1])).rejects.toMatchObject({ code: 'INVALID_CONTACT_ORDER' })
   })
 })
