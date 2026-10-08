@@ -124,16 +124,20 @@ bunx playwright test tests/e2e/public-site.spec.ts --grep "administra noticias|m
 
 Los E2E comprueban confirmaciones, eliminación, reflejo de una noticia en `/noticias`, acceso directo al panel y estados visuales. Registrar fecha, rama/commit, base usada, comando, resultado, método/ruta y código HTTP. No adjuntar cookies, tokens, contraseñas ni datos personales.
 
-### Evidencia de referencia
+### Evidencia de la ejecución actual
 
-Estos resultados pertenecen a una ejecución anterior de la rama `test/content-regression`; no sustituyen la evidencia del Pull Request actual:
+Ejecución realizada el `2026-10-08T16:48:47-06:00`:
 
-- Noticias PostgreSQL: `4/4` pruebas pasaron.
-- Anuncios institucionales PostgreSQL: `2/2` pruebas pasaron.
-- Frontend unitario: `28/28` pruebas pasaron.
-- E2E administrativas seleccionadas: `3/3` pruebas pasaron.
+| Área | Commit | Comando | Resultado |
+| --- | --- | --- | --- |
+| Backend autorización | `fa067fac4253e16d9441e8231d527f33a2456f32` | `INSTITUTIONAL_DATABASE_TEST=true bunx vitest run tests/integration/institutional.access.test.ts` | `25/25` pasaron |
+| Backend PostgreSQL noticias | `fa067fac4253e16d9441e8231d527f33a2456f32` | `NEWS_DATABASE_TEST=true bunx vitest run tests/integration/news.database.test.ts` | Bloqueada: el contenedor no publica `5432` al host |
+| Frontend unitarias | `996869a2ebc0b619078ea9d1bfe353afddd2d862` | `bun run test` | `28/28` pasaron |
+| Frontend E2E administrativas | `996869a2ebc0b619078ea9d1bfe353afddd2d862` | `bunx playwright test tests/e2e/public-site.spec.ts --grep "administra noticias|módulo administrativo de contenido institucional|protege el panel"` | `2/3` pasaron; falló contenido institucional |
 
-La evidencia técnica se conserva en los archivos de integración y E2E indicados arriba.
+La prueba E2E fallida no pudo encontrar `Título del Hero` después de que el mock devolvió `404` para `/api/v1/admin/events?pageSize=50`. La ejecución también registró advertencias de hidratación SSR en el panel administrativo. Estos defectos quedan pendientes de corrección y deben reflejarse en el PR.
+
+La evidencia técnica se conserva en los archivos de integración y E2E indicados arriba; el PR debe adjuntar las salidas completas, incluidos métodos, rutas y códigos HTTP.
 
 ### Evidencia requerida para el Pull Request
 
