@@ -137,11 +137,19 @@ async function main() {
   const savedResource = resource ? await prisma.resource.update({ where: { id: resource.id }, data: resourceData }) : await prisma.resource.create({ data: { ...resourceData, createdById: developmentUser.id } })
   await prisma.resourceLink.upsert({ where: { resourceId_url: { resourceId: savedResource.id, url: 'https://www.uvg.edu.gt/' } }, update: { label: 'Sitio UVG', displayOrder: 1 }, create: { resourceId: savedResource.id, label: 'Sitio UVG', url: 'https://www.uvg.edu.gt/', displayOrder: 1 } })
 
-  const newsCategory = await prisma.newsCategory.upsert({
-    where: { name: 'Actividades y eventos' },
-    update: { active: true },
-    create: { name: 'Actividades y eventos', active: true }
-  })
+  const legacyNewsCategory = await prisma.newsCategory.findUnique({ where: { name: 'Actividades y eventos' } })
+  const existingNewsCategory = await prisma.newsCategory.findUnique({ where: { name: 'Noticias' } })
+  const newsCategory = legacyNewsCategory && !existingNewsCategory
+    ? await prisma.newsCategory.update({ where: { id: legacyNewsCategory.id }, data: { name: 'Noticias', active: true } })
+    : await prisma.newsCategory.upsert({
+      where: { name: 'Noticias' },
+      update: { active: true },
+      create: { name: 'Noticias', active: true }
+    })
+  if (legacyNewsCategory && existingNewsCategory && legacyNewsCategory.id !== existingNewsCategory.id) {
+    await prisma.news.updateMany({ where: { categoryId: legacyNewsCategory.id, createdById: developmentUser.id }, data: { categoryId: existingNewsCategory.id } })
+    await prisma.newsCategory.update({ where: { id: legacyNewsCategory.id }, data: { active: false } })
+  }
   const news = await prisma.news.findFirst({ where: { createdById: developmentUser.id, title: 'Noticia de desarrollo del MVP público' } })
   const newsData = { categoryId: newsCategory.id, title: 'Noticia de desarrollo del MVP público', summary: 'Registro de ejemplo para validar la base limpia.', content: 'Este contenido es exclusivamente de desarrollo y no corresponde a una comunicación institucional.', status: 'PUBLICADO' as const, publishedAt: developmentPublishedAt }
   if (news) await prisma.news.update({ where: { id: news.id }, data: newsData })
