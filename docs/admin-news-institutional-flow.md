@@ -124,16 +124,36 @@ bunx playwright test tests/e2e/public-site.spec.ts --grep "administra noticias|m
 
 Los E2E comprueban confirmaciones, eliminación, reflejo de una noticia en `/noticias`, acceso directo al panel y estados visuales. Registrar fecha, rama/commit, base usada, comando, resultado, método/ruta y código HTTP. No adjuntar cookies, tokens, contraseñas ni datos personales.
 
-### Evidencia registrada
+### Evidencia de referencia
 
-En la ejecución de referencia de la rama `test/content-regression` se obtuvo:
+Estos resultados pertenecen a una ejecución anterior de la rama `test/content-regression`; no sustituyen la evidencia del Pull Request actual:
 
 - Noticias PostgreSQL: `4/4` pruebas pasaron.
 - Anuncios institucionales PostgreSQL: `2/2` pruebas pasaron.
 - Frontend unitario: `28/28` pruebas pasaron.
 - E2E administrativas seleccionadas: `3/3` pruebas pasaron.
 
-La evidencia técnica se conserva en los archivos de integración y E2E indicados arriba; la salida de CI debe adjuntarse al Pull Request sin secretos ni cookies.
+La evidencia técnica se conserva en los archivos de integración y E2E indicados arriba.
+
+### Evidencia requerida para el Pull Request
+
+Antes de aprobar el cambio, adjuntar al PR la salida actual de los comandos anteriores con esta información:
+
+```text
+Fecha y zona horaria:
+Backend commit:
+Frontend commit:
+Ramas:
+Entorno: PostgreSQL local/CI; navegador y versión para E2E
+Variables relevantes: NEWS_DATABASE_TEST, INSTITUTIONAL_DATABASE_TEST (sin valores secretos)
+
+Comando:
+Resultado:
+Pruebas pasadas/fallidas:
+Observaciones:
+```
+
+La evidencia debe incluir los códigos HTTP y las rutas ejercitadas cuando aplique. No adjuntar cookies, tokens, contraseñas, `DATABASE_URL` ni datos personales.
 
 ## Defectos registrados y corregidos
 
