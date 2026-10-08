@@ -32,17 +32,17 @@ El dominio `@uvg.edu.gt` solo es una condición de identidad institucional. No c
 
 ### Pantallas, historial y permisos
 
-- `/junta-directiva` muestra el título oficial “Junta Directiva” y permite cambiar entre periodos publicados; el periodo más reciente aparece primero.
-- `/administrador/junta-directiva` requiere `BOARD_MANAGE`. Lista todos los estados, filtra por periodo y permite alta, edición y retiro lógico confirmado.
+- `/junta-directiva` muestra el título oficial “Junta Directiva”, abre el año más reciente y permite cambiar de año. Un periodo multianual aparece en cada año comprendido por sus fechas.
+- `/administrador/junta-directiva` requiere `BOARD_MANAGE`. Lista todos los estados, filtra por año y permite alta, edición, orden mediante flechas y retiro lógico confirmado.
 - Crear, editar o retirar usa modal accesible y toast; la validación enfoca el primer campo, los controles tienen etiquetas y el envío queda bloqueado mientras está en curso. El layout se adapta a 320 px.
 - Un integrante `ACTIVO` aparece dentro de su periodo en el sitio público. `DELETE` lo marca `INACTIVO`, no elimina su fila ni archivos. Reactivarlo se hace editando el estado.
 
 ### Contrato y validaciones
 
-- El cuerpo incluye `name`, `position`, `institutionalEmail`, `term`, `displayOrder`, `status` y opcionalmente `description`, fechas de periodo y `photoId`.
+- El cuerpo incluye `name`, `position`, `institutionalEmail`, `termStartsAt`, `termEndsAt`, `displayOrder`, `status` y opcionalmente `description`. Fotografía no forma parte del formulario ni del contrato de escritura actual.
+- `position` solo admite Presidente/a, Vicepresidente/a, Secretario/a, Tesorero/a o Vocal.
 - El correo debe coincidir exactamente con `usuario@uvg.edu.gt`; subdominios y sufijos simulados se rechazan con `422 INVALID_INSTITUTIONAL_EMAIL`.
-- Si ambas fechas existen, inicio no puede superar fin (`422 INVALID_TERM`). La interfaz exige ambas fechas o ninguna para evitar periodos ambiguos.
-- `photoId` referencia una imagen ya cargada; un ID inexistente o un MIME distinto de `image/*` produce `422 INVALID_BOARD_PHOTO`. No se crean ni eliminan archivos durante un rechazo.
+- Ambas fechas son obligatorias y el inicio no puede superar el fin (`422 INVALID_TERM`). El servidor calcula `term` y el cliente calcula todos los años inclusivos; el usuario no escribe el periodo manualmente.
 - Un ID de integrante inexistente produce `404 BOARD_MEMBER_NOT_FOUND`; uno no numérico se rechaza como `422 VALIDATION_ERROR` antes del servicio.
 
 ### Casos automatizados y evidencia reproducible
@@ -56,13 +56,13 @@ Resultados reproducibles del 8 de octubre de 2026:
 | Evidencia | Resultado |
 | --- | --- |
 | Backend `bun run typecheck` | Aprobado |
-| Backend `bun run test` | 107 aprobadas, 98 omitidas por requerir PostgreSQL/configuración específica |
+| Backend `bun run test` | 106 aprobadas, 98 omitidas por requerir PostgreSQL/configuración específica |
 | Frontend `bun run typecheck` | Aprobado; advertencia conocida del plugin Volar de `vue-router` |
-| Frontend `bun run test` | 34 aprobadas |
+| Frontend `bun run test` | 37 aprobadas |
 | Playwright focalizado en Junta Directiva | 2/2 aprobadas |
 | Build SSR frontend | Aprobado desde copia temporal limpia; `.output` local preexistente no permite escritura al usuario actual |
 
-No se remodeló la base de datos: se completó el contrato de `photoId`, periodo y estado que ya existía desde S2. La carga binaria de fotografías sigue dependiendo del flujo general de archivos y no se duplicó dentro del CRUD de Junta Directiva.
+No se remodeló la base de datos: se reutilizaron las fechas, el orden y el estado existentes desde S2. La fotografía se retiró temporalmente del contrato de escritura y de la pantalla administrativa.
 
 ## Inventario de escrituras
 
