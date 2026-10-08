@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { hmacSha256, randomToken, sha256, signSessionJwt } from '../../src/shared/utils/auth-crypto'
 
 const authRepoMocks = vi.hoisted(() => ({ findUserByEmail: vi.fn(), findSession: vi.fn(), revokeSession: vi.fn(), touchSession: vi.fn() }))
-const boardRepoMocks = vi.hoisted(() => ({ publicList: vi.fn(), adminList: vi.fn(), findById: vi.fn(), findIds: vi.fn(), findImage: vi.fn(), create: vi.fn(), update: vi.fn(), retire: vi.fn(), reorder: vi.fn() }))
+const boardRepoMocks = vi.hoisted(() => ({ publicList: vi.fn(), adminList: vi.fn(), findById: vi.fn(), findIds: vi.fn(), create: vi.fn(), update: vi.fn(), retire: vi.fn(), reorder: vi.fn() }))
 vi.mock('../../src/modules/users/repositories/auth.repository', () => ({ authRepository: authRepoMocks }))
 vi.mock('../../src/modules/board/repositories/board.repository', () => ({ boardRepository: boardRepoMocks }))
 
@@ -11,7 +11,7 @@ import { createApp } from '../../src/app'
 const SESSION_SECRET = 'secreto-de-junta-con-al-menos-32-caracteres'
 const USER_AGENT = 'AEQUVG-Board-Test/1.0'
 const PLATFORM = '"Linux"'
-const validMember = { photoId: null, name: 'Ana Pérez', position: 'Presidenta', description: null, institutionalEmail: 'ana@uvg.edu.gt', term: '2026', termStartsAt: '2026-01-01', termEndsAt: '2026-12-31', displayOrder: 1, status: 'ACTIVO' }
+const validMember = { name: 'Ana Pérez', position: 'Presidenta', description: null, institutionalEmail: 'ana@uvg.edu.gt', termStartsAt: '2026-01-01', termEndsAt: '2026-12-31', displayOrder: 1, status: 'ACTIVO' }
 
 describe('acceso administrativo de Junta Directiva', () => {
   const app = createApp()
@@ -62,7 +62,7 @@ describe('acceso administrativo de Junta Directiva', () => {
   })
 
   it('permite todos los métodos al administrador autorizado', async () => {
-    const saved = { id: 8, ...validMember, photo: null }
+    const saved = { id: 8, photoId: null, ...validMember, term: '2026', photo: null }
     boardRepoMocks.adminList.mockResolvedValue([saved]); boardRepoMocks.findById.mockResolvedValue({ id: 8 }); boardRepoMocks.findIds.mockResolvedValue([{ id: 8 }]); boardRepoMocks.create.mockResolvedValue(saved); boardRepoMocks.update.mockResolvedValue(saved); boardRepoMocks.retire.mockResolvedValue({ ...saved, status: 'INACTIVO' }); boardRepoMocks.reorder.mockResolvedValue([saved])
     for (const route of routes) expect((await request(route.method, route.path, session(), route.body)).status).toBe(route.method === 'POST' ? 201 : 200)
   })
