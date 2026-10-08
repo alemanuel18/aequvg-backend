@@ -11,6 +11,7 @@ let authorId = 0
 let categoryId = 0
 let inactiveCategoryId = 0
 let fileId = 0
+let replacementFileId = 0
 let resourceId = 0
 
 const request = (path: string, options: RequestInit = {}) => new Request(`http://localhost${path}`, options)
@@ -32,17 +33,20 @@ describeDatabase('CRUD HTTP de recursos con PostgreSQL', () => {
     const category = await prisma.resourceCategory.create({ data: { name: `${runId}-category` } })
     const inactiveCategory = await prisma.resourceCategory.create({ data: { name: `${runId}-inactive`, active: false } })
     const file = await prisma.file.create({ data: { uploadedById: author.id, originalName: 'guia.pdf', storageKey: `${runId}/guia.pdf`, mimeType: 'application/pdf', sizeBytes: BigInt(1024), sha256: 'a'.repeat(64) } })
+    const replacementFile = await prisma.file.create({ data: { uploadedById: author.id, originalName: 'guia-actualizada.pdf', storageKey: `${runId}/guia-actualizada.pdf`, mimeType: 'application/pdf', sizeBytes: BigInt(2048), sha256: 'b'.repeat(64) } })
     roleId = role.id
     authorId = author.id
     categoryId = category.id
     inactiveCategoryId = inactiveCategory.id
     fileId = file.id
+    replacementFileId = replacementFile.id
     adminHeaders = await createAdminSessionHeaders(prisma, author.id, role.id, ['RESOURCES_MANAGE'])
   })
 
   afterAll(async () => {
     await prisma.resource.deleteMany({ where: { createdById: authorId } })
     await prisma.file.deleteMany({ where: { id: fileId } })
+    await prisma.file.deleteMany({ where: { id: replacementFileId } })
     await prisma.resourceCategory.deleteMany({ where: { id: { in: [categoryId, inactiveCategoryId] } } })
     await prisma.administrativeUser.deleteMany({ where: { id: authorId } })
     await prisma.rolePermission.deleteMany({ where: { roleId } })
@@ -66,10 +70,12 @@ describeDatabase('CRUD HTTP de recursos con PostgreSQL', () => {
 
     const updated = await app.handle(request(`/api/v1/admin/resources/${resourceId}`, {
       method: 'PUT', headers: adminHeaders,
-      body: JSON.stringify({ description: 'Descripción actualizada para comprobar el reemplazo de enlaces.', links: [{ label: 'Actualizado', url: 'https://example.org/actualizado' }] })
+      body: JSON.stringify({ fileId: replacementFileId, description: 'Descripción actualizada para comprobar el reemplazo de enlaces.', links: [{ label: 'Actualizado', url: 'https://example.org/actualizado' }] })
     }))
     expect(updated.status).toBe(200)
-    expect((await updated.json() as { links: { url: string }[] }).links.map(link => link.url)).toEqual(['https://example.org/actualizado'])
+    const updatedResource = await updated.json() as { fileId: number; links: { url: string }[] }
+    expect(updatedResource.fileId).toBe(replacementFileId)
+    expect(updatedResource.links.map(link => link.url)).toEqual(['https://example.org/actualizado'])
 
     const archived = await app.handle(request(`/api/v1/admin/resources/${resourceId}/archive`, { method: 'PATCH', headers: adminHeaders }))
     expect(archived.status).toBe(200)
@@ -116,6 +122,21 @@ describeDatabase('CRUD HTTP de recursos con PostgreSQL', () => {
     }))
     expect(invalidLink.status).toBe(422)
     expect((await app.handle(request('/api/v1/resources/999999'))).status).toBe(404)
+  })
+
+  it('rechaza contenido vacío después de limpiar HTML y preserva el recurso', async () => {
+    const app = createApp()
+    const created = await app.handle(request('/api/v1/admin/resources', { method: 'POST', headers: adminHeaders, body: JSON.stringify(bodyFor('Contenido válido')) }))
+    expect(created.status).toBe(201)
+    const createdBody = await created.json() as { id: number; title: string }
+    const invalid = await app.handle(request(`/api/v1/admin/resources/${createdBody.id}`, {
+      method: 'PUT', headers: adminHeaders,
+      body: JSON.stringify({ title: '<script></script>' })
+    }))
+    expect(invalid.status).toBe(422)
+    expect((await invalid.json() as { error: { code: string } }).error.code).toBe('INVALID_RESOURCE_CONTENT')
+    const persisted = await app.handle(request(`/api/v1/admin/resources/${createdBody.id}`, { headers: adminHeaders }))
+    expect((await persisted.json() as { title: string }).title).toBe('Contenido válido')
   })
 
   it('filtra, pagina y excluye recursos programados de la consulta pública', async () => {
