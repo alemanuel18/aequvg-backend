@@ -1687,6 +1687,67 @@
           }
         }
       ]
+    },
+    {
+      "v": 3,
+      "name": "Administración - Contacto",
+      "folders": [],
+      "requests": [
+        {
+          "v": "1",
+          "name": "Listar medios oficiales",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/contact-methods",
+          "params": [],
+          "headers": [],
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": null, "body": null }
+        },
+        {
+          "v": "1",
+          "name": "Crear red social futura",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/contact-methods",
+          "params": [],
+          "headers": [
+            { "key": "Content-Type", "value": "application/json", "active": true },
+            { "key": "X-CSRF-Token", "value": "<<csrfToken>>", "active": true }
+          ],
+          "auth": { "authType": "none", "authActive": true },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"type\": \"OTRO\",\n  \"label\": \"TikTok\",\n  \"value\": \"@aeq_uvg\",\n  \"url\": \"https://www.tiktok.com/@aeq_uvg\",\n  \"displayOrder\": 5,\n  \"active\": true\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Actualizar correo receptor",
+          "method": "PUT",
+          "endpoint": "<<baseUrl>>/admin/contact-methods/<<contactMethodId>>",
+          "params": [],
+          "headers": [
+            { "key": "Content-Type", "value": "application/json", "active": true },
+            { "key": "X-CSRF-Token", "value": "<<csrfToken>>", "active": true }
+          ],
+          "auth": { "authType": "none", "authActive": true },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"type\": \"EMAIL\",\n  \"label\": \"Correo oficial\",\n  \"value\": \"contacto@uvg.edu.gt\",\n  \"displayOrder\": 1,\n  \"active\": true\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Desactivar medio oficial",
+          "method": "DELETE",
+          "endpoint": "<<baseUrl>>/admin/contact-methods/<<contactMethodId>>",
+          "params": [],
+          "headers": [
+            { "key": "X-CSRF-Token", "value": "<<csrfToken>>", "active": true }
+          ],
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": null, "body": null }
+        }
+      ]
     }
   ],
   "requests": [],
@@ -1724,6 +1785,10 @@
         },
         {
           "key": "blockId",
+          "value": "1"
+        },
+        {
+          "key": "contactMethodId",
           "value": "1"
         }
       ]

@@ -34,12 +34,51 @@ Todas las rutas siguientes llaman `requireAdmin` antes del servicio:
 
 - Institucional: `POST /api/v1/admin/institutional-content`, `PUT /api/v1/admin/institutional-content/:id`, `DELETE /api/v1/admin/institutional-content/:id`, `PUT /api/v1/admin/institutional-content/featured` (`INSTITUTIONAL_MANAGE`).
 - Junta: `POST /api/v1/admin/board-members`, `PUT /api/v1/admin/board-members/:id`, `PUT /api/v1/admin/board-members/order`, `DELETE /api/v1/admin/board-members/:id` (`BOARD_MANAGE`).
-- Contacto: `POST/PUT/DELETE /api/v1/admin/contact-methods`, `PUT /api/v1/admin/contact-requests/:id` (`CONTACT_MANAGE`).
+- Contacto: `GET/POST/PUT/DELETE /api/v1/admin/contact-methods` (`CONTACT_MANAGE`). No hay rutas administrativas de solicitudes.
 - Noticias: `POST/PUT/PATCH/DELETE /api/v1/admin/news` y `/:id` según el método (`NEWS_MANAGE`).
 - Recursos: `POST/PUT/PATCH/DELETE /api/v1/admin/resources` y `/:id` según el método (`RESOURCES_MANAGE`).
 - Proyectos: `POST/PUT/PATCH/DELETE /api/v1/admin/projects` y `/:id` según el método (`PROJECTS_MANAGE`).
 - Eventos: `POST/PUT/PATCH/DELETE /api/v1/admin/events` y `/:id` según el método (`EVENTS_MANAGE`).
 - Usuarios: `POST /api/v1/admin/users`, `PATCH /api/v1/admin/users/:id`, `PUT /api/v1/admin/users/:id/password` (`USERS_MANAGE`).
+
+## Flujo de Contacto (S3)
+
+### Pantallas y permisos
+
+- `/contacto` muestra carga, error, vacío y éxito; cada red usa un icono y la ubicación se representa con un mapa que enlaza a Google Maps.
+- El footer consulta los mismos medios activos, por lo que los cambios administrativos se reflejan en todas las páginas.
+- `/administrador/contacto` requiere `CONTACT_MANAGE`. Permite listar, crear, editar, reactivar y desactivar medios; no muestra solicitudes.
+- Toda mutación solicita confirmación y usa toast. Los formularios anuncian errores, enfocan el primer campo inválido, deshabilitan envíos en curso y funcionan desde 320 px.
+
+### Contrato y validaciones
+
+- `POST /contact-requests` es la única excepción pública de escritura. Solo acepta datos del remitente, tipo `CONSULTA|REUNION`, contenido, consentimiento `true`, versión de privacidad y honeypot vacío. No admite estado, asignación ni permisos.
+- El destinatario es el medio `EMAIL` activo con menor `displayOrder` (desempate por ID). Si no existe, responde `503 CONTACT_RECIPIENT_NOT_CONFIGURED` sin aceptar el mensaje.
+- El proveedor debe aceptar la entrega para responder `202 { accepted: true }`. Los mensajes no se persisten ni se exponen mediante una bandeja.
+- `EMAIL` valida el correo; `TELEFONO` valida el número; ubicación exige Google Maps; Instagram, Facebook y `OTRO` exigen HTTPS. `OTRO` permite agregar redes futuras sin cambiar el esquema.
+
+### Casos automatizados y evidencia reproducible
+
+`tests/integration/contact.access.test.ts` invoca las rutas con cliente HTTP directo y verifica: ausencia de sesión, token expirado, cuenta inactiva, cuenta sin `CONTACT_MANAGE`, CSRF ausente, administrador autorizado, ID no numérico, Origin sin sesión, login institucional no aprovisionado, POST público válido/ inválido y ausencia de la bandeja descartada. Cada rechazo comprueba que no se llamó al repositorio de escritura.
+
+`tests/unit/contact.service.test.ts` verifica normalización, consentimiento, honeypot, correo receptor, ausencia de destinatario y validación por tipo. En frontend, `contact-method-validation.test.ts` cubre redes futuras; Playwright cubre mapa, iconos/footer, consentimiento, envío único, confirmación administrativa y foco tras validación.
+
+Resultados del 8 de octubre de 2026 en el entorno local:
+
+| Evidencia | Resultado |
+| --- | --- |
+| Backend contacto + acceso | 19/19 pruebas aprobadas |
+| Integración PostgreSQL aislada | 2/2 pruebas aprobadas; volumen temporal eliminado |
+| Frontend unitarias | 30/30 pruebas aprobadas |
+| Playwright contacto focalizado | 4/4 pruebas aprobadas |
+| Regresión Playwright completa | 16/24 aprobadas; las 8 fallas restantes corresponden a Inicio, Eventos y pruebas administrativas previas, no al flujo de Contacto |
+| Typecheck backend | Aprobado |
+| Typecheck frontend | Aprobado; emite advertencia conocida del plugin Volar de `vue-router` |
+| Build SSR frontend | Aprobado desde una copia temporal, porque `.output` local pertenece a `nobody` |
+
+Defectos corregidos: bandeja administrativa contraria al alcance; POST que persistía sin entregar correo; footer con datos fijos; ubicación sin URL/mapa; falta de formulario administrativo; validación genérica insuficiente; y respuesta pública que exponía ID/estado internos.
+
+Hallazgos pendientes fuera de Contacto: la suite completa conserva expectativas desactualizadas y carreras de hidratación en Inicio/Eventos; el layout administrativo también advierte diferencias entre los datos de sesión renderizados por SSR y los hidratados en cliente. Se registran como deuda transversal porque no alteran los cuatro escenarios focalizados ni deben mezclarse con este cambio funcional.
 
 ## Flujo de Inicio e Información Institucional (S3)
 
