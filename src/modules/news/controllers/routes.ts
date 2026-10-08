@@ -22,32 +22,32 @@ export const newsRoutes = new Elysia({ prefix: '/api/v1' })
   })
   .get('/admin/news', async ({ request, query }) => { await requireAdmin(request, 'NEWS_MANAGE'); return newsService.adminList(query) }, {
     query: newsAdminQuery,
-    response: { 200: newsListResponse, 401: newsErrorResponse, 503: newsErrorResponse },
+    response: { 200: newsListResponse, 401: newsErrorResponse, 403: newsErrorResponse, 422: newsErrorResponse, 503: newsErrorResponse },
     detail: { tags: ['Administración'], summary: 'Busca noticias administrativas', description: 'Incluye todos los estados. Requiere una sesión con NEWS_MANAGE.' }
   })
   .get('/admin/news/:id', async ({ request, params }) => { await requireAdmin(request, 'NEWS_MANAGE'); return newsService.adminById(params.id) }, {
     params: idParams,
-    response: { 200: newsResponse, 401: newsErrorResponse, 404: newsErrorResponse, 503: newsErrorResponse },
+    response: { 200: newsResponse, 401: newsErrorResponse, 403: newsErrorResponse, 404: newsErrorResponse, 503: newsErrorResponse },
     detail: { tags: ['Administración'], summary: 'Consulta una noticia administrativa' }
   })
   .post('/admin/news', async ({ request, body, set }) => { const authenticated = await requireAdmin(request, 'NEWS_MANAGE'); set.status = 201; return newsService.create({ ...body, createdById: authenticated.user.id }) }, {
     body: newsCreateBody,
-    response: { 201: newsResponse, 401: newsErrorResponse, 422: newsErrorResponse, 503: newsErrorResponse },
+    response: { 201: newsResponse, 401: newsErrorResponse, 403: newsErrorResponse, 422: newsErrorResponse, 503: newsErrorResponse },
     detail: { tags: ['Administración'], summary: 'Crea una noticia', description: 'Una noticia PUBLICADO recibe una fecha de publicación si no se proporciona una. Autor y categoría deben estar activos.' }
   })
   .put('/admin/news/:id', async ({ request, params, body }) => { await requireAdmin(request, 'NEWS_MANAGE'); return newsService.update(params.id, body) }, {
     params: idParams,
     body: newsUpdateBody,
-    response: { 200: newsResponse, 401: newsErrorResponse, 404: newsErrorResponse, 422: newsErrorResponse, 503: newsErrorResponse },
+    response: { 200: newsResponse, 401: newsErrorResponse, 403: newsErrorResponse, 404: newsErrorResponse, 422: newsErrorResponse, 503: newsErrorResponse },
     detail: { tags: ['Administración'], summary: 'Actualiza una noticia', description: 'Cambiar el estado a BORRADOR o ARCHIVADO elimina la fecha de publicación; PUBLICADO la asigna o conserva.' }
   })
   .patch('/admin/news/:id/archive', async ({ request, params }) => { await requireAdmin(request, 'NEWS_MANAGE'); return newsService.archive(params.id) }, {
     params: idParams,
-    response: { 200: newsResponse, 401: newsErrorResponse, 404: newsErrorResponse, 503: newsErrorResponse },
+    response: { 200: newsResponse, 401: newsErrorResponse, 403: newsErrorResponse, 404: newsErrorResponse, 503: newsErrorResponse },
     detail: { tags: ['Administración'], summary: 'Archiva una noticia', description: 'Retira la noticia de la consulta pública sin eliminar el registro.' }
   })
   .delete('/admin/news/:id', async ({ request, params }) => { await requireAdmin(request, 'NEWS_MANAGE'); return newsService.remove(params.id) }, {
     params: idParams,
-    response: { 200: newsResponse, 401: newsErrorResponse, 404: newsErrorResponse, 503: newsErrorResponse },
+    response: { 200: newsResponse, 401: newsErrorResponse, 403: newsErrorResponse, 404: newsErrorResponse, 503: newsErrorResponse },
     detail: { tags: ['Administración'], summary: 'Elimina una noticia', description: 'Elimina permanentemente una noticia existente.' }
   })

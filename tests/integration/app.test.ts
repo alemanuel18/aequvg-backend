@@ -41,6 +41,8 @@ describe('contrato HTTP base', () => {
     const document = await response.json() as { paths: Record<string, Record<string, { responses: Record<string, unknown> }>> }
     expect(document.paths['/api/v1/news']?.get?.responses['200']).toBeTruthy()
     expect(document.paths['/api/v1/admin/news']?.post?.responses['201']).toBeTruthy()
+    expect(document.paths['/api/v1/admin/news']?.get?.responses['403']).toBeTruthy()
+    expect(document.paths['/api/v1/admin/news']?.post?.responses['403']).toBeTruthy()
     expect(document.paths['/api/v1/news/{id}']?.get?.responses['404']).toBeTruthy()
   })
 

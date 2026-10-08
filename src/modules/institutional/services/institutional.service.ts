@@ -21,23 +21,37 @@ export type FeaturedInput = {
   eventIds: number[]
 }
 
-const normalize = (input: BlockInput) => {
+const normalizeRequiredText = (value: string, field: string) => {
+  const normalized = cleanText(value)
+  if (normalized.length < 2) {
+    throw new AppError(422, 'INVALID_INSTITUTIONAL_CONTENT', `El campo ${field} debe contener texto válido.`)
+  }
+  return normalized
+}
+
+const normalizeOptionalText = (value?: string | null) => {
+  if (!value) return null
+  const normalized = cleanText(value)
+  return normalized || null
+}
+
+const normalize = (input: BlockInput, current?: { status: ContentStatus; publishedAt: Date | null }) => {
   if (input.imageUrl && !isHttpUrl(input.imageUrl)) {
     throw new AppError(422, 'INVALID_IMAGE_URL', 'La URL de imagen debe usar HTTP o HTTPS.')
   }
   if (input.actionUrl && !isHttpUrl(input.actionUrl) && !input.actionUrl.startsWith('/')) {
     throw new AppError(422, 'INVALID_ACTION_URL', 'El enlace de acción no es válido.')
   }
-  const status = input.status ?? 'BORRADOR'
+  const status = input.status ?? current?.status ?? 'BORRADOR'
   return {
     ...input,
-    title: cleanText(input.title),
-    subtitle: input.subtitle ? cleanText(input.subtitle) : null,
-    body: cleanText(input.body),
-    actionLabel: input.actionLabel ? cleanText(input.actionLabel) : null,
+    title: normalizeRequiredText(input.title, 'title'),
+    subtitle: normalizeOptionalText(input.subtitle),
+    body: normalizeRequiredText(input.body, 'body'),
+    actionLabel: normalizeOptionalText(input.actionLabel),
     displayOrder: input.displayOrder ?? 0,
     status,
-    publishedAt: status === 'PUBLICADO' ? new Date() : null
+    publishedAt: status === 'PUBLICADO' ? current?.publishedAt ?? new Date() : null
   }
 }
 
@@ -48,7 +62,7 @@ export const institutionalService = {
 
   create: async (input: BlockInput) => {
     const data = normalize(input)
-    if (data.type !== 'HERO') {
+    if (data.type !== 'HERO' && data.status === 'PUBLICADO') {
       const activeCount = await institutionalRepository.countActiveAnnouncements()
       if (activeCount >= 3) {
         throw new AppError(422, 'ANNOUNCEMENT_LIMIT_EXCEEDED', 'No se pueden tener más de 3 anuncios activos en Conocer la Licenciatura de Química.')
@@ -58,12 +72,12 @@ export const institutionalService = {
   },
 
   update: async (id: number, input: BlockInput) => {
-    const data = normalize(input)
     const existing = await institutionalRepository.findById(id)
     if (!existing) {
       throw new AppError(404, 'BLOCK_NOT_FOUND', 'El bloque institucional no existe.')
     }
-    if (data.type !== 'HERO' && data.status !== 'ARCHIVADO') {
+    const data = normalize(input, existing)
+    if (data.type !== 'HERO' && data.status === 'PUBLICADO') {
       const activeCount = await institutionalRepository.countActiveAnnouncements(id)
       if (activeCount >= 3) {
         throw new AppError(422, 'ANNOUNCEMENT_LIMIT_EXCEEDED', 'No se pueden tener más de 3 anuncios activos en Conocer la Licenciatura de Química.')

@@ -18,7 +18,7 @@ export const institutionalRepository = {
   countActiveAnnouncements: (excludeId?: number) => prisma.institutionalBlock.count({
     where: {
       type: { not: 'HERO' },
-      status: { not: 'ARCHIVADO' },
+      status: 'PUBLICADO',
       ...(excludeId ? { id: { not: excludeId } } : {})
     }
   }),
