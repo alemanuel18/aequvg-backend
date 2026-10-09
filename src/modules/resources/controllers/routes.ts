@@ -1,6 +1,8 @@
 import { Elysia, t } from 'elysia'
+import { AppError } from '../../../shared/errors/app-error'
 import { requireAdmin } from '../../../middleware/admin'
-import { resourceAdminQuery, resourceCategoryListResponse, resourceCreateBody, resourceErrorResponse, resourceListResponse, resourcePublicQuery, resourceResponse, resourceUpdateBody } from '../dtos/schemas'
+import { resourceAdminQuery, resourceCategoryListResponse, resourceCreateBody, resourceErrorResponse, resourceFileResponse, resourceListResponse, resourcePublicQuery, resourceResponse, resourceUpdateBody } from '../dtos/schemas'
+import { fileService } from '../services/file.service'
 import { resourceService } from '../services/resource.service'
 
 const idParams = t.Object({ id: t.Integer({ minimum: 1 }) })
@@ -41,4 +43,19 @@ export const resourceRoutes = new Elysia({ prefix: '/api/v1' })
   .delete('/admin/resources/:id', async ({ request, params }) => { await requireAdmin(request, 'RESOURCES_MANAGE'); return resourceService.remove(params.id) }, {
     params: idParams, response: { 200: resourceResponse, 401: resourceErrorResponse, 404: resourceErrorResponse, 503: resourceErrorResponse },
     detail: { tags: ['Administración'], summary: 'Elimina un recurso', description: 'Elimina permanentemente el recurso y sus enlaces asociados.' }
+  })
+  .post('/admin/files', async ({ request, set }) => {
+    const authenticated = await requireAdmin(request, 'RESOURCES_MANAGE')
+    const input = (await request.formData()).get('file')
+    if (!input || typeof input !== 'object' || typeof (input as File).arrayBuffer !== 'function' || typeof (input as File).name !== 'string') throw new AppError(422, 'FILE_REQUIRED', 'Debes enviar el campo multipart `file`.')
+    set.status = 201
+    return fileService.upload(authenticated.user.id, input as File)
+  }, {
+    parse: 'none',
+    response: { 201: resourceFileResponse, 401: resourceErrorResponse, 403: resourceErrorResponse, 422: resourceErrorResponse, 503: resourceErrorResponse },
+    detail: { tags: ['Administración'], summary: 'Carga un archivo académico', description: 'Recibe un archivo multipart y crea sus metadatos. Requiere RESOURCES_MANAGE.' }
+  })
+  .delete('/admin/files/:id', async ({ request, params }) => { await requireAdmin(request, 'RESOURCES_MANAGE'); return fileService.remove(params.id) }, {
+    params: idParams, response: { 200: resourceFileResponse, 401: resourceErrorResponse, 403: resourceErrorResponse, 404: resourceErrorResponse, 409: resourceErrorResponse, 503: resourceErrorResponse },
+    detail: { tags: ['Administración'], summary: 'Elimina un archivo académico', description: 'Elimina los metadatos y el binario si no está asociado a contenido.' }
   })

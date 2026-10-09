@@ -38,6 +38,11 @@ const routes: AdminRoute[] = [
   { method: 'PATCH', path: '/api/v1/admin/resources/10/archive' },
   { method: 'DELETE', path: '/api/v1/admin/resources/10' }
 ] as const
+const fileRoutes: AdminRoute[] = [
+  { method: 'POST', path: '/api/v1/admin/files' },
+  { method: 'DELETE', path: '/api/v1/admin/files/20' }
+]
+const protectedRoutes = [...routes, ...fileRoutes]
 
 const request = (route: AdminRoute, headers: Record<string, string> = {}) => new Request(`http://localhost${route.path}`, {
   method: route.method,
@@ -88,21 +93,21 @@ describe('Acceso HTTP administrativo de recursos', () => {
     expect((await response.json() as { error: { code: string } }).error.code).toBe(code)
   }
 
-  it.each(routes)('rechaza $method $path sin sesión y no toca datos', async (route) => {
+  it.each(protectedRoutes)('rechaza $method $path sin sesión y no toca datos', async (route) => {
     await expectError(await app.handle(request(route)), 401, 'UNAUTHORIZED')
     expect(resourceRepoMocks.create).not.toHaveBeenCalled()
     expect(resourceRepoMocks.update).not.toHaveBeenCalled()
     expect(resourceRepoMocks.remove).not.toHaveBeenCalled()
   })
 
-  it.each(routes)('rechaza $method $path con token inválido', async (route) => {
+  it.each(protectedRoutes)('rechaza $method $path con token inválido', async (route) => {
     await expectError(await app.handle(request(route, { cookie: 'aequvg_session=corrupto; aequvg_device=device' })), 401, 'INVALID_SESSION')
     expect(resourceRepoMocks.create).not.toHaveBeenCalled()
     expect(resourceRepoMocks.update).not.toHaveBeenCalled()
     expect(resourceRepoMocks.remove).not.toHaveBeenCalled()
   })
 
-  it.each(routes)('rechaza $method $path con sesión expirada', async (route) => {
+  it.each(protectedRoutes)('rechaza $method $path con sesión expirada', async (route) => {
     const headers = createAuth({ expiresAt: new Date(0) })
     await expectError(await app.handle(request(route, headers)), 401, 'INVALID_SESSION')
     expect(resourceRepoMocks.create).not.toHaveBeenCalled()
@@ -110,7 +115,7 @@ describe('Acceso HTTP administrativo de recursos', () => {
     expect(resourceRepoMocks.remove).not.toHaveBeenCalled()
   })
 
-  it.each(routes)('rechaza $method $path a cuenta externa sin provisión', async (route) => {
+  it.each(protectedRoutes)('rechaza $method $path a cuenta externa sin provisión', async (route) => {
     await expectError(await app.handle(request(route, { Origin: 'https://externo.example', cookie: 'aequvg_session=external; aequvg_device=device' })), 401, 'INVALID_SESSION')
     expect(resourceRepoMocks.create).not.toHaveBeenCalled()
     expect(resourceRepoMocks.update).not.toHaveBeenCalled()
@@ -122,21 +127,21 @@ describe('Acceso HTTP administrativo de recursos', () => {
     expect(resourceRepoMocks.list).not.toHaveBeenCalled()
   })
 
-  it.each(routes)('rechaza $method $path a cuenta institucional sin RESOURCES_MANAGE', async (route) => {
+  it.each(protectedRoutes)('rechaza $method $path a cuenta institucional sin RESOURCES_MANAGE', async (route) => {
     await expectError(await app.handle(request(route, createAuth({ permissions: ['NEWS_MANAGE'] }))), 403, 'FORBIDDEN')
     expect(resourceRepoMocks.create).not.toHaveBeenCalled()
     expect(resourceRepoMocks.update).not.toHaveBeenCalled()
     expect(resourceRepoMocks.remove).not.toHaveBeenCalled()
   })
 
-  it.each(routes)('rechaza $method $path a cuenta inactiva', async (route) => {
+  it.each(protectedRoutes)('rechaza $method $path a cuenta inactiva', async (route) => {
     await expectError(await app.handle(request(route, createAuth({ status: 'INACTIVO' }))), 403, 'ACCOUNT_DISABLED')
     expect(resourceRepoMocks.create).not.toHaveBeenCalled()
     expect(resourceRepoMocks.update).not.toHaveBeenCalled()
     expect(resourceRepoMocks.remove).not.toHaveBeenCalled()
   })
 
-  it.each(routes)('rechaza $method $path con rol inactivo', async (route) => {
+  it.each(protectedRoutes)('rechaza $method $path con rol inactivo', async (route) => {
     await expectError(await app.handle(request(route, createAuth({ roleActive: false }))), 403, 'ACCOUNT_DISABLED')
     expect(resourceRepoMocks.create).not.toHaveBeenCalled()
     expect(resourceRepoMocks.update).not.toHaveBeenCalled()
