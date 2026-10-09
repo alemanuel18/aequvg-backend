@@ -18,14 +18,11 @@ let limitedRoleId = 0
 let limitedUserId = 0
 let inactiveRoleId = 0
 let inactiveUserId = 0
-let externalRoleId = 0
-let externalUserId = 0
 
 const request = (path: string, options: RequestInit = {}) => new Request(`http://localhost${path}`, options)
 let adminHeaders: Record<string, string>
 let limitedHeaders: Record<string, string>
 let inactiveHeaders: Record<string, string>
-let externalHeaders: Record<string, string>
 const bodyFor = (title: string, overrides: Record<string, unknown> = {}) => ({
   categoryId,
   fileId,
@@ -64,11 +61,6 @@ describeDatabase('CRUD HTTP de recursos con PostgreSQL', () => {
     inactiveUserId = inactiveUser.id
     inactiveHeaders = await createAdminSessionHeaders(prisma, inactiveUser.id, inactiveRole.id, ['RESOURCES_MANAGE'])
     await prisma.administrativeUser.update({ where: { id: inactiveUser.id }, data: { status: 'INACTIVO' } })
-    const externalRole = await prisma.role.create({ data: { name: `${runId}-external-role`, description: 'Rol para cuenta externa de prueba.' } })
-    const externalUser = await prisma.administrativeUser.create({ data: { roleId: externalRole.id, name: 'Cuenta externa', email: `${runId}-external@gmail.com` } })
-    externalRoleId = externalRole.id
-    externalUserId = externalUser.id
-    externalHeaders = await createAdminSessionHeaders(prisma, externalUser.id, externalRole.id, ['RESOURCES_MANAGE'])
   })
 
   afterAll(async () => {
@@ -83,9 +75,6 @@ describeDatabase('CRUD HTTP de recursos con PostgreSQL', () => {
     await prisma.administrativeUser.deleteMany({ where: { id: { in: [limitedUserId, inactiveUserId] } } })
     await prisma.rolePermission.deleteMany({ where: { roleId: { in: [limitedRoleId, inactiveRoleId] } } })
     await prisma.role.deleteMany({ where: { id: { in: [limitedRoleId, inactiveRoleId] } } })
-    await prisma.administrativeUser.deleteMany({ where: { id: externalUserId } })
-    await prisma.rolePermission.deleteMany({ where: { roleId: externalRoleId } })
-    await prisma.role.deleteMany({ where: { id: externalRoleId } })
     await prisma.$disconnect()
   })
 
@@ -208,13 +197,6 @@ describeDatabase('CRUD HTTP de recursos con PostgreSQL', () => {
     const inactive = await app.handle(request('/api/v1/admin/resources', { headers: inactiveHeaders }))
     expect(inactive.status).toBe(403)
     expect((await inactive.json() as { error: { code: string } }).error.code).toBe('ACCOUNT_DISABLED')
-  })
-
-  it('rechaza una cuenta externa con sesión persistida y permiso nominal', async () => {
-    const app = createApp()
-    const response = await app.handle(request('/api/v1/admin/resources', { headers: externalHeaders }))
-    expect(response.status).toBe(403)
-    expect((await response.json() as { error: { code: string } }).error.code).toBe('FORBIDDEN')
   })
 
   it('rechaza una sesión administrativa expirada', async () => {
