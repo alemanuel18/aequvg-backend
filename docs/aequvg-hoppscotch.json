@@ -992,6 +992,33 @@
         },
         {
           "v": "1",
+          "name": "Crear recurso con contenido vacío tras limpiar HTML (422)",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/resources",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"categoryId\": 1,\n  \"title\": \"<script></script>\",\n  \"description\": \"Descripción válida para la prueba.\",\n  \"status\": \"BORRADOR\"\n}"
+          }
+        },
+        {
+          "v": "1",
           "name": "Crear recurso con URL inválida (422)",
           "method": "POST",
           "endpoint": "<<baseUrl>>/admin/resources",
