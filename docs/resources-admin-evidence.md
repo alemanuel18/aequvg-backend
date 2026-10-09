@@ -48,3 +48,14 @@ CI=1 PLAYWRIGHT_FRONTEND_PORT=3015 \
 | Cuenta sin sesión o sin permiso | `401`/`403`; sin cambios en datos o archivos | Cumple en la suite de acceso |
 
 La evidencia debe adjuntarse al Pull Request junto con los commits indicados y la salida completa de los comandos anteriores. Los valores de fecha, commit y entorno deben actualizarse al repetir la ejecución.
+
+## Estado de adjunción al Pull Request
+
+La evidencia está preparada en este archivo, pero la adjunción externa al Pull Request no puede verificarse desde el repositorio local. Antes de cerrar la revisión, el responsable debe pegar o adjuntar en GitHub:
+
+- esta evidencia con fecha, commits y entorno;
+- la salida completa de los comandos y sus códigos de salida;
+- los códigos HTTP de los casos de autorización, validación, descarga y eliminación;
+- el enlace al Pull Request o comentario donde quedó registrada.
+
+Estado local: **preparada; adjunción externa pendiente de confirmación**.

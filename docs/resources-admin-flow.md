@@ -55,6 +55,15 @@ Todas las escrituras requieren sesión administrativa, `RESOURCES_MANAGE` y `X-C
 - `404 RESOURCE_NOT_FOUND` o `FILE_NOT_FOUND` identifica recursos inexistentes.
 - `409 FILE_IN_USE` impide borrar un archivo todavía referenciado por un recurso u otro módulo.
 
+## Defectos registrados y corregidos
+
+1. La validación de enlaces no comprobaba de forma efectiva que la URL fuera HTTP/HTTPS. Se agregó validación de protocolo y cobertura para enlaces mal formados; ahora se rechazan con `422` sin persistir el recurso.
+2. La respuesta pública no exponía una descarga verificable para los archivos académicos. Se agregó `file.downloadUrl` y `GET /api/v1/resources/:id/download`, limitado a recursos publicados y vigentes.
+3. La regresión no confirmaba referencias de archivos al eliminar contenido. Se agregó la protección `409 FILE_IN_USE` y la prueba que confirma que el archivo queda conservado al eliminar el recurso.
+4. La edición no se verificaba desde la consulta pública posterior. La integración ahora confirma que el nuevo título, enlace y archivo se reflejan después del `PUT`.
+
+Las correcciones corresponden a los commits de implementación y pruebas `9e43097`, `bd30810`, `13eda8a` y a la documentación de este flujo.
+
 ## Casos de prueba y evidencia
 
 Los casos automatizados están en:
