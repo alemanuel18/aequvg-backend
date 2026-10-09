@@ -119,6 +119,18 @@ bun run test:integration:news
 
 GitHub Actions ejecuta esa misma prueba contra PostgreSQL 16 en cada pull request, después de aplicar las migraciones. El job se llama `news-postgres`; configúralo como required status check de la rama `develop` desde las reglas de protección del repositorio.
 
+## Recursos para estudiantes
+
+La API pública expone `GET /api/v1/resources/categories`, `GET /api/v1/resources`, `GET /api/v1/resources/:id` y `GET /api/v1/resources/:id/download`; solo devuelve recursos `PUBLICADO`, vigentes y asociados a categorías activas. La descarga exige que el recurso siga publicado y vigente. La administración usa `/api/v1/admin/resources` y requiere `RESOURCES_MANAGE` para listar, consultar, crear, actualizar, archivar o eliminar.
+
+Un recurso publicado necesita un archivo existente (`fileId`) o al menos un enlace HTTP/HTTPS. La administración expone `POST /api/v1/admin/files` para cargar multipart en el campo `file` y `DELETE /api/v1/admin/files/:id` para eliminar un archivo no asociado; ambas rutas requieren `RESOURCES_MANAGE` y CSRF. Se aceptan PDF, DOC, DOCX y ZIP de hasta 25 MB. `PUT` permite sustituir el archivo con otro `fileId`, reemplazar todos los enlaces enviando `links` y cambiar el estado. Un archivo asociado a recursos, noticias, eventos, publicaciones, proyectos o fotografías no puede eliminarse y devuelve `409 FILE_IN_USE`.
+
+El servicio limpia título, descripción y etiquetas antes de validar sus mínimos; contenido vacío después de limpiar HTML devuelve `422 INVALID_RESOURCE_CONTENT`. Categorías inactivas, archivos inexistentes o con metadatos inválidos y enlaces repetidos también se rechazan sin persistir cambios. La integración verifica además `401` sin sesión, `403 FORBIDDEN` sin `RESOURCES_MANAGE`, `403 ACCOUNT_DISABLED` para cuenta inactiva y `401 INVALID_SESSION` para sesión expirada.
+
+La integración PostgreSQL se ejecuta con `bun run test:integration:resources`; cubre recursos, carga multipart y eliminación física. Los ejemplos HTTP están en `docs/aequvg-hoppscotch.json` y el contrato completo en [OpenAPI](http://localhost:3000/openapi).
+
+La guía de uso, permisos, validaciones, casos y evidencia reproducible está en [`docs/resources-admin-flow.md`](docs/resources-admin-flow.md) y [`docs/resources-admin-evidence.md`](docs/resources-admin-evidence.md). Adjunta la evidencia actualizada al Pull Request, incluyendo fecha, commits, entorno, comandos, códigos HTTP y resultado.
+
 ### Catálogo público de proyectos
 
 `GET /api/v1/projects` devuelve únicamente proyectos con estado `APROBADO`. Acepta los parámetros opcionales `search` (coincidencia parcial en título o nombre de autor), `year` (año UTC de `createdAt`), `type` (`TESIS` o `PROYECTO`), `sortBy` (`createdAt`, `title` o `author`), `sortOrder` (`asc` o `desc`), `page` (predeterminado `1`) y `pageSize` (predeterminado `12`, máximo `100`).
