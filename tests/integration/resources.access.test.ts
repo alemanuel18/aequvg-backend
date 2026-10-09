@@ -67,7 +67,7 @@ describe('Acceso HTTP administrativo de recursos', () => {
     delete process.env.SESSION_SECRET
   })
 
-  const createAuth = (options: { status?: 'ACTIVO' | 'INACTIVO'; roleActive?: boolean; permissions?: string[]; expiresAt?: Date } = {}) => {
+  const createAuth = (options: { email?: string; status?: 'ACTIVO' | 'INACTIVO'; roleActive?: boolean; permissions?: string[]; expiresAt?: Date } = {}) => {
     const sid = 'resources-access-session'
     const jti = randomToken()
     const deviceSecret = randomToken()
@@ -78,7 +78,7 @@ describe('Acceso HTTP administrativo de recursos', () => {
       id: sid, userId: 42, tokenIdentifierHash: sha256(jti), deviceSecretHash: sha256(deviceSecret),
       browserContextHash: hmacSha256(BROWSER_CONTEXT, SESSION_SECRET), csrfTokenHash: sha256(csrfToken),
       expiresAt: options.expiresAt ?? new Date(Date.now() + 3600000), revokedAt: null, lastSeenAt: new Date(),
-      user: { id: 42, name: 'Usuario de prueba', email: 'usuario@uvg.edu.gt', status: options.status ?? 'ACTIVO', role: { id: 5, name: 'EDITOR', active: options.roleActive ?? true, permissions: (options.permissions ?? ['RESOURCES_MANAGE']).map(code => ({ permission: { code, description: code } })) } }
+      user: { id: 42, name: 'Usuario de prueba', email: options.email ?? 'usuario@uvg.edu.gt', status: options.status ?? 'ACTIVO', role: { id: 5, name: 'EDITOR', active: options.roleActive ?? true, permissions: (options.permissions ?? ['RESOURCES_MANAGE']).map(code => ({ permission: { code, description: code } })) } }
     })
     return { cookie: `aequvg_session=${token}; aequvg_device=${deviceSecret}`, 'user-agent': USER_AGENT, 'sec-ch-ua-platform': PLATFORM, 'x-csrf-token': csrfToken }
   }
@@ -115,6 +115,11 @@ describe('Acceso HTTP administrativo de recursos', () => {
     expect(resourceRepoMocks.create).not.toHaveBeenCalled()
     expect(resourceRepoMocks.update).not.toHaveBeenCalled()
     expect(resourceRepoMocks.remove).not.toHaveBeenCalled()
+  })
+
+  it('rechaza una sesión válida asociada a una cuenta externa', async () => {
+    await expectError(await app.handle(request(routes[0]!, createAuth({ email: 'atacante@gmail.com' }))), 403, 'FORBIDDEN')
+    expect(resourceRepoMocks.list).not.toHaveBeenCalled()
   })
 
   it.each(routes)('rechaza $method $path a cuenta institucional sin RESOURCES_MANAGE', async (route) => {
