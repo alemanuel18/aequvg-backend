@@ -121,7 +121,7 @@ GitHub Actions ejecuta esa misma prueba contra PostgreSQL 16 en cada pull reques
 
 ## Recursos para estudiantes
 
-La API pública expone `GET /api/v1/resources/categories`, `GET /api/v1/resources` y `GET /api/v1/resources/:id`; solo devuelve recursos `PUBLICADO`, vigentes y asociados a categorías activas. La administración usa `/api/v1/admin/resources` y requiere `RESOURCES_MANAGE` para listar, consultar, crear, actualizar, archivar o eliminar.
+La API pública expone `GET /api/v1/resources/categories`, `GET /api/v1/resources`, `GET /api/v1/resources/:id` y `GET /api/v1/resources/:id/download`; solo devuelve recursos `PUBLICADO`, vigentes y asociados a categorías activas. La descarga exige que el recurso siga publicado y vigente. La administración usa `/api/v1/admin/resources` y requiere `RESOURCES_MANAGE` para listar, consultar, crear, actualizar, archivar o eliminar.
 
 Un recurso publicado necesita un archivo existente (`fileId`) o al menos un enlace HTTP/HTTPS. La administración expone `POST /api/v1/admin/files` para cargar multipart en el campo `file` y `DELETE /api/v1/admin/files/:id` para eliminar un archivo no asociado; ambas rutas requieren `RESOURCES_MANAGE` y CSRF. Se aceptan PDF, DOC, DOCX y ZIP de hasta 25 MB. `PUT` permite sustituir el archivo con otro `fileId`, reemplazar todos los enlaces enviando `links` y cambiar el estado. Un archivo asociado a recursos, noticias, eventos, publicaciones, proyectos o fotografías no puede eliminarse y devuelve `409 FILE_IN_USE`.
 

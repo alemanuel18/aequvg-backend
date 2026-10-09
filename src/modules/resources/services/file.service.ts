@@ -1,8 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, unlink, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { AppError } from '../../../shared/errors/app-error'
 import { fileRepository } from '../repositories/file.repository'
+import { resourceRepository } from '../repositories/resource.repository'
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024
 const allowedMimeTypes = new Set(['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip', 'application/x-zip-compressed'])
@@ -50,5 +51,12 @@ export const fileService = {
     const removed = await fileRepository.remove(id)
     await unlink(path.resolve(storageRoot(), removed.storageKey)).catch(error => { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error })
     return responseFile(removed)
+  },
+
+  async downloadForPublicResource(resourceId: number) {
+    const result = await resourceRepository.findPublicFile(resourceId)
+    if (!result?.file) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'El recurso solicitado no existe.')
+    const bytes = await readFile(path.resolve(storageRoot(), result.file.storageKey))
+    return { bytes, originalName: result.file.originalName, mimeType: result.file.mimeType }
   }
 }

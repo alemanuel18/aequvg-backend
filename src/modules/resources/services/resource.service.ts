@@ -30,10 +30,23 @@ const verifyFile = async (fileId: number | null | undefined) => {
   }
 }
 const normalizeLinks = (links: ResourceLinkInput[]) => {
-  const normalized = links.map((link, index) => ({ label: normalizeResourceText(link.label, 'label', 2), url: link.url.trim(), displayOrder: link.displayOrder ?? index }))
+  const normalized = links.map((link, index) => {
+    const url = link.url.trim()
+    try {
+      const parsed = new URL(url)
+      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('unsupported protocol')
+    } catch {
+      throw new AppError(422, 'INVALID_RESOURCE_LINK', 'Cada enlace debe usar una URL HTTP o HTTPS válida.')
+    }
+    return { label: normalizeResourceText(link.label, 'label', 2), url, displayOrder: link.displayOrder ?? index }
+  })
   if (new Set(normalized.map(link => link.url)).size !== normalized.length) throw new AppError(422, 'DUPLICATE_RESOURCE_LINK', 'No se permiten enlaces repetidos en un recurso.')
   return normalized
 }
+
+const withDownloadUrl = <T extends { id: number; file: object | null }>(resource: T) => resource.file
+  ? { ...resource, file: { ...resource.file, downloadUrl: `/api/v1/resources/${resource.id}/download` } }
+  : resource
 const verifyDestination = (status: ContentStatus, fileId: number | null, links: ResourceLinkInput[]) => {
   if (status === 'PUBLICADO' && !fileId && !links.length) throw new AppError(422, 'RESOURCE_DESTINATION_REQUIRED', 'Un recurso publicado requiere un archivo o al menos un enlace.')
 }
@@ -82,23 +95,23 @@ const paginated = async (query: ResourceQuery, publishedOnly: boolean) => {
 }
 
 export const resourceService = {
-  publicList: (query: ResourceQuery) => paginated(query, true),
-  adminList: (query: ResourceQuery) => paginated(query, false),
+  async publicList(query: ResourceQuery) { const result = await paginated(query, true); return { ...result, items: result.items.map(withDownloadUrl) } },
+  async adminList(query: ResourceQuery) { const result = await paginated(query, false); return { ...result, items: result.items.map(withDownloadUrl) } },
   activeCategories: resourceRepository.activeCategories,
-  async publicById(id: number) { return await resourceRepository.findPublicById(id) ?? Promise.reject(notFound()) },
-  async adminById(id: number) { return await resourceRepository.findById(id) ?? Promise.reject(notFound()) },
-  async create(input: ResourceCreateInput) { return resourceRepository.create(await createData(input)) },
+  async publicById(id: number) { const resource = await resourceRepository.findPublicById(id); return resource ? withDownloadUrl(resource) : Promise.reject(notFound()) },
+  async adminById(id: number) { const resource = await resourceRepository.findById(id); return resource ? withDownloadUrl(resource) : Promise.reject(notFound()) },
+  async create(input: ResourceCreateInput) { return withDownloadUrl(await resourceRepository.create(await createData(input))) },
   async update(id: number, input: ResourceUpdateInput) {
     const current = await resourceRepository.findById(id)
     if (!current) throw notFound()
-    return resourceRepository.update(id, await updateData(current, input))
+    return withDownloadUrl(await resourceRepository.update(id, await updateData(current, input)))
   },
   async archive(id: number) {
     if (!await resourceRepository.findById(id)) throw notFound()
-    return resourceRepository.update(id, { status: 'ARCHIVADO', publishedAt: null })
+    return withDownloadUrl(await resourceRepository.update(id, { status: 'ARCHIVADO', publishedAt: null }))
   },
   async remove(id: number) {
     if (!await resourceRepository.findById(id)) throw notFound()
-    return resourceRepository.remove(id)
+    return withDownloadUrl(await resourceRepository.remove(id))
   }
 }

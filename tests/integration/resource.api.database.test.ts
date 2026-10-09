@@ -149,9 +149,10 @@ describeDatabase('CRUD HTTP de recursos con PostgreSQL', () => {
     expect((await duplicateLinks.json() as { error: { code: string } }).error.code).toBe('DUPLICATE_RESOURCE_LINK')
 
     const invalidLink = await app.handle(request('/api/v1/admin/resources', {
-      method: 'POST', headers: adminHeaders, body: JSON.stringify(bodyFor('Enlace inválido', { links: [{ label: 'FTP', url: 'ftp://example.org/recurso' }] }))
+      method: 'POST', headers: adminHeaders, body: JSON.stringify(bodyFor('Enlace inválido', { links: [{ label: 'HTTP', url: 'http://?' }] }))
     }))
     expect(invalidLink.status).toBe(422)
+    expect((await invalidLink.json() as { error: { code: string } }).error.code).toBe('INVALID_RESOURCE_LINK')
     expect((await app.handle(request('/api/v1/resources/999999'))).status).toBe(404)
     expect(await prisma.resource.count({ where: { createdById: authorId } })).toBe(beforeCount)
   })

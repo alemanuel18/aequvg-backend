@@ -12,6 +12,8 @@ const runId = `file-api-test-${Date.now()}`
 let roleId = 0
 let userId = 0
 let fileId = 0
+let categoryId = 0
+let resourceId = 0
 let storageRoot = ''
 let headers: Record<string, string>
 let multipartHeaders: Record<string, string>
@@ -31,7 +33,9 @@ describeDatabase('Carga y eliminación HTTP de archivos con PostgreSQL', () => {
   })
 
   afterAll(async () => {
+    await prisma.resource.deleteMany({ where: { id: resourceId } })
     await prisma.file.deleteMany({ where: { uploadedById: userId } })
+    await prisma.resourceCategory.deleteMany({ where: { id: categoryId } })
     await prisma.administrativeUser.deleteMany({ where: { id: userId } })
     await prisma.rolePermission.deleteMany({ where: { roleId } })
     await prisma.role.deleteMany({ where: { id: roleId } })
@@ -52,6 +56,22 @@ describeDatabase('Carga y eliminación HTTP de archivos con PostgreSQL', () => {
     expect(stored?.uploadedById).toBe(userId)
     await access(path.join(storageRoot, stored!.storageKey))
     await expect(readFile(path.join(storageRoot, stored!.storageKey), 'utf8')).resolves.toBe('contenido PDF de prueba')
+
+    const category = await prisma.resourceCategory.create({ data: { name: `${runId}-category` } })
+    categoryId = category.id
+    const resource = await prisma.resource.create({ data: {
+      createdById: userId, categoryId, fileId, title: 'Recurso descargable',
+      description: 'Descripción suficiente para probar la descarga pública.', status: 'PUBLICADO', publishedAt: new Date()
+    } })
+    resourceId = resource.id
+    const publicResource = await createApp().handle(request(`/api/v1/resources/${resourceId}`))
+    expect(publicResource.status).toBe(200)
+    expect((await publicResource.json() as { file: { downloadUrl: string } }).file.downloadUrl).toBe(`/api/v1/resources/${resourceId}/download`)
+    const download = await createApp().handle(request(`/api/v1/resources/${resourceId}/download`))
+    expect(download.status).toBe(200)
+    expect(download.headers.get('content-type')).toContain('application/pdf')
+    expect(download.headers.get('content-disposition')).toContain('guia.pdf')
+    await expect(download.text()).resolves.toBe('contenido PDF de prueba')
   })
 
   it('rechaza un MIME no permitido sin crear archivo', async () => {
@@ -65,6 +85,8 @@ describeDatabase('Carga y eliminación HTTP de archivos con PostgreSQL', () => {
   })
 
   it('elimina el archivo autorizado de la base y del almacenamiento', async () => {
+    await prisma.resource.delete({ where: { id: resourceId } })
+    resourceId = 0
     const stored = await prisma.file.findUniqueOrThrow({ where: { id: fileId } })
     const response = await createApp().handle(request(`/api/v1/admin/files/${fileId}`, { method: 'DELETE', headers }))
     expect(response.status).toBe(200)
