@@ -37,6 +37,7 @@ Todas las rutas siguientes llaman `requireAdmin` antes del servicio:
 - Contacto: `POST/PUT/DELETE /api/v1/admin/contact-methods`, `PUT /api/v1/admin/contact-requests/:id` (`CONTACT_MANAGE`).
 - Noticias: `POST/PUT/PATCH/DELETE /api/v1/admin/news` y `/:id` según el método (`NEWS_MANAGE`).
 - Recursos: `POST/PUT/PATCH/DELETE /api/v1/admin/resources` y `/:id` según el método (`RESOURCES_MANAGE`).
+- Recursos y archivos: consulta [`resources-admin-flow.md`](resources-admin-flow.md) para pantallas, contrato, carga multipart, descarga pública, validaciones y casos específicos del flujo.
 - Proyectos: `POST/PUT/PATCH/DELETE /api/v1/admin/projects` y `/:id` según el método (`PROJECTS_MANAGE`).
 - Eventos: `POST/PUT/PATCH/DELETE /api/v1/admin/events` y `/:id` según el método (`EVENTS_MANAGE`).
 - Usuarios: `POST /api/v1/admin/users`, `PATCH /api/v1/admin/users/:id`, `PUT /api/v1/admin/users/:id/password` (`USERS_MANAGE`).
@@ -109,12 +110,12 @@ curl -i -b cookies.txt "$API/auth/me"
 ## Ejecución y evidencia
 
 ```bash
-cd Back/aequvg-backend
+cd aequvg-backend
 bun run typecheck
 bun run test
 bun run test:integration:auth
 bun run test:integration:events:api
-cd ../../Front/aequvg-frontend
+cd ../aequvg-frontend
 bun run typecheck
 bun run test
 bun run test:e2e
