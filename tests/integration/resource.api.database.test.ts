@@ -101,6 +101,14 @@ describeDatabase('CRUD HTTP de recursos con PostgreSQL', () => {
     expect(updatedResource.fileId).toBe(replacementFileId)
     expect(updatedResource.links.map(link => link.url)).toEqual(['https://example.org/actualizado'])
 
+    const publicAfterUpdate = await app.handle(request(`/api/v1/resources/${resourceId}`))
+    expect(publicAfterUpdate.status).toBe(200)
+    const publicResource = await publicAfterUpdate.json() as { title: string; fileId: number; file: { id: number } | null; links: { url: string }[] }
+    expect(publicResource.title).toBe('Guía de integración')
+    expect(publicResource.fileId).toBe(replacementFileId)
+    expect(publicResource.file?.id).toBe(replacementFileId)
+    expect(publicResource.links.map(link => link.url)).toEqual(['https://example.org/actualizado'])
+
     const archived = await app.handle(request(`/api/v1/admin/resources/${resourceId}/archive`, { method: 'PATCH', headers: adminHeaders }))
     expect(archived.status).toBe(200)
     expect((await archived.json() as { status: string; publishedAt: string | null }).status).toBe('ARCHIVADO')
@@ -108,6 +116,7 @@ describeDatabase('CRUD HTTP de recursos con PostgreSQL', () => {
 
     const deleted = await app.handle(request(`/api/v1/admin/resources/${resourceId}`, { method: 'DELETE', headers: adminHeaders }))
     expect(deleted.status).toBe(200)
+    await expect(prisma.file.findUnique({ where: { id: replacementFileId } })).resolves.toMatchObject({ id: replacementFileId, originalName: 'guia-actualizada.pdf' })
     resourceId = 0
   })
 

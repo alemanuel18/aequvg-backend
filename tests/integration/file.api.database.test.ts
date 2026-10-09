@@ -84,10 +84,17 @@ describeDatabase('Carga y eliminación HTTP de archivos con PostgreSQL', () => {
     expect(await prisma.file.count({ where: { uploadedById: userId } })).toBe(before)
   })
 
+  it('rechaza eliminar un archivo que todavía tiene referencias', async () => {
+    const response = await createApp().handle(request(`/api/v1/admin/files/${fileId}`, { method: 'DELETE', headers }))
+    expect(response.status).toBe(409)
+    expect((await response.json() as { error: { code: string } }).error.code).toBe('FILE_IN_USE')
+    await expect(prisma.file.findUnique({ where: { id: fileId } })).resolves.not.toBeNull()
+  })
+
   it('elimina el archivo autorizado de la base y del almacenamiento', async () => {
+    const stored = await prisma.file.findUniqueOrThrow({ where: { id: fileId } })
     await prisma.resource.delete({ where: { id: resourceId } })
     resourceId = 0
-    const stored = await prisma.file.findUniqueOrThrow({ where: { id: fileId } })
     const response = await createApp().handle(request(`/api/v1/admin/files/${fileId}`, { method: 'DELETE', headers }))
     expect(response.status).toBe(200)
     await expect(prisma.file.findUnique({ where: { id: fileId } })).resolves.toBeNull()
