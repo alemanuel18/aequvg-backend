@@ -197,6 +197,7 @@ model Project {
   authorId        Int           @map("id_autor")
   reviewerId      Int?          @map("id_revisor")
   coverImageId    Int?          @map("id_imagen_portada")
+  documentFileId  Int?          @map("id_documento")
   title           String        @map("titulo") @db.Citext
   slug            String        @unique @map("slug") @db.VarChar(220)
   description     String        @map("descripcion") @db.Text
@@ -213,6 +214,7 @@ model Project {
   author     AdministrativeUser  @relation("ProjectAuthor", fields: [authorId], references: [id], onDelete: Restrict)
   reviewer   AdministrativeUser? @relation("ProjectReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
   coverImage File?               @relation("ProjectCoverImage", fields: [coverImageId], references: [id], onDelete: Restrict)
+  documentFile File?             @relation("ProjectDocument", fields: [documentFileId], references: [id], onDelete: Restrict)
 
   // Índices 
   @@index([status, createdAt])
@@ -220,6 +222,7 @@ model Project {
   @@index([authorId])
   @@index([reviewerId])
   @@index([coverImageId])
+  @@index([documentFileId])
   @@map("proyecto")
 }
 
@@ -364,6 +367,7 @@ model File {
 
   //Relacion con proyecto
   projectCovers Project[] @relation("ProjectCoverImage")
+  projectDocuments Project[] @relation("ProjectDocument")
 
   @@index([uploadedById])
   @@index([sha256])

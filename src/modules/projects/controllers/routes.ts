@@ -1,7 +1,9 @@
 import { Elysia, t } from 'elysia'
 import { requireAdmin } from '../../../middleware/admin'
-import { adminProjectResponse, AdminCreateProjectDTO, projectErrorResponse, projectIdParams, projectListQuery, projectListResponse, projectMessageResponse, publicProjectResponse, ReviewProjectDTO, UpdateProjectDTO } from '../dtos/project.dto'
+import { adminProjectResponse, AdminCreateProjectDTO, projectAdminListQuery, projectAdminListResponse, projectErrorResponse, projectIdParams, projectListQuery, projectListResponse, projectMessageResponse, publicProjectResponse, ReviewProjectDTO, UpdateProjectDTO } from '../dtos/project.dto'
 import { ProjectService } from '../services/project.service'
+import { fileService } from '../../resources/services/file.service'
+import { AppError } from '../../../shared/errors/app-error'
 
 export const projectRoutes = new Elysia({ prefix: '/api/v1' })
   
@@ -20,10 +22,25 @@ export const projectRoutes = new Elysia({ prefix: '/api/v1' })
     detail: { tags: ['Proyectos'], summary: 'Consulta un proyecto aprobado', description: 'Devuelve únicamente proyectos con estado APROBADO.' },
   })
 
-  .get('/admin/projects', async ({ request }) => { await requireAdmin(request, 'PROJECTS_MANAGE'); return ProjectService.getAllProjects() }, {
-    response: { 200: t.Array(adminProjectResponse), 401: projectErrorResponse, 503: projectErrorResponse },
-    detail: { tags: ['Administración'], summary: 'Lista todos los proyectos', description: 'Requiere una sesión con PROJECTS_MANAGE.' },
+  .get('/admin/projects', async ({ request, query }) => { await requireAdmin(request, 'PROJECTS_MANAGE'); return ProjectService.getAdminProjects(query) }, {
+    query: projectAdminListQuery,
+    response: { 200: projectAdminListResponse, 401: projectErrorResponse, 503: projectErrorResponse },
+    detail: { tags: ['Administración'], summary: 'Busca proyectos administrativos', description: 'Incluye todos los estados y permite filtrar por texto, tipo y estado. Requiere PROJECTS_MANAGE.' },
   })
+  .post('/admin/projects/files', async ({ request, set }) => {
+    const authenticated = await requireAdmin(request, 'PROJECTS_MANAGE')
+    const input = (await request.formData()).get('file')
+    if (!input || typeof input !== 'object' || typeof (input as File).arrayBuffer !== 'function' || (input as File).type !== 'application/pdf') throw new AppError(422, 'PDF_REQUIRED', 'Debes seleccionar un archivo PDF.')
+    set.status = 201
+    return fileService.upload(authenticated.user.id, input as File)
+  }, { parse: 'none', detail: { tags: ['Administración'], summary: 'Carga el PDF de un proyecto', description: 'Solo acepta PDF y requiere PROJECTS_MANAGE.' } })
+  .get('/admin/projects/:id/document', async ({ request, params, set }) => {
+    await requireAdmin(request, 'PROJECTS_MANAGE')
+    const file = await fileService.downloadProjectDocument(params.id)
+    set.headers['content-type'] = file.mimeType
+    set.headers['content-disposition'] = `inline; filename*=UTF-8''${encodeURIComponent(file.originalName)}`
+    return file.bytes
+  }, { params: projectIdParams, detail: { tags: ['Administración'], summary: 'Consulta el PDF de un proyecto' } })
 
   .get('/admin/projects/:id', async ({ request, params }) => { await requireAdmin(request, 'PROJECTS_MANAGE'); return ProjectService.getProjectById(params.id) }, {
     params: projectIdParams,
