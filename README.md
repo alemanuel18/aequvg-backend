@@ -108,6 +108,8 @@ PUT   /api/v1/admin/users/:id/password
 
 Las rutas administrativas usan cookies y requieren `credentials: "include"` en el frontend. Para `POST`, `PUT`, `PATCH` y `DELETE`, el cliente debe reenviar en `X-CSRF-Token` el `csrfToken` recibido al iniciar sesión. El autor o revisor de una operación se obtiene de la sesión y no puede elegirse en el cuerpo.
 
+Los cambios de rol o estado y el establecimiento administrativo de una contraseña revocan las sesiones afectadas dentro de la misma transacción que guarda el cambio. Las solicitudes de recuperación también invalidan las sesiones al consumir el token.
+
 ### Recuperación de contraseña
 
 - `POST /api/v1/auth/password-recovery-requests` acepta un correo y siempre devuelve el mismo mensaje para evitar revelar si hay una cuenta.

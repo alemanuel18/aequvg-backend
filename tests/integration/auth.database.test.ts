@@ -84,6 +84,41 @@ describeDatabase('autenticación y RBAC con PostgreSQL', () => {
     expect(createdBody.authenticationProviders).toContain('PASSWORD')
   })
 
+  it('revoca y bloquea inmediatamente las sesiones al desactivar una cuenta', async () => {
+    const login = await app.handle(request('/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'user-agent': userAgent },
+      body: JSON.stringify({ email: `${runId}-secretaria@uvg.edu.gt`, password: 'Otra-clave-segura-123!' })
+    }))
+    expect(login.status).toBe(200)
+    const cookies = login.headers.get('set-cookie') ?? ''
+    const sessionCookie = cookies.match(/aequvg_session=[^;]+/)?.[0]
+    const deviceCookie = cookies.match(/aequvg_device=[^;]+/)?.[0]
+    expect(sessionCookie).toBeTruthy()
+    expect(deviceCookie).toBeTruthy()
+
+    const updated = await app.handle(request(`/api/v1/admin/users/${createdUserId}`, {
+      method: 'PATCH',
+      headers: {
+        cookie: cookieHeader,
+        'content-type': 'application/json',
+        'user-agent': userAgent,
+        'x-csrf-token': csrfToken
+      },
+      body: JSON.stringify({ status: 'INACTIVO' })
+    }))
+    expect(updated.status).toBe(200)
+
+    const denied = await app.handle(request('/api/v1/auth/me', {
+      headers: { cookie: `${sessionCookie}; ${deviceCookie}`, 'user-agent': userAgent }
+    }))
+    expect(denied.status).toBe(401)
+    expect((await denied.json() as { error: { code: string } }).error.code).toBe('INVALID_SESSION')
+    const revoked = await prisma.administrativeSession.findMany({ where: { userId: createdUserId } })
+    expect(revoked.length).toBeGreaterThan(0)
+    expect(revoked.every(session => session.revokedAt && session.revocationReason === 'ACCOUNT_AUTHORIZATION_CHANGED')).toBe(true)
+  })
+
   it('revoca una cookie reutilizada desde otro contexto de dispositivo', async () => {
     const copied = await app.handle(request('/api/v1/auth/me', {
       headers: { cookie: cookieHeader, 'user-agent': 'Navegador-robado/9.0' }

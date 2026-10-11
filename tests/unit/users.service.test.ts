@@ -1,12 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const userRepositoryMocks = vi.hoisted(() => ({
-  list: vi.fn(), findById: vi.fn(), findRole: vi.fn(), listRoles: vi.fn(), create: vi.fn(), update: vi.fn(), setPassword: vi.fn()
+  list: vi.fn(), findById: vi.fn(), findRole: vi.fn(), listRoles: vi.fn(), create: vi.fn(), update: vi.fn(),
+  updateAndRevokeSessions: vi.fn(), setPasswordAndRevokeSessions: vi.fn()
 }))
-const authRepositoryMocks = vi.hoisted(() => ({ revokeUserSessions: vi.fn() }))
 
 vi.mock('../../src/modules/users/repositories/users.repository', () => ({ usersRepository: userRepositoryMocks }))
-vi.mock('../../src/modules/users/repositories/auth.repository', () => ({ authRepository: authRepositoryMocks }))
 
 import { usersService } from '../../src/modules/users/services/users.service'
 
@@ -34,8 +33,19 @@ describe('gestión de usuarios administrativos', () => {
 
   it('revoca sesiones al cambiar rol o estado', async () => {
     userRepositoryMocks.findRole.mockResolvedValue(role)
-    userRepositoryMocks.update.mockResolvedValue(user)
+    userRepositoryMocks.updateAndRevokeSessions.mockResolvedValue(user)
     await usersService.update(1, { roleId: 1, status: 'BLOQUEADO' })
-    expect(authRepositoryMocks.revokeUserSessions).toHaveBeenCalledWith(1, 'ACCOUNT_AUTHORIZATION_CHANGED')
+    expect(userRepositoryMocks.updateAndRevokeSessions).toHaveBeenCalledWith(
+      1,
+      { roleId: 1, status: 'BLOQUEADO', name: undefined },
+      'ACCOUNT_AUTHORIZATION_CHANGED'
+    )
+  })
+
+  it('cambia la contraseña mediante la operación atómica que revoca sesiones', async () => {
+    userRepositoryMocks.findById.mockResolvedValue(user)
+    userRepositoryMocks.setPasswordAndRevokeSessions.mockResolvedValue(undefined)
+    await usersService.setPassword(1, 'Clave-segura-123!')
+    expect(userRepositoryMocks.setPasswordAndRevokeSessions).toHaveBeenCalledWith(1, expect.stringMatching(/^scrypt\$/))
   })
 })
