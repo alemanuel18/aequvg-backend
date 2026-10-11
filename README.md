@@ -94,14 +94,26 @@ Otros endpoints:
 ```text
 GET  /api/v1/auth/me
 POST /api/v1/auth/logout
+POST /api/v1/auth/registration-requests
+POST /api/v1/auth/password-recovery-requests
+POST /api/v1/auth/password-resets
 GET  /api/v1/admin/roles
 GET  /api/v1/admin/users
+GET  /api/v1/admin/registration-requests
+POST /api/v1/admin/registration-requests/:id/review
 POST /api/v1/admin/users
 PATCH /api/v1/admin/users/:id
 PUT   /api/v1/admin/users/:id/password
 ```
 
 Las rutas administrativas usan cookies y requieren `credentials: "include"` en el frontend. Para `POST`, `PUT`, `PATCH` y `DELETE`, el cliente debe reenviar en `X-CSRF-Token` el `csrfToken` recibido al iniciar sesión. El autor o revisor de una operación se obtiene de la sesión y no puede elegirse en el cuerpo.
+
+### Recuperación de contraseña
+
+- `POST /api/v1/auth/password-recovery-requests` acepta un correo y siempre devuelve el mismo mensaje para evitar revelar si hay una cuenta.
+- Si la cuenta está activa, Resend envía un enlace con token aleatorio. Solo se almacena su hash; vence en 30 minutos y las solicitudes nuevas invalidan enlaces anteriores.
+- `POST /api/v1/auth/password-resets` consume el token una sola vez, actualiza la contraseña con scrypt y revoca las sesiones activas.
+- Las solicitudes se limitan a 3 por correo/IP cada 15 minutos. El correo reutiliza `RESEND_API_KEY` y `CONTACT_FROM_EMAIL`.
 
 Cada JWT referencia una sesión persistida y no contiene roles ni permisos. En cada solicitud se consulta el usuario y su rol vigente. Cambiar rol, estado o contraseña revoca sus sesiones. El JWT se vincula además a una cookie secreta de dispositivo y al contexto básico del navegador; una copia incompleta o usada desde otro contexto revoca la sesión. Si un atacante clona todas las cookies y suplanta exactamente el navegador, las cookies por sí solas no permiten distinguir físicamente ambos dispositivos; una garantía superior requiere WebAuthn o una credencial ligada por hardware.
 

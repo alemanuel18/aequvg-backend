@@ -1,7 +1,8 @@
 import { Elysia, t } from 'elysia'
-import { clearAuthFailures, enforceAuthRateLimit, enforceRegistrationRateLimit, recordAuthFailure, recordRegistrationAttempt } from '../../../middleware/auth-rate-limit'
+import { clearAuthFailures, enforceAuthRateLimit, enforcePasswordResetRateLimit, enforceRecoveryRateLimit, enforceRegistrationRateLimit, recordAuthFailure, recordPasswordResetAttempt, recordRecoveryAttempt, recordRegistrationAttempt } from '../../../middleware/auth-rate-limit'
 import { AppError } from '../../../shared/errors/app-error'
-import { authErrorResponse, authenticatedUserResponse, loginBody, microsoftCallbackQuery, microsoftStartQuery, registrationRequestBody } from '../dtos/auth.schemas'
+import { authErrorResponse, authenticatedUserResponse, loginBody, microsoftCallbackQuery, microsoftStartQuery, passwordResetBody, recoveryRequestBody, registrationRequestBody } from '../dtos/auth.schemas'
+import { passwordRecoveryService } from '../services/password-recovery.service'
 import { registrationService } from '../services/registration.service'
 import { AUTH_COOKIE, authService, CSRF_COOKIE, DEVICE_COOKIE, MICROSOFT_STATE_COOKIE, MICROSOFT_VERIFIER_COOKIE } from '../services/auth.service'
 
@@ -18,6 +19,25 @@ export const authRoutes = new Elysia({ prefix: '/api/v1/auth' })
     body: registrationRequestBody,
     response: { 200: t.Object({ message: t.String() }), 409: authErrorResponse, 422: authErrorResponse, 429: authErrorResponse },
     detail: { tags: ['Autenticación'], summary: 'Solicita una cuenta administrativa para revisión' }
+  })
+  .post('/password-recovery-requests', async ({ body, request, set }) => {
+    enforceRecoveryRateLimit(request, body.email)
+    recordRecoveryAttempt(request, body.email)
+    set.status = 202
+    return passwordRecoveryService.request(body.email)
+  }, {
+    body: recoveryRequestBody,
+    response: { 202: t.Object({ message: t.String() }), 429: authErrorResponse },
+    detail: { tags: ['Autenticación'], summary: 'Solicita un enlace de recuperación de contraseña' }
+  })
+  .post('/password-resets', async ({ body, request }) => {
+    enforcePasswordResetRateLimit(request)
+    recordPasswordResetAttempt(request)
+    return passwordRecoveryService.reset(body.token, body.password)
+  }, {
+    body: passwordResetBody,
+    response: { 200: t.Object({ message: t.String() }), 422: authErrorResponse, 429: authErrorResponse, 503: authErrorResponse },
+    detail: { tags: ['Autenticación'], summary: 'Establece una nueva contraseña mediante un token de recuperación' }
   })
   .post('/login', async ({ body, cookie, request }) => {
     enforceAuthRateLimit(request, body.email)

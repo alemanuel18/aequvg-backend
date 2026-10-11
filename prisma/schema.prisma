@@ -244,6 +244,7 @@ model AdministrativeUser {
   createdResources        Resource[]
   assignedContactRequests ContactRequest[]
   reviewedRegistrationRequests AdministrativeRegistrationRequest[] @relation("RegistrationReviewer")
+  passwordResetRequests AdministrativePasswordReset[]
 
   // Relaciones con proyectos
   createdProjects  Project[] @relation("ProjectAuthor")
@@ -267,6 +268,20 @@ model AdministrativeRegistrationRequest {
   @@index([status, createdAt])
   @@index([email, status])
   @@map("solicitud_cuenta_administrativa")
+}
+
+model AdministrativePasswordReset {
+  id        Int      @id @default(autoincrement()) @map("id_recuperacion")
+  userId    Int      @map("id_usuario")
+  tokenHash String   @unique @map("hash_token") @db.Char(64)
+  expiresAt DateTime @map("expira_en") @db.Timestamptz(3)
+  usedAt    DateTime? @map("usado_en") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  user      AdministrativeUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt, expiresAt])
+  @@index([expiresAt, usedAt])
+  @@map("recuperacion_contrasena_administrativa")
 }
 
 model AdministrativeCredential {

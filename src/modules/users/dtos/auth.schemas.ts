@@ -9,6 +9,13 @@ export const registrationRequestBody = t.Object({
   email: t.String({ format: 'email', maxLength: 254 }),
   password: t.String({ minLength: 12, maxLength: 128 })
 }, { additionalProperties: false })
+export const recoveryRequestBody = t.Object({
+  email: t.String({ format: 'email', maxLength: 254 })
+}, { additionalProperties: false })
+export const passwordResetBody = t.Object({
+  token: t.String({ minLength: 32, maxLength: 128 }),
+  password: t.String({ minLength: 12, maxLength: 128 })
+}, { additionalProperties: false })
 
 export const microsoftStartQuery = t.Object({
   returnTo: t.Optional(t.String({ maxLength: 2048 }))
