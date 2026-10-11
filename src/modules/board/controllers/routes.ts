@@ -4,7 +4,7 @@ import { boardMemberBody } from '../dtos/schemas'
 import { boardService } from '../services/board.service'
 
 export const boardRoutes = new Elysia({ prefix: '/api/v1' })
-  .get('/board-members', () => boardService.publicList(), { detail: { tags: ['Junta directiva'], summary: 'Consulta integrantes activos en orden público' } })
+  .get('/board-members', () => boardService.publicList(), { detail: { tags: ['Junta directiva'], summary: 'Consulta juntas publicadas, ordenadas por período' } })
   .get('/admin/board-members', async ({ request }) => { await requireAdmin(request, 'BOARD_MANAGE'); return boardService.adminList() }, { detail: { tags: ['Administración'] } })
   .post('/admin/board-members', async ({ request, body, set }) => { await requireAdmin(request, 'BOARD_MANAGE'); set.status = 201; return boardService.create(body) }, { body: boardMemberBody, detail: { tags: ['Administración'] } })
   .put('/admin/board-members/:id', async ({ request, params, body }) => { await requireAdmin(request, 'BOARD_MANAGE'); return boardService.update(Number(params.id), body) }, { params: t.Object({ id: t.Numeric() }), body: boardMemberBody, detail: { tags: ['Administración'] } })

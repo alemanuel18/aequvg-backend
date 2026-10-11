@@ -18,6 +18,7 @@
     "test:integration:events:api": "EVENTS_DATABASE_TEST=true vitest run tests/integration/events.api.test.ts",
     "test:integration:events:registration": "EVENTS_DATABASE_TEST=true vitest run tests/integration/events.registration.test.ts",
     "test:integration:auth": "AUTH_DATABASE_TEST=true vitest run tests/integration/auth.database.test.ts",
+    "test:integration:contact": "CONTACT_DATABASE_TEST=true vitest run tests/integration/contact.database.test.ts",
     "prisma:generate": "prisma generate",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
