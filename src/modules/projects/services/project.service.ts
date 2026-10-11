@@ -83,9 +83,22 @@ export class ProjectService {
 	}
 
 	static async updateProject(id: number, data: any) {
-		await this.getProjectById(id);
+		const project = await this.getProjectById(id)
+		if (data.slug !== undefined && data.slug !== project.slug) {
+			const existingSlug = await ProjectRepository.findBySlug(data.slug)
+			if (existingSlug && existingSlug.id !== id) throw new AppError(409, 'PROJECT_SLUG_EXISTS', 'Ya existe un proyecto con ese slug.')
+		}
 		await this.verifyDocument(data.documentFileId)
-		await ProjectRepository.update(id, data);
+		const requiresReview = project.status === ProjectStatus.APROBADO
+		await ProjectRepository.update(id, {
+			...data,
+			...(requiresReview ? {
+				status: ProjectStatus.EN_REVISION,
+				reviewerId: null,
+				reviewedAt: null,
+				rejectionReason: null,
+			} : {}),
+		})
 		return this.getProjectById(id)
 	}
 

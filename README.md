@@ -147,11 +147,11 @@ La guía de uso, permisos, validaciones, casos y evidencia reproducible está en
 
 ### Catálogo público de proyectos
 
-`GET /api/v1/projects` devuelve únicamente proyectos con estado `APROBADO`. Acepta los parámetros opcionales `search` (coincidencia parcial en título o nombre de autor), `year` (año UTC de `createdAt`), `type` (`TESIS` o `PROYECTO`), `sortBy` (`createdAt`, `title` o `author`), `sortOrder` (`asc` o `desc`), `page` (predeterminado `1`) y `pageSize` (predeterminado `12`, máximo `100`).
+`GET /api/v1/projects` devuelve únicamente proyectos con estado `APROBADO`, incluidos los metadatos de su PDF cuando exista. Acepta los parámetros opcionales `search` (coincidencia parcial en título o nombre de autor), `year` (año UTC de `createdAt`), `type` (`TESIS` o `PROYECTO`), `sortBy` (`createdAt`, `title` o `author`), `sortOrder` (`asc` o `desc`), `page` (predeterminado `1`) y `pageSize` (predeterminado `12`, máximo `100`). `GET /api/v1/projects/:id/document` entrega el PDF solo si el proyecto está aprobado; proyectos en revisión o rechazados responden `404`.
 
 La respuesta contiene `{ items, pagination: { page, pageSize, total, totalPages } }`. La búsqueda parcial se apoya en índices trigram de PostgreSQL sobre título y nombre de autor; el filtro de estado y fecha usa el índice compuesto existente.
 
-El CRUD administrativo vive bajo `/api/v1/admin/projects` y requiere una sesión con `PROJECTS_MANAGE`. Incluye listar, consultar, crear, actualizar, revisar y eliminar. Autor y revisor se obtienen de la sesión; el proyecto inicia en `EN_REVISION`.
+El CRUD administrativo vive bajo `/api/v1/admin/projects` y requiere una sesión con `PROJECTS_MANAGE` y CSRF en escrituras. Incluye listar, consultar, crear, actualizar, revisar y eliminar. Autor y revisor se obtienen de la sesión; el proyecto inicia en `EN_REVISION`. `POST /api/v1/admin/projects/files` carga un PDF multipart en el campo `file` (máximo 25 MB); valida la cabecera PDF además del MIME declarado. El ID devuelto se asigna mediante `documentFileId`. Al editar un proyecto aprobado, vuelve a `EN_REVISION` y requiere una nueva revisión antes de publicarse. Los slugs duplicados al crear o editar responden `409 PROJECT_SLUG_EXISTS`. La carga y descarga administrativas requieren también `PROJECTS_MANAGE`; los archivos asociados no se pueden eliminar mediante `/api/v1/admin/files/:id`.
 
 La integración del CRUD usa una base PostgreSQL aislada y se habilita con `bun run test:integration:projects`.
 

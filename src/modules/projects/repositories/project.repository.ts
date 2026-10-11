@@ -66,10 +66,14 @@ export class ProjectRepository {
 					createdAt: true,
 					author: { select: { id: true, name: true } },
 					coverImage: { select: { id: true, originalName: true, storageKey: true } },
+					documentFile: { select: { id: true, originalName: true, mimeType: true, sizeBytes: true } },
 				},
 			}),
 			prisma.project.count({ where }),
-		])
+		]).then(([items, total]) => [items.map(item => ({
+			...item,
+			documentFile: item.documentFile ? { ...item.documentFile, sizeBytes: Number(item.documentFile.sizeBytes) } : null,
+		})), total] as const)
 	}
 
 	static async findAll() {
@@ -86,15 +90,20 @@ export class ProjectRepository {
 	}
 
 	static async findPublicById(id: number) {
-		return prisma.project.findFirst({
+		const project = await prisma.project.findFirst({
 			where: { id, status: ProjectStatus.APROBADO },
 			select: {
 				id: true, title: true, slug: true, description: true,
 				repositoryUrl: true, liveUrl: true, type: true, status: true, createdAt: true,
 				author: { select: { id: true, name: true } },
 				coverImage: { select: { id: true, originalName: true, storageKey: true } },
+				documentFile: { select: { id: true, originalName: true, mimeType: true, sizeBytes: true } },
 			},
 		})
+		return project ? {
+			...project,
+			documentFile: project.documentFile ? { ...project.documentFile, sizeBytes: Number(project.documentFile.sizeBytes) } : null,
+		} : null
 	}
 
 	static async findApprovedOnly(){

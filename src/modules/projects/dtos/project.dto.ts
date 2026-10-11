@@ -11,14 +11,31 @@ export const ProjectTypeEnum = t.Union([
 	t.Literal('PROYECTO'),
 ]);
 
+export const projectDocumentMetadata = t.Nullable(t.Object({
+	id: t.Integer(),
+	originalName: t.String(),
+	mimeType: t.String(),
+	sizeBytes: t.Integer({ minimum: 1 }),
+}))
+
+export const projectFileUploadResponse = t.Object({
+	id: t.Integer(),
+	uploadedById: t.Integer(),
+	originalName: t.String(),
+	mimeType: t.String(),
+	sizeBytes: t.Integer({ minimum: 1 }),
+	sha256: t.String({ minLength: 64, maxLength: 64 }),
+	createdAt: t.Date(),
+})
+
 export const CreateProjectDTO = t.Object({
 	title: t.String({minLength: 3, maxLength: 220}),
 	slug: t.String({minLength: 3, maxLength: 220}),
 	description: t.String({minLength: 10}),
 	type: ProjectTypeEnum,
-	repositoryUrl: t.Optional(t.String({format:'uri'})),
-	liveUrl: t.Optional(t.String({format: 'uri'})),
-	coverImageId: t.Optional(t.Numeric()),
+	repositoryUrl: t.Optional(t.String({ format: 'uri', maxLength: 2048 })),
+	liveUrl: t.Optional(t.String({ format: 'uri', maxLength: 2048 })),
+	coverImageId: t.Optional(t.Integer({ minimum: 1 })),
 	documentFileId: t.Optional(t.Nullable(t.Integer({ minimum: 1 }))),
 })
 
@@ -70,6 +87,7 @@ export const publicProjectResponse = t.Object({
 	createdAt: t.Date(),
 	author: t.Object({ id: t.Integer(), name: t.String() }),
 	coverImage: t.Nullable(t.Object({ id: t.Integer(), originalName: t.String(), storageKey: t.String() })),
+	documentFile: projectDocumentMetadata,
 	})
 
 	export const projectListResponse = t.Object({

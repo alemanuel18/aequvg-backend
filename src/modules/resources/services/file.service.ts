@@ -28,6 +28,9 @@ export const fileService = {
 
     const originalName = safeName(input.name)
     const bytes = Buffer.from(await input.arrayBuffer())
+    if (input.type === 'application/pdf' && !bytes.subarray(0, 1024).includes(Buffer.from('%PDF-'))) {
+      throw new AppError(422, 'INVALID_PDF_CONTENT', 'El archivo no contiene una cabecera PDF válida.')
+    }
     const sha256 = createHash('sha256').update(bytes).digest('hex')
     const storageKey = `resources/${randomUUID()}/${originalName}`
     const root = storageRoot()
@@ -64,6 +67,18 @@ export const fileService = {
   async downloadProjectDocument(projectId: number) {
     const project = await prisma.project.findUnique({ where: { id: projectId }, select: { documentFile: { select: { originalName: true, mimeType: true, storageKey: true } } } })
     if (!project?.documentFile || project.documentFile.mimeType !== 'application/pdf') throw new AppError(404, 'PROJECT_DOCUMENT_NOT_FOUND', 'El proyecto no tiene un PDF asociado.')
+    const bytes = await readFile(path.resolve(storageRoot(), project.documentFile.storageKey))
+    return { bytes, originalName: project.documentFile.originalName, mimeType: project.documentFile.mimeType }
+  },
+
+  async downloadPublicProjectDocument(projectId: number) {
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, status: 'APROBADO' },
+      select: { documentFile: { select: { originalName: true, mimeType: true, storageKey: true } } }
+    })
+    if (!project?.documentFile || project.documentFile.mimeType !== 'application/pdf') {
+      throw new AppError(404, 'PROJECT_DOCUMENT_NOT_FOUND', 'El proyecto no tiene un PDF publicado.')
+    }
     const bytes = await readFile(path.resolve(storageRoot(), project.documentFile.storageKey))
     return { bytes, originalName: project.documentFile.originalName, mimeType: project.documentFile.mimeType }
   }
