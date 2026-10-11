@@ -27,6 +27,14 @@ enum AdministrativeUserStatus {
   @@map("estado_usuario_administrativo")
 }
 
+enum AdministrativeRegistrationStatus {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+
+  @@map("estado_solicitud_administrativa")
+}
+
 enum AuthenticationProvider {
   PASSWORD
   MICROSOFT
@@ -235,6 +243,7 @@ model AdministrativeUser {
   createdEvents           Event[]
   createdResources        Resource[]
   assignedContactRequests ContactRequest[]
+  reviewedRegistrationRequests AdministrativeRegistrationRequest[] @relation("RegistrationReviewer")
 
   // Relaciones con proyectos
   createdProjects  Project[] @relation("ProjectAuthor")
@@ -242,6 +251,22 @@ model AdministrativeUser {
 
   @@index([roleId, status])
   @@map("usuario_administrativo")
+}
+
+model AdministrativeRegistrationRequest {
+  id Int @id @default(autoincrement()) @map("id_solicitud")
+  name String @map("nombre") @db.VarChar(160)
+  email String @map("correo") @db.Citext
+  passwordHash String? @map("password_hash") @db.VarChar(255)
+  status AdministrativeRegistrationStatus @default(PENDIENTE) @map("estado")
+  reviewedById Int? @map("id_revisor")
+  reviewedAt DateTime? @map("revisado_en") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  reviewer AdministrativeUser? @relation("RegistrationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([email, status])
+  @@map("solicitud_cuenta_administrativa")
 }
 
 model AdministrativeCredential {

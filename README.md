@@ -59,7 +59,9 @@ La API usa el prefijo `/api/v1`. OpenAPI se publica en `http://localhost:3000/op
 
 ## Autenticación y perfiles administrativos
 
-Las cuentas administrativas deben aprovisionarse previamente con un correo `@uvg.edu.gt`. No existe registro público de administradores. Los cuatro perfiles definidos en la planificación son:
+Las solicitudes de cuenta se envían desde `POST /api/v1/auth/registration-requests` con nombre, correo `@uvg.edu.gt` y contraseña. Se guardan como pendientes y no crean una cuenta ni otorgan acceso. Una persona con `USERS_MANAGE` puede consultarlas en `GET /api/v1/admin/registration-requests` y aprobarlas con un rol o rechazarlas mediante `POST /api/v1/admin/registration-requests/:id/review`. La aprobación crea la cuenta activa y mueve el hash de contraseña a sus credenciales; al resolver la solicitud, el hash se elimina de la solicitud. Los cambios administrativos requieren CSRF. Quien aprueba debe verificar la identidad del solicitante por un canal institucional antes de aprobar.
+
+Los cuatro perfiles definidos en la planificación son:
 
 - `ASSOCIATION_REPRESENTATIVE`: representante de la Asociación.
 - `FACULTY_REPRESENTATIVE`: representante de la Facultad de Química.

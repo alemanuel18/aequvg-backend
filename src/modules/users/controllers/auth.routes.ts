@@ -1,7 +1,8 @@
-import { Elysia } from 'elysia'
-import { clearAuthFailures, enforceAuthRateLimit, recordAuthFailure } from '../../../middleware/auth-rate-limit'
+import { Elysia, t } from 'elysia'
+import { clearAuthFailures, enforceAuthRateLimit, enforceRegistrationRateLimit, recordAuthFailure, recordRegistrationAttempt } from '../../../middleware/auth-rate-limit'
 import { AppError } from '../../../shared/errors/app-error'
-import { authErrorResponse, authenticatedUserResponse, loginBody, microsoftCallbackQuery, microsoftStartQuery } from '../dtos/auth.schemas'
+import { authErrorResponse, authenticatedUserResponse, loginBody, microsoftCallbackQuery, microsoftStartQuery, registrationRequestBody } from '../dtos/auth.schemas'
+import { registrationService } from '../services/registration.service'
 import { AUTH_COOKIE, authService, CSRF_COOKIE, DEVICE_COOKIE, MICROSOFT_STATE_COOKIE, MICROSOFT_VERIFIER_COOKIE } from '../services/auth.service'
 
 const secureCookies = () => process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === 'true'
@@ -9,6 +10,15 @@ const sessionCookieOptions = (expires: Date) => ({ httpOnly: true, secure: secur
 const clearCookie = { maxAge: 0, path: '/' } as const
 
 export const authRoutes = new Elysia({ prefix: '/api/v1/auth' })
+  .post('/registration-requests', async ({ body, request }) => {
+    enforceRegistrationRateLimit(request, body.email)
+    recordRegistrationAttempt(request, body.email)
+    return registrationService.request(body)
+  }, {
+    body: registrationRequestBody,
+    response: { 200: t.Object({ message: t.String() }), 409: authErrorResponse, 422: authErrorResponse, 429: authErrorResponse },
+    detail: { tags: ['Autenticación'], summary: 'Solicita una cuenta administrativa para revisión' }
+  })
   .post('/login', async ({ body, cookie, request }) => {
     enforceAuthRateLimit(request, body.email)
     const session = await authService.loginWithPassword(body.email, body.password, request.headers).catch(error => {

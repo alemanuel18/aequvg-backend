@@ -4,6 +4,11 @@ export const loginBody = t.Object({
   email: t.String({ format: 'email', maxLength: 254 }),
   password: t.String({ minLength: 1, maxLength: 256 })
 }, { additionalProperties: false })
+export const registrationRequestBody = t.Object({
+  name: t.String({ minLength: 2, maxLength: 160 }),
+  email: t.String({ format: 'email', maxLength: 254 }),
+  password: t.String({ minLength: 12, maxLength: 128 })
+}, { additionalProperties: false })
 
 export const microsoftStartQuery = t.Object({
   returnTo: t.Optional(t.String({ maxLength: 2048 }))
