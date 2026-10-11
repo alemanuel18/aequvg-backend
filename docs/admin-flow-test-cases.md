@@ -79,6 +79,7 @@ Las rutas de otros módulos no forman parte de la evidencia S3 de anuncios y not
 - Contacto: `GET/POST/PUT/DELETE /api/v1/admin/contact-methods` (`CONTACT_MANAGE`). No hay rutas administrativas de solicitudes.
 - Noticias: `POST/PUT/PATCH/DELETE /api/v1/admin/news` y `/:id` según el método (`NEWS_MANAGE`).
 - Recursos: `POST/PUT/PATCH/DELETE /api/v1/admin/resources` y `/:id` según el método (`RESOURCES_MANAGE`).
+- Recursos y archivos: consulta [`resources-admin-flow.md`](resources-admin-flow.md) para pantallas, contrato, carga multipart, descarga pública, validaciones y casos específicos del flujo.
 - Proyectos: `POST/PUT/PATCH/DELETE /api/v1/admin/projects` y `/:id` según el método (`PROJECTS_MANAGE`).
 - Eventos: `POST/PUT/PATCH/DELETE /api/v1/admin/events` y `/:id` según el método (`EVENTS_MANAGE`).
 - Usuarios: `POST /api/v1/admin/users`, `PATCH /api/v1/admin/users/:id`, `PUT /api/v1/admin/users/:id/password` (`USERS_MANAGE`).
@@ -195,6 +196,10 @@ curl -i -b cookies.txt "$API/auth/me"
 cd aequvg-backend
 bun run typecheck
 bun run test
+bun run test:integration:auth
+bun run test:integration:events:api
+cd ../aequvg-frontend
+bun run typecheck
 bunx vitest run tests/integration/news.database.test.ts
 bunx vitest run tests/integration/institutional.access.test.ts
 cd ../aequvg-frontend

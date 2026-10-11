@@ -840,6 +840,22 @@
         },
         {
           "v": "1",
+          "name": "Descargar archivo de recurso",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/resources/1/download",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
           "name": "Recurso inexistente (404)",
           "method": "GET",
           "endpoint": "<<baseUrl>>/resources/999999",
@@ -861,6 +877,50 @@
       "name": "Administración - Recursos",
       "folders": [],
       "requests": [
+        {
+          "v": "1",
+          "name": "Cargar archivo académico",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/files",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "multipart/form-data",
+            "body": "file=@guia.pdf"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Eliminar archivo sin referencias",
+          "method": "DELETE",
+          "endpoint": "<<baseUrl>>/admin/files/1",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
         {
           "v": "1",
           "name": "Listar recursos",

@@ -129,6 +129,8 @@ El servicio limpia título, descripción y etiquetas antes de validar sus mínim
 
 La integración PostgreSQL se ejecuta con `bun run test:integration:resources`; cubre recursos, carga multipart y eliminación física. Los ejemplos HTTP están en `docs/aequvg-hoppscotch.json` y el contrato completo en [OpenAPI](http://localhost:3000/openapi).
 
+La guía de uso, permisos, validaciones, casos y evidencia reproducible está en [`docs/resources-admin-flow.md`](docs/resources-admin-flow.md) y [`docs/resources-admin-evidence.md`](docs/resources-admin-evidence.md). Adjunta la evidencia actualizada al Pull Request, incluyendo fecha, commits, entorno, comandos, códigos HTTP y resultado.
+
 ### Catálogo público de proyectos
 
 `GET /api/v1/projects` devuelve únicamente proyectos con estado `APROBADO`. Acepta los parámetros opcionales `search` (coincidencia parcial en título o nombre de autor), `year` (año UTC de `createdAt`), `type` (`TESIS` o `PROYECTO`), `sortBy` (`createdAt`, `title` o `author`), `sortOrder` (`asc` o `desc`), `page` (predeterminado `1`) y `pageSize` (predeterminado `12`, máximo `100`).
