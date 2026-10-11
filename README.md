@@ -25,12 +25,11 @@ src/
     institutional/       # Inicio y promoción de la carrera
     board/               # Junta directiva
     contact/             # Medios oficiales y entrega directa por correo
-    events/              # Estructura reservada para eventos
-    news/                # Estructura reservada para noticias
-    papers/              # Estructura reservada para papers
-    projects/            # Estructura reservada para proyectos
-    resources/           # Estructura reservada para recursos
-    users/               # Estructura reservada para usuarios
+    events/              # Eventos e inscripciones
+    news/                # Noticias
+    projects/            # Proyectos y documentos PDF
+    resources/           # Recursos académicos y archivos
+    users/               # Sesión, usuarios, roles y recuperación
   middleware/            # Autorización, rate limit y logs HTTP
   shared/                # Base de datos, errores, logging y utilidades
   app.ts                 # Composición de plugins y módulos
@@ -106,6 +105,8 @@ PATCH /api/v1/admin/users/:id
 PUT   /api/v1/admin/users/:id/password
 ```
 
+La guía operativa del acceso administrativo, sus pantallas disponibles, las brechas de interfaz y los casos de autorización está en [`docs/admin-access-flow.md`](docs/admin-access-flow.md). El contrato de las rutas no cambia con esa guía.
+
 Las rutas administrativas usan cookies y requieren `credentials: "include"` en el frontend. Para `POST`, `PUT`, `PATCH` y `DELETE`, el cliente debe reenviar en `X-CSRF-Token` el `csrfToken` recibido al iniciar sesión. El autor o revisor de una operación se obtiene de la sesión y no puede elegirse en el cuerpo.
 
 Los cambios de rol o estado y el establecimiento administrativo de una contraseña revocan las sesiones afectadas dentro de la misma transacción que guarda el cambio. Las solicitudes de recuperación también invalidan las sesiones al consumir el token.
@@ -156,6 +157,8 @@ La respuesta contiene `{ items, pagination: { page, pageSize, total, totalPages 
 El CRUD administrativo vive bajo `/api/v1/admin/projects` y requiere una sesión con `PROJECTS_MANAGE` y CSRF en escrituras. Incluye listar, consultar, crear, actualizar, revisar y eliminar. Autor y revisor se obtienen de la sesión; el proyecto inicia en `EN_REVISION`. `POST /api/v1/admin/projects/files` carga un PDF multipart en el campo `file` (máximo 25 MB); valida la cabecera PDF además del MIME declarado. El ID devuelto se asigna mediante `documentFileId`. Al editar un proyecto aprobado, vuelve a `EN_REVISION` y requiere una nueva revisión antes de publicarse. Los slugs duplicados al crear o editar responden `409 PROJECT_SLUG_EXISTS`. La carga y descarga administrativas requieren también `PROJECTS_MANAGE`; los archivos asociados no se pueden eliminar mediante `/api/v1/admin/files/:id`.
 
 La integración del CRUD usa una base PostgreSQL aislada y se habilita con `bun run test:integration:projects`.
+
+La guía de pantallas, carga y revisión está en [`docs/projects-admin-flow.md`](docs/projects-admin-flow.md); la ejecución reproducible y sus resultados se registran en [`docs/admin-flows-evidence.md`](docs/admin-flows-evidence.md).
 
 ## Persistencia de eventos e inscripciones (SCRUM-119 / SCRUM-123)
 
