@@ -9,6 +9,7 @@ import { createAdminSessionHeaders } from '../helpers/admin-session'
 const runDatabaseTests = process.env.RESOURCE_DATABASE_TEST === 'true'
 const describeDatabase = runDatabaseTests ? describe : describe.skip
 const runId = `file-api-test-${Date.now()}`
+const pdfContent = '%PDF-1.4\ncontenido PDF de prueba'
 let roleId = 0
 let userId = 0
 let fileId = 0
@@ -46,16 +47,16 @@ describeDatabase('Carga y eliminación HTTP de archivos con PostgreSQL', () => {
 
   it('carga un multipart autorizado y persiste el binario y sus metadatos', async () => {
     const form = new FormData()
-    form.append('file', new File(['contenido PDF de prueba'], 'guia.pdf', { type: 'application/pdf' }))
+    form.append('file', new File([pdfContent], 'guia.pdf', { type: 'application/pdf' }))
     const response = await createApp().handle(request('/api/v1/admin/files', { method: 'POST', headers: multipartHeaders, body: form }))
     expect(response.status).toBe(201)
     const body = await response.json() as { id: number; storageKey?: string; originalName: string; mimeType: string; sizeBytes: number }
     fileId = body.id
-    expect(body).toMatchObject({ originalName: 'guia.pdf', mimeType: 'application/pdf', sizeBytes: 23 })
+    expect(body).toMatchObject({ originalName: 'guia.pdf', mimeType: 'application/pdf', sizeBytes: Buffer.byteLength(pdfContent) })
     const stored = await prisma.file.findUnique({ where: { id: fileId } })
     expect(stored?.uploadedById).toBe(userId)
     await access(path.join(storageRoot, stored!.storageKey))
-    await expect(readFile(path.join(storageRoot, stored!.storageKey), 'utf8')).resolves.toBe('contenido PDF de prueba')
+    await expect(readFile(path.join(storageRoot, stored!.storageKey), 'utf8')).resolves.toBe(pdfContent)
 
     const category = await prisma.resourceCategory.create({ data: { name: `${runId}-category` } })
     categoryId = category.id
@@ -71,7 +72,7 @@ describeDatabase('Carga y eliminación HTTP de archivos con PostgreSQL', () => {
     expect(download.status).toBe(200)
     expect(download.headers.get('content-type')).toContain('application/pdf')
     expect(download.headers.get('content-disposition')).toContain('guia.pdf')
-    await expect(download.text()).resolves.toBe('contenido PDF de prueba')
+    await expect(download.text()).resolves.toBe(pdfContent)
   })
 
   it('rechaza un MIME no permitido sin crear archivo', async () => {
@@ -81,6 +82,16 @@ describeDatabase('Carga y eliminación HTTP de archivos con PostgreSQL', () => {
     const response = await createApp().handle(request('/api/v1/admin/files', { method: 'POST', headers: multipartHeaders, body: form }))
     expect(response.status).toBe(422)
     expect((await response.json() as { error: { code: string } }).error.code).toBe('UNSUPPORTED_FILE_TYPE')
+    expect(await prisma.file.count({ where: { uploadedById: userId } })).toBe(before)
+  })
+
+  it('rechaza contenido que no es PDF aunque declare el MIME PDF', async () => {
+    const before = await prisma.file.count({ where: { uploadedById: userId } })
+    const form = new FormData()
+    form.append('file', new File(['esto no es un PDF'], 'falso.pdf', { type: 'application/pdf' }))
+    const response = await createApp().handle(request('/api/v1/admin/files', { method: 'POST', headers: multipartHeaders, body: form }))
+    expect(response.status).toBe(422)
+    expect((await response.json() as { error: { code: string } }).error.code).toBe('INVALID_PDF_CONTENT')
     expect(await prisma.file.count({ where: { uploadedById: userId } })).toBe(before)
   })
 
