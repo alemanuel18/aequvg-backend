@@ -27,6 +27,14 @@ enum AdministrativeUserStatus {
   @@map("estado_usuario_administrativo")
 }
 
+enum AdministrativeRegistrationStatus {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+
+  @@map("estado_solicitud_administrativa")
+}
+
 enum AuthenticationProvider {
   PASSWORD
   MICROSOFT
@@ -189,6 +197,7 @@ model Project {
   authorId        Int           @map("id_autor")
   reviewerId      Int?          @map("id_revisor")
   coverImageId    Int?          @map("id_imagen_portada")
+  documentFileId  Int?          @map("id_documento")
   title           String        @map("titulo") @db.Citext
   slug            String        @unique @map("slug") @db.VarChar(220)
   description     String        @map("descripcion") @db.Text
@@ -205,6 +214,7 @@ model Project {
   author     AdministrativeUser  @relation("ProjectAuthor", fields: [authorId], references: [id], onDelete: Restrict)
   reviewer   AdministrativeUser? @relation("ProjectReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
   coverImage File?               @relation("ProjectCoverImage", fields: [coverImageId], references: [id], onDelete: Restrict)
+  documentFile File?             @relation("ProjectDocument", fields: [documentFileId], references: [id], onDelete: Restrict)
 
   // Índices 
   @@index([status, createdAt])
@@ -212,6 +222,7 @@ model Project {
   @@index([authorId])
   @@index([reviewerId])
   @@index([coverImageId])
+  @@index([documentFileId])
   @@map("proyecto")
 }
 
@@ -235,6 +246,8 @@ model AdministrativeUser {
   createdEvents           Event[]
   createdResources        Resource[]
   assignedContactRequests ContactRequest[]
+  reviewedRegistrationRequests AdministrativeRegistrationRequest[] @relation("RegistrationReviewer")
+  passwordResetRequests AdministrativePasswordReset[]
 
   // Relaciones con proyectos
   createdProjects  Project[] @relation("ProjectAuthor")
@@ -242,6 +255,36 @@ model AdministrativeUser {
 
   @@index([roleId, status])
   @@map("usuario_administrativo")
+}
+
+model AdministrativeRegistrationRequest {
+  id Int @id @default(autoincrement()) @map("id_solicitud")
+  name String @map("nombre") @db.VarChar(160)
+  email String @map("correo") @db.Citext
+  passwordHash String? @map("password_hash") @db.VarChar(255)
+  status AdministrativeRegistrationStatus @default(PENDIENTE) @map("estado")
+  reviewedById Int? @map("id_revisor")
+  reviewedAt DateTime? @map("revisado_en") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  reviewer AdministrativeUser? @relation("RegistrationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([email, status])
+  @@map("solicitud_cuenta_administrativa")
+}
+
+model AdministrativePasswordReset {
+  id        Int      @id @default(autoincrement()) @map("id_recuperacion")
+  userId    Int      @map("id_usuario")
+  tokenHash String   @unique @map("hash_token") @db.Char(64)
+  expiresAt DateTime @map("expira_en") @db.Timestamptz(3)
+  usedAt    DateTime? @map("usado_en") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  user      AdministrativeUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt, expiresAt])
+  @@index([expiresAt, usedAt])
+  @@map("recuperacion_contrasena_administrativa")
 }
 
 model AdministrativeCredential {
@@ -324,6 +367,7 @@ model File {
 
   //Relacion con proyecto
   projectCovers Project[] @relation("ProjectCoverImage")
+  projectDocuments Project[] @relation("ProjectDocument")
 
   @@index([uploadedById])
   @@index([sha256])

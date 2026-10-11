@@ -1,7 +1,6 @@
 import { Prisma } from '@prisma/client'
 import { AppError } from '../../../shared/errors/app-error'
 import { hashPassword } from '../../../shared/utils/auth-crypto'
-import { authRepository } from '../repositories/auth.repository'
 import { usersRepository } from '../repositories/users.repository'
 
 const institutionalEmail = /^[^@\s]+@uvg\.edu\.gt$/i
@@ -72,8 +71,10 @@ export const usersService = {
   async update(id: number, input: { name?: string; roleId?: number; status?: 'ACTIVO' | 'INACTIVO' | 'BLOQUEADO' }) {
     if (input.roleId !== undefined) await assertRole(input.roleId)
     try {
-      const user = await usersRepository.update(id, { ...input, name: input.name?.trim() })
-      if (input.roleId !== undefined || input.status !== undefined) await authRepository.revokeUserSessions(id, 'ACCOUNT_AUTHORIZATION_CHANGED')
+      const data = { ...input, name: input.name?.trim() }
+      const user = input.roleId !== undefined || input.status !== undefined
+        ? await usersRepository.updateAndRevokeSessions(id, data, 'ACCOUNT_AUTHORIZATION_CHANGED')
+        : await usersRepository.update(id, data)
       return serializeUser(user)
     } catch (error) {
       return mapPersistenceError(error)
@@ -83,8 +84,7 @@ export const usersService = {
   async setPassword(id: number, password: string) {
     assertPassword(password)
     if (!await usersRepository.findById(id)) throw new AppError(404, 'USER_NOT_FOUND', 'El usuario administrativo no existe.')
-    await usersRepository.setPassword(id, await hashPassword(password))
-    await authRepository.revokeUserSessions(id, 'PASSWORD_CHANGED')
+    await usersRepository.setPasswordAndRevokeSessions(id, await hashPassword(password))
     return { message: 'Contraseña actualizada; las sesiones anteriores fueron revocadas.' }
   }
 }

@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { AppError } from '../../../shared/errors/app-error'
+import { prisma } from '../../../shared/database/prisma'
 import { fileRepository } from '../repositories/file.repository'
 import { resourceRepository } from '../repositories/resource.repository'
 
@@ -27,6 +28,9 @@ export const fileService = {
 
     const originalName = safeName(input.name)
     const bytes = Buffer.from(await input.arrayBuffer())
+    if (input.type === 'application/pdf' && !bytes.subarray(0, 1024).includes(Buffer.from('%PDF-'))) {
+      throw new AppError(422, 'INVALID_PDF_CONTENT', 'El archivo no contiene una cabecera PDF válida.')
+    }
     const sha256 = createHash('sha256').update(bytes).digest('hex')
     const storageKey = `resources/${randomUUID()}/${originalName}`
     const root = storageRoot()
@@ -58,5 +62,24 @@ export const fileService = {
     if (!result?.file) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'El recurso solicitado no existe.')
     const bytes = await readFile(path.resolve(storageRoot(), result.file.storageKey))
     return { bytes, originalName: result.file.originalName, mimeType: result.file.mimeType }
+  },
+
+  async downloadProjectDocument(projectId: number) {
+    const project = await prisma.project.findUnique({ where: { id: projectId }, select: { documentFile: { select: { originalName: true, mimeType: true, storageKey: true } } } })
+    if (!project?.documentFile || project.documentFile.mimeType !== 'application/pdf') throw new AppError(404, 'PROJECT_DOCUMENT_NOT_FOUND', 'El proyecto no tiene un PDF asociado.')
+    const bytes = await readFile(path.resolve(storageRoot(), project.documentFile.storageKey))
+    return { bytes, originalName: project.documentFile.originalName, mimeType: project.documentFile.mimeType }
+  },
+
+  async downloadPublicProjectDocument(projectId: number) {
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, status: 'APROBADO' },
+      select: { documentFile: { select: { originalName: true, mimeType: true, storageKey: true } } }
+    })
+    if (!project?.documentFile || project.documentFile.mimeType !== 'application/pdf') {
+      throw new AppError(404, 'PROJECT_DOCUMENT_NOT_FOUND', 'El proyecto no tiene un PDF publicado.')
+    }
+    const bytes = await readFile(path.resolve(storageRoot(), project.documentFile.storageKey))
+    return { bytes, originalName: project.documentFile.originalName, mimeType: project.documentFile.mimeType }
   }
 }

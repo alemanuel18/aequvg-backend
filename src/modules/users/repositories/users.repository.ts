@@ -26,7 +26,21 @@ export const usersRepository = {
   update: (id: number, data: { name?: string; roleId?: number; status?: AdministrativeUserStatus }) => prisma.administrativeUser.update({
     where: { id }, data, include: publicInclude
   }),
-  setPassword: (id: number, passwordHash: string) => prisma.administrativeCredential.upsert({
-    where: { userId: id }, update: { passwordHash }, create: { userId: id, passwordHash }
+  updateAndRevokeSessions: (id: number, data: { name?: string; roleId?: number; status?: AdministrativeUserStatus }, reason: string) => prisma.$transaction(async tx => {
+    const user = await tx.administrativeUser.update({ where: { id }, data, include: publicInclude })
+    await tx.administrativeSession.updateMany({
+      where: { userId: id, revokedAt: null },
+      data: { revokedAt: new Date(), revocationReason: reason }
+    })
+    return user
+  }),
+  setPasswordAndRevokeSessions: (id: number, passwordHash: string) => prisma.$transaction(async tx => {
+    await tx.administrativeCredential.upsert({
+      where: { userId: id }, update: { passwordHash }, create: { userId: id, passwordHash }
+    })
+    await tx.administrativeSession.updateMany({
+      where: { userId: id, revokedAt: null },
+      data: { revokedAt: new Date(), revocationReason: 'PASSWORD_CHANGED' }
+    })
   })
 }

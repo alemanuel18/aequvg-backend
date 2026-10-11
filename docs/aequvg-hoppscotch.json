@@ -401,6 +401,22 @@
             "contentType": "application/json",
             "body": "{\n  \"fullName\": \"Participante Excedente\",\n  \"email\": \"excedente@example.com\",\n  \"phone\": \"+502 5555-9876\",\n  \"consent\": true,\n  \"privacyVersion\": \"pendiente-validacion\"\n}"
           }
+        },
+        {
+          "v": "1",
+          "name": "PDF de proyecto aprobado",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/projects/<<projectId>>/document",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
         }
       ]
     },
@@ -1613,6 +1629,28 @@
           "body": {
             "contentType": null,
             "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Cargar PDF de proyecto",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/projects/files",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "multipart/form-data",
+            "body": "file=@proyecto.pdf"
           }
         }
       ]
