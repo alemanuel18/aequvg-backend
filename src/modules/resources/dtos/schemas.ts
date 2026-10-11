@@ -55,7 +55,7 @@ export const resourceResponse = t.Object({
   createdAt: t.Date(),
   publishedAt: t.Nullable(t.Date()),
   category: resourceCategoryResponse,
-  file: t.Nullable(t.Object({ id: t.Integer(), originalName: t.String(), mimeType: t.String() })),
+  file: t.Nullable(t.Object({ id: t.Integer(), originalName: t.String(), mimeType: t.String(), downloadUrl: t.Optional(t.String()) })),
   links: t.Array(resourceLinkResponse),
   createdBy: t.Object({ id: t.Integer(), name: t.String() })
 })

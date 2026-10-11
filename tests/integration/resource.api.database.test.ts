@@ -101,6 +101,14 @@ describeDatabase('CRUD HTTP de recursos con PostgreSQL', () => {
     expect(updatedResource.fileId).toBe(replacementFileId)
     expect(updatedResource.links.map(link => link.url)).toEqual(['https://example.org/actualizado'])
 
+    const publicAfterUpdate = await app.handle(request(`/api/v1/resources/${resourceId}`))
+    expect(publicAfterUpdate.status).toBe(200)
+    const publicResource = await publicAfterUpdate.json() as { title: string; fileId: number; file: { id: number } | null; links: { url: string }[] }
+    expect(publicResource.title).toBe('Guía de integración')
+    expect(publicResource.fileId).toBe(replacementFileId)
+    expect(publicResource.file?.id).toBe(replacementFileId)
+    expect(publicResource.links.map(link => link.url)).toEqual(['https://example.org/actualizado'])
+
     const archived = await app.handle(request(`/api/v1/admin/resources/${resourceId}/archive`, { method: 'PATCH', headers: adminHeaders }))
     expect(archived.status).toBe(200)
     expect((await archived.json() as { status: string; publishedAt: string | null }).status).toBe('ARCHIVADO')
@@ -108,6 +116,7 @@ describeDatabase('CRUD HTTP de recursos con PostgreSQL', () => {
 
     const deleted = await app.handle(request(`/api/v1/admin/resources/${resourceId}`, { method: 'DELETE', headers: adminHeaders }))
     expect(deleted.status).toBe(200)
+    await expect(prisma.file.findUnique({ where: { id: replacementFileId } })).resolves.toMatchObject({ id: replacementFileId, originalName: 'guia-actualizada.pdf' })
     resourceId = 0
   })
 
@@ -149,9 +158,10 @@ describeDatabase('CRUD HTTP de recursos con PostgreSQL', () => {
     expect((await duplicateLinks.json() as { error: { code: string } }).error.code).toBe('DUPLICATE_RESOURCE_LINK')
 
     const invalidLink = await app.handle(request('/api/v1/admin/resources', {
-      method: 'POST', headers: adminHeaders, body: JSON.stringify(bodyFor('Enlace inválido', { links: [{ label: 'FTP', url: 'ftp://example.org/recurso' }] }))
+      method: 'POST', headers: adminHeaders, body: JSON.stringify(bodyFor('Enlace inválido', { links: [{ label: 'HTTP', url: 'http://?' }] }))
     }))
     expect(invalidLink.status).toBe(422)
+    expect((await invalidLink.json() as { error: { code: string } }).error.code).toBe('INVALID_RESOURCE_LINK')
     expect((await app.handle(request('/api/v1/resources/999999'))).status).toBe(404)
     expect(await prisma.resource.count({ where: { createdById: authorId } })).toBe(beforeCount)
   })

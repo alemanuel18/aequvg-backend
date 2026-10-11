@@ -20,6 +20,15 @@ export const resourceRoutes = new Elysia({ prefix: '/api/v1' })
     params: idParams, response: { 200: resourceResponse, 404: resourceErrorResponse },
     detail: { tags: ['Recursos'], summary: 'Consulta un recurso publicado', description: 'No expone borradores, archivados, publicaciones programadas ni recursos de categorías inactivas.' }
   })
+  .get('/resources/:id/download', async ({ params, set }) => {
+    const file = await fileService.downloadForPublicResource(params.id)
+    set.headers['content-type'] = file.mimeType
+    set.headers['content-disposition'] = `attachment; filename*=UTF-8''${encodeURIComponent(file.originalName)}`
+    return file.bytes
+  }, {
+    params: idParams,
+    detail: { tags: ['Recursos'], summary: 'Descarga el archivo de un recurso publicado', description: 'Solo permite descargar archivos asociados a recursos publicados y vigentes.' }
+  })
   .get('/admin/resources', async ({ request, query }) => { await requireAdmin(request, 'RESOURCES_MANAGE'); return resourceService.adminList(query) }, {
     query: resourceAdminQuery, response: { 200: resourceListResponse, 401: resourceErrorResponse, 503: resourceErrorResponse },
     detail: { tags: ['Administración'], summary: 'Lista recursos administrativos', description: 'Incluye todos los estados y permite filtrar por texto, categoría o estado. Requiere una sesión con RESOURCES_MANAGE.' }
