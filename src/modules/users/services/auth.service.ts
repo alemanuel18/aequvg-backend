@@ -46,6 +46,7 @@ const publicUser = (user: NonNullable<AuthenticatedUser>) => ({
 })
 
 const assertActiveUser = (user: NonNullable<AuthenticatedUser>) => {
+  if (!isInstitutionalEmail(user.email)) throw new AppError(403, 'FORBIDDEN', 'La cuenta no pertenece al dominio institucional autorizado.')
   if (user.status !== 'ACTIVO' || !user.role.active) throw new AppError(403, 'ACCOUNT_DISABLED', 'La cuenta administrativa no está activa.')
 }
 

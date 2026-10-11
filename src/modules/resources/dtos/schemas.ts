@@ -40,6 +40,8 @@ export const resourceErrorResponse = t.Object({
   error: t.Object({ code: t.String(), message: t.String() })
 })
 
+export const resourceFileResponse = t.Object({ id: t.Integer(), uploadedById: t.Integer(), originalName: t.String(), mimeType: t.String(), sizeBytes: t.Integer(), sha256: t.String(), createdAt: t.Date() })
+
 export const resourceCategoryResponse = t.Object({ id: t.Integer(), name: t.String(), active: t.Boolean() })
 export const resourceLinkResponse = t.Object({ id: t.Integer(), label: t.String(), url: t.String(), displayOrder: t.Integer() })
 
