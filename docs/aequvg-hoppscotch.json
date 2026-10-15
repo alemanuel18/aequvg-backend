@@ -422,6 +422,73 @@
     },
     {
       "v": 3,
+      "name": "Acceso estudiantil",
+      "folders": [],
+      "requests": [
+        {
+          "v": "1",
+          "name": "Registrar estudiante UVG",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/student-auth/register",
+          "params": [],
+          "headers": [{ "key": "Content-Type", "value": "application/json", "active": true }],
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": "application/json", "body": "{\n  \"name\": \"Estudiante de Prueba\",\n  \"email\": \"<<studentEmail>>\",\n  \"password\": \"<<studentPassword>>\",\n  \"isStudent\": true\n}" }
+        },
+        {
+          "v": "1",
+          "name": "Rechazar autoasignación administrativa (422)",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/student-auth/register",
+          "params": [],
+          "headers": [{ "key": "Content-Type", "value": "application/json", "active": true }],
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": "application/json", "body": "{\n  \"name\": \"Estudiante de Prueba\",\n  \"email\": \"otra.cuenta@uvg.edu.gt\",\n  \"password\": \"<<studentPassword>>\",\n  \"isStudent\": true,\n  \"role\": \"ADMIN\"\n}" }
+        },
+        {
+          "v": "1",
+          "name": "Iniciar sesión estudiantil",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/student-auth/login",
+          "params": [],
+          "headers": [{ "key": "Content-Type", "value": "application/json", "active": true }],
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": "application/json", "body": "{\n  \"email\": \"<<studentEmail>>\",\n  \"password\": \"<<studentPassword>>\"\n}" }
+        },
+        {
+          "v": "1",
+          "name": "Consultar sesión estudiantil",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/student-auth/me",
+          "params": [],
+          "headers": [],
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": null, "body": null }
+        },
+        {
+          "v": "1",
+          "name": "Cerrar sesión estudiantil",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/student-auth/logout",
+          "params": [],
+          "headers": [{ "key": "X-CSRF-Token", "value": "<<studentCsrfToken>>", "active": true }],
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": null, "body": null }
+        },
+        {
+          "v": "1",
+          "name": "Baja propia con verificación de identidad",
+          "method": "DELETE",
+          "endpoint": "<<baseUrl>>/student-auth/account",
+          "params": [],
+          "headers": [{ "key": "Content-Type", "value": "application/json", "active": true }],
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": "application/json", "body": "{\n  \"email\": \"<<studentEmail>>\",\n  \"password\": \"<<studentPassword>>\",\n  \"confirm\": true\n}" }
+        }
+      ]
+    },
+    {
+      "v": 3,
       "name": "Autenticación y usuarios",
       "folders": [],
       "requests": [
@@ -1907,6 +1974,18 @@
         {
           "key": "adminPassword",
           "value": "AEQUVG-Pruebas-2026!"
+        },
+        {
+          "key": "studentEmail",
+          "value": "estudiante.pruebas@uvg.edu.gt"
+        },
+        {
+          "key": "studentPassword",
+          "value": "AEQUVG-Estudiante-2026!"
+        },
+        {
+          "key": "studentCsrfToken",
+          "value": "copy-from-student-login-response"
         },
         {
           "key": "csrfToken",

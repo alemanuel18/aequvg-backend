@@ -56,6 +56,12 @@ Cada módulo separa responsabilidades:
 
 La API usa el prefijo `/api/v1`. OpenAPI se publica en `http://localhost:3000/openapi` y el healthcheck en `http://localhost:3000/health`.
 
+## Acceso de estudiantes
+
+El portal estudiantil usa `/api/v1/student-auth/register`, `/login`, `/me`, `/logout` y `/account`. Solo admite estudiantes actuales con correo `@uvg.edu.gt`; no incluye aspirantes. Las cuentas, credenciales, sesiones, cookies y audiencia JWT estudiantiles están separadas por completo de las administrativas. El servidor asigna siempre `STUDENT`, rechaza campos adicionales como `role`, filtra nombres antes del alta y revoca sesiones al cerrar o dar de baja la cuenta.
+
+Los estados son `ACTIVO`, `BLOQUEADO_TEMPORAL`, `BLOQUEADO_PERMANENTE` y `ELIMINADO`. Las respuestas de bloqueo incluyen respectivamente la fecha de fin o el canal de revisión. Consulta contratos, matriz de acceso, coordinación con MOD/BAJA y evidencia en [`docs/student-access-flow.md`](docs/student-access-flow.md). La colección Hoppscotch incluye el flujo manual y OpenAPI publica el tag `Acceso estudiantil`.
+
 ## Autenticación y perfiles administrativos
 
 Las solicitudes de cuenta se envían desde `POST /api/v1/auth/registration-requests` con nombre, correo `@uvg.edu.gt` y contraseña. Se guardan como pendientes y no crean una cuenta ni otorgan acceso. Una persona con `USERS_MANAGE` puede consultarlas en `GET /api/v1/admin/registration-requests` y aprobarlas con un rol o rechazarlas mediante `POST /api/v1/admin/registration-requests/:id/review`. La aprobación crea la cuenta activa y mueve el hash de contraseña a sus credenciales; al resolver la solicitud, el hash se elimina de la solicitud. Los cambios administrativos requieren CSRF. Quien aprueba debe verificar la identidad del solicitante por un canal institucional antes de aprobar.
