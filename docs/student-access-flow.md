@@ -15,6 +15,7 @@ Una cuenta estudiantil nunca contiene un rol configurable ni permisos administra
 | `GET` | `/api/v1/student-auth/me` | Estudiante | Consulta la sesión vigente. |
 | `POST` | `/api/v1/student-auth/logout` | Estudiante + CSRF | Revoca la sesión y elimina las cookies. |
 | `DELETE` | `/api/v1/student-auth/account` | Revalidación | Da de baja con correo, contraseña y `confirm: true`, incluso si la cuenta está bloqueada. |
+| `PATCH` | `/api/v1/admin/student-users/:id/status` | Admin + `USERS_MANAGE` + CSRF | Activa o bloquea la cuenta y revoca todas sus sesiones en la misma transacción. |
 
 Las cookies son `aequvg_student_session` y `aequvg_student_device`, ambas `HttpOnly`, más `aequvg_student_csrf`, legible por el navegador para mutaciones. No sirven en `/api/v1/auth` ni en rutas `/api/v1/admin`; los JWT usan audiencia `aequvg-student`, distinta de `aequvg-admin`.
 
@@ -35,7 +36,7 @@ Las cookies son `aequvg_student_session` y `aequvg_student_device`, ambas `HttpO
 | `BLOQUEADO_PERMANENTE` | Denegado | `403 ACCOUNT_PERMANENTLY_BLOCKED`, con `details.reviewChannel`. |
 | `ELIMINADO` | Denegado | `403 ACCOUNT_DELETED`; todas las sesiones quedan revocadas. |
 
-Los procesos MOD y BAJA deben cambiar el estado y revocar todas las sesiones abiertas dentro de la misma operación transaccional. La baja propia ya aplica esa regla. Las credenciales se conservan tras la baja lógica para impedir recreaciones ambiguas y permitir trazabilidad; no conceden acceso.
+MOD puede enviar `{ "status": "ACTIVO" }`, un bloqueo temporal con `blockedUntil` futuro o un bloqueo permanente con `reviewChannel`. La operación revoca todas las sesiones abiertas dentro de la misma transacción. BAJA aplica la misma regla al eliminar la cuenta. Las credenciales se conservan tras la baja lógica para impedir recreaciones ambiguas y permitir trazabilidad; no conceden acceso.
 
 ## Matriz de acceso
 

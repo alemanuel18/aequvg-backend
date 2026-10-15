@@ -60,7 +60,7 @@ La API usa el prefijo `/api/v1`. OpenAPI se publica en `http://localhost:3000/op
 
 El portal estudiantil usa `/api/v1/student-auth/register`, `/login`, `/me`, `/logout` y `/account`. Solo admite estudiantes actuales con correo `@uvg.edu.gt`; no incluye aspirantes. Las cuentas, credenciales, sesiones, cookies y audiencia JWT estudiantiles están separadas por completo de las administrativas. El servidor asigna siempre `STUDENT`, rechaza campos adicionales como `role`, filtra nombres antes del alta y revoca sesiones al cerrar o dar de baja la cuenta.
 
-Los estados son `ACTIVO`, `BLOQUEADO_TEMPORAL`, `BLOQUEADO_PERMANENTE` y `ELIMINADO`. Las respuestas de bloqueo incluyen respectivamente la fecha de fin o el canal de revisión. Consulta contratos, matriz de acceso, coordinación con MOD/BAJA y evidencia en [`docs/student-access-flow.md`](docs/student-access-flow.md). La colección Hoppscotch incluye el flujo manual y OpenAPI publica el tag `Acceso estudiantil`.
+Los estados son `ACTIVO`, `BLOQUEADO_TEMPORAL`, `BLOQUEADO_PERMANENTE` y `ELIMINADO`. Las respuestas de bloqueo incluyen respectivamente la fecha de fin o el canal de revisión. `PATCH /api/v1/admin/student-users/:id/status`, protegido por `USERS_MANAGE`, coordina MOD y revoca sesiones de forma transaccional. Consulta contratos, matriz de acceso, coordinación con MOD/BAJA y evidencia en [`docs/student-access-flow.md`](docs/student-access-flow.md). La colección Hoppscotch incluye el flujo manual y OpenAPI publica el tag `Acceso estudiantil`.
 
 ## Autenticación y perfiles administrativos
 

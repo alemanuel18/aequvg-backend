@@ -484,6 +484,19 @@
           "headers": [{ "key": "Content-Type", "value": "application/json", "active": true }],
           "auth": { "authType": "none", "authActive": true },
           "body": { "contentType": "application/json", "body": "{\n  \"email\": \"<<studentEmail>>\",\n  \"password\": \"<<studentPassword>>\",\n  \"confirm\": true\n}" }
+        },
+        {
+          "v": "1",
+          "name": "Bloquear estudiante y revocar sesiones",
+          "method": "PATCH",
+          "endpoint": "<<baseUrl>>/admin/student-users/<<studentUserId>>/status",
+          "params": [],
+          "headers": [
+            { "key": "Content-Type", "value": "application/json", "active": true },
+            { "key": "X-CSRF-Token", "value": "<<csrfToken>>", "active": true }
+          ],
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": "application/json", "body": "{\n  \"status\": \"BLOQUEADO_PERMANENTE\",\n  \"reviewChannel\": \"revision@uvg.edu.gt\"\n}" }
         }
       ]
     },
@@ -1986,6 +1999,10 @@
         {
           "key": "studentCsrfToken",
           "value": "copy-from-student-login-response"
+        },
+        {
+          "key": "studentUserId",
+          "value": "1"
         },
         {
           "key": "csrfToken",
