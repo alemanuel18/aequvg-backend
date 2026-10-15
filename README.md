@@ -238,9 +238,9 @@ La API pública expone:
 
 Ambos endpoints exponen el campo dinámico `availableCapacity` (entero >= 0), calculado como `Math.max(0, maximumCapacity - confirmedRegistrations)`. No exponen contadores internos ni datos personales (`registrations`).
 
-### Inscripción pública
+### Inscripción estudiantil a eventos públicos
 
-`POST /api/v1/events/:id/registrations` permite a los usuarios inscribirse a un evento público:
+`POST /api/v1/events/:id/registrations` permite a estudiantes con sesión activa inscribirse a un evento público. El listado y detalle del evento permanecen públicos; la escritura exige cookies estudiantiles y `X-CSRF-Token`:
 
 - **Campos requeridos:** `fullName` (mínimo 2 caracteres), `email`, `phone` (mínimo 7 caracteres), `consent` (`true` obligatorio) y `privacyVersion` (cadena no vacía). Campo opcional: `website` (honeypot).
 - **Consentimiento y privacidad:** `consent: true` es obligatorio; el servidor genera y sella `consentedAt` con la fecha y hora de la solicitud y persiste `privacyVersion`. La respuesta pública `{ id, eventId, status, registeredAt }` no expone PII.

@@ -369,6 +369,11 @@
               "key": "Content-Type",
               "value": "application/json",
               "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<studentCsrfToken>>",
+              "active": true
             }
           ],
           "auth": {
@@ -390,6 +395,11 @@
             {
               "key": "Content-Type",
               "value": "application/json",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<studentCsrfToken>>",
               "active": true
             }
           ],

@@ -45,12 +45,13 @@ MOD puede enviar `{ "status": "ACTIVO" }`, un bloqueo temporal con `blockedUntil
 | Contenido público | Sí | Sí | Sí |
 | Registro/login estudiantil | Sí | Sí, sin elevar permisos | No mediante su sesión administrativa |
 | Panel personal `/mi-cuenta` | No | Sí | No mediante su sesión administrativa |
-| Comentarios e inscripciones privadas futuras | Solicitan `/acceso` | Sí, según regla del módulo | No por implicación; requieren contrato propio |
+| Inscripciones a eventos | No; la interfaz solicita `/acceso` | Sí, con CSRF y reglas del evento | No mediante su sesión administrativa |
+| Comentarios privados futuros | Solicitan `/acceso` | Sí, según regla del módulo | No por implicación; requieren contrato propio |
 | `/api/v1/admin/**` | No | No | Sí, según RBAC |
 | `/administrador` | No | No | Sí |
 | Baja propia estudiantil | Con revalidación | Con revalidación | No aplica |
 
-La navegación pública permanece disponible sin sesión. Comentarios privados todavía no existen; cuando se implementen deben conservar el destino en `returnTo` y enviar a `/acceso`. Las inscripciones públicas actuales siguen disponibles sin sesión porque su contrato vigente exige datos y consentimiento propios.
+La navegación y el detalle de eventos permanecen disponibles sin sesión. Abrir una inscripción conserva el evento y el ancla en `returnTo`, y envía a `/acceso`; el `POST` exige cookies estudiantiles y CSRF. Comentarios privados todavía no existen; cuando se implementen deben aplicar el mismo patrón sin crear rutas ficticias por anticipado.
 
 ## Respuestas y pruebas
 
