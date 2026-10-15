@@ -35,6 +35,15 @@ enum AdministrativeRegistrationStatus {
   @@map("estado_solicitud_administrativa")
 }
 
+enum StudentAccountStatus {
+  ACTIVO
+  BLOQUEADO_TEMPORAL
+  BLOQUEADO_PERMANENTE
+  ELIMINADO
+
+  @@map("estado_cuenta_estudiante")
+}
+
 enum AuthenticationProvider {
   PASSWORD
   MICROSOFT
@@ -331,6 +340,55 @@ model AdministrativeSession {
   @@index([userId, revokedAt, expiresAt])
   @@index([expiresAt])
   @@map("sesion_administrativa")
+}
+
+model StudentUser {
+  id            Int                  @id @default(autoincrement()) @map("id_estudiante")
+  name          String               @map("nombre") @db.VarChar(160)
+  email         String               @unique @map("correo") @db.Citext
+  isStudent     Boolean              @default(true) @map("es_estudiante")
+  status        StudentAccountStatus @default(ACTIVO) @map("estado")
+  blockedUntil  DateTime?            @map("bloqueado_hasta") @db.Timestamptz(3)
+  reviewChannel String?              @map("canal_revision") @db.VarChar(255)
+  deletedAt     DateTime?            @map("eliminado_en") @db.Timestamptz(3)
+  createdAt     DateTime             @default(now()) @map("creado_en") @db.Timestamptz(3)
+  updatedAt     DateTime             @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  credential StudentCredential?
+  sessions   StudentSession[]
+
+  @@index([status, blockedUntil])
+  @@map("usuario_estudiante")
+}
+
+model StudentCredential {
+  userId       Int      @id @map("id_estudiante")
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  updatedAt    DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  user StudentUser @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("credencial_estudiante")
+}
+
+model StudentSession {
+  id                  String    @id @default(uuid()) @map("id_sesion") @db.Uuid
+  userId              Int       @map("id_estudiante")
+  tokenIdentifierHash String    @unique @map("hash_identificador_token") @db.Char(64)
+  deviceSecretHash    String    @map("hash_secreto_dispositivo") @db.Char(64)
+  browserContextHash  String    @map("hash_contexto_navegador") @db.Char(64)
+  csrfTokenHash       String    @map("hash_token_csrf") @db.Char(64)
+  expiresAt           DateTime  @map("expira_en") @db.Timestamptz(3)
+  lastSeenAt          DateTime  @default(now()) @map("ultima_actividad_en") @db.Timestamptz(3)
+  revokedAt           DateTime? @map("revocada_en") @db.Timestamptz(3)
+  revocationReason    String?   @map("motivo_revocacion") @db.VarChar(80)
+  createdAt           DateTime  @default(now()) @map("creada_en") @db.Timestamptz(3)
+
+  user StudentUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([expiresAt])
+  @@map("sesion_estudiante")
 }
 
 model MicrosoftLoginChallenge {
