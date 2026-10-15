@@ -17,6 +17,8 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
   let roleId = 0
   let studentCookies = ''
   let studentCsrf = ''
+  let adminCookies = ''
+  let adminCsrf = ''
 
   beforeAll(async () => {
     process.env.NODE_ENV = 'test'
@@ -24,8 +26,10 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
     process.env.SESSION_SECRET = 'integration-student-secret-with-32-characters'
     const role = await prisma.role.create({ data: { name: `${runId}-admin`, description: 'Rol aislado de integración.' } })
     roleId = role.id
-    const permission = await prisma.permission.upsert({ where: { code: 'ADMIN_ACCESS' }, update: {}, create: { code: 'ADMIN_ACCESS', description: 'Acceso administrativo.' } })
-    await prisma.rolePermission.create({ data: { roleId, permissionId: permission.id } })
+    for (const code of ['ADMIN_ACCESS', 'USERS_MANAGE']) {
+      const permission = await prisma.permission.upsert({ where: { code }, update: {}, create: { code, description: `Permiso ${code}.` } })
+      await prisma.rolePermission.create({ data: { roleId, permissionId: permission.id } })
+    }
     const admin = await prisma.administrativeUser.create({ data: { roleId, name: 'Admin de integración', email: `${runId}-admin@uvg.edu.gt` } })
     adminId = admin.id
     await prisma.administrativeCredential.create({ data: { userId: adminId, passwordHash: await hashPassword(password) } })
@@ -96,6 +100,10 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
       method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': userAgent }, body: JSON.stringify({ email: `${runId}-admin@uvg.edu.gt`, password })
     }))
     expect(adminLogin.status).toBe(200)
+    const adminBody = await adminLogin.json() as { csrfToken: string }
+    adminCsrf = adminBody.csrfToken
+    const setCookie = adminLogin.headers.get('set-cookie') ?? ''
+    adminCookies = `${setCookie.match(/aequvg_session=[^;]+/)?.[0]}; ${setCookie.match(/aequvg_device=[^;]+/)?.[0]}`
   })
 
   it('inicia, recarga y cierra una sesión estudiantil revocándola', async () => {
@@ -121,6 +129,33 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
     expect(logout.status).toBe(204)
     const revoked = await app.handle(request('/api/v1/student-auth/me', { headers: { cookie: studentCookies, 'user-agent': userAgent } }))
     expect(revoked.status).toBe(401)
+  })
+
+  it('revoca sesiones activas cuando moderación bloquea la cuenta', async () => {
+    const login = await app.handle(request('/api/v1/student-auth/login', {
+      method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': userAgent }, body: JSON.stringify({ email, password })
+    }))
+    expect(login.status).toBe(200)
+    const setCookie = login.headers.get('set-cookie') ?? ''
+    const currentCookies = `${setCookie.match(/aequvg_student_session=[^;]+/)?.[0]}; ${setCookie.match(/aequvg_student_device=[^;]+/)?.[0]}`
+
+    const blocked = await app.handle(request(`/api/v1/admin/student-users/${userId}/status`, {
+      method: 'PATCH',
+      headers: { cookie: adminCookies, 'content-type': 'application/json', 'user-agent': userAgent, 'x-csrf-token': adminCsrf },
+      body: JSON.stringify({ status: 'BLOQUEADO_PERMANENTE', reviewChannel: 'revision@uvg.edu.gt' })
+    }))
+    expect(blocked.status).toBe(200)
+    expect((await blocked.json() as { role: string }).role).toBe('STUDENT')
+    expect((await app.handle(request('/api/v1/student-auth/me', { headers: { cookie: currentCookies, 'user-agent': userAgent } }))).status).toBe(401)
+    const sessions = await prisma.studentSession.findMany({ where: { userId } })
+    expect(sessions.filter(item => item.revocationReason === 'ACCOUNT_STATUS_CHANGED').length).toBeGreaterThan(0)
+
+    const activated = await app.handle(request(`/api/v1/admin/student-users/${userId}/status`, {
+      method: 'PATCH',
+      headers: { cookie: adminCookies, 'content-type': 'application/json', 'user-agent': userAgent, 'x-csrf-token': adminCsrf },
+      body: JSON.stringify({ status: 'ACTIVO' })
+    }))
+    expect(activated.status).toBe(200)
   })
 
   it('expone fecha o canal según el tipo de bloqueo y permite la baja bloqueada', async () => {
