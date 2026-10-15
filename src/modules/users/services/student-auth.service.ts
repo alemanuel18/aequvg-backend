@@ -82,9 +82,10 @@ const verifyCredentials = async (emailInput: string, password: string) => {
 export const studentAuthService = {
   publicUser,
 
-  async register(input: { name: string; email: string; password: string; isStudent: true }) {
+  async register(input: { name: string; email: string; password: string; isStudent: true; role?: string }) {
     const name = input.name.trim().replace(/\s+/g, ' ')
     const email = normalizeEmail(input.email)
+    if (input.role !== undefined) throw new AppError(422, 'ROLE_ASSIGNMENT_FORBIDDEN', 'No se permite asignar roles durante el registro estudiantil.')
     if (!input.isStudent) throw new AppError(422, 'STUDENT_STATUS_REQUIRED', 'Debes confirmar que eres estudiante de UVG.')
     if (!institutionalEmail.test(email)) throw new AppError(422, 'INSTITUTIONAL_EMAIL_REQUIRED', 'El correo debe pertenecer al dominio @uvg.edu.gt.')
     if (containsOffensiveName(name)) throw new AppError(422, 'OFFENSIVE_NAME', 'El nombre contiene términos no permitidos.')

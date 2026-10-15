@@ -4,7 +4,8 @@ export const studentRegisterBody = t.Object({
   name: t.String({ minLength: 2, maxLength: 160 }),
   email: t.String({ format: 'email', maxLength: 254 }),
   password: t.String({ minLength: 12, maxLength: 128 }),
-  isStudent: t.Literal(true)
+  isStudent: t.Literal(true),
+  role: t.Optional(t.String({ maxLength: 120 }))
 }, { additionalProperties: false })
 
 export const studentLoginBody = t.Object({

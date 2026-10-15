@@ -55,9 +55,9 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
   it('rechaza correos externos, condición falsa, nombres ofensivos y campos de rol', async () => {
     const cases = [
       { name: 'Estudiante UVG', email: `${runId}@example.com`, password, isStudent: true },
-      { name: 'Estudiante UVG', email, password, isStudent: false },
-      { name: 'Nombre cerote', email, password, isStudent: true },
-      { name: 'Estudiante UVG', email, password, isStudent: true, role: 'ADMIN' }
+      { name: 'Estudiante UVG', email: `${runId}-false@uvg.edu.gt`, password, isStudent: false },
+      { name: 'Nombre cerote', email: `${runId}-offensive@uvg.edu.gt`, password, isStudent: true },
+      { name: 'Estudiante UVG', email: `${runId}-role@uvg.edu.gt`, password, isStudent: true, role: 'ADMIN' }
     ]
     for (const body of cases) {
       const response = await app.handle(request('/api/v1/student-auth/register', {

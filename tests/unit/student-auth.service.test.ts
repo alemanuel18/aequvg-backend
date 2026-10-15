@@ -61,6 +61,17 @@ describe('servicio de acceso estudiantil', () => {
     expect(repositoryMocks.createUser).not.toHaveBeenCalled()
   })
 
+  it('rechaza una asignación de rol aunque el cliente la incluya', async () => {
+    await expect(studentAuthService.register({
+      name: 'Estudiante UVG',
+      email: 'estudiante@uvg.edu.gt',
+      password: 'Clave-estudiante-123!',
+      isStudent: true,
+      role: 'ADMIN'
+    })).rejects.toMatchObject({ status: 422, code: 'ROLE_ASSIGNMENT_FORBIDDEN' })
+    expect(repositoryMocks.createUser).not.toHaveBeenCalled()
+  })
+
   it('solo consulta la tabla estudiantil al iniciar sesión', async () => {
     repositoryMocks.findUserByEmail.mockResolvedValue(null)
     await expect(studentAuthService.login('administrador@uvg.edu.gt', 'Clave-estudiante-123!', new Headers()))
