@@ -36,3 +36,15 @@ export const studentSessionResponse = t.Object({
 export const studentAuthErrorResponse = t.Object({
   error: t.Object({ code: t.String(), message: t.String(), details: t.Optional(t.Record(t.String(), t.String())) })
 })
+
+export const studentStatusBody = t.Union([
+  t.Object({ status: t.Literal('ACTIVO') }, { additionalProperties: false }),
+  t.Object({
+    status: t.Literal('BLOQUEADO_TEMPORAL'),
+    blockedUntil: t.String({ format: 'date-time' })
+  }, { additionalProperties: false }),
+  t.Object({
+    status: t.Literal('BLOQUEADO_PERMANENTE'),
+    reviewChannel: t.String({ minLength: 2, maxLength: 255 })
+  }, { additionalProperties: false })
+])

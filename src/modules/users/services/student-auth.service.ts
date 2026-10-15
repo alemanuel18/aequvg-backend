@@ -146,5 +146,26 @@ export const studentAuthService = {
     const user = await verifyCredentials(input.email, input.password)
     if (user.status === 'ELIMINADO') throw new AppError(403, 'ACCOUNT_DELETED', 'La cuenta ya fue eliminada.')
     await studentAuthRepository.deleteAccountAndRevokeSessions(user.id)
+  },
+
+  async updateStatus(userId: number, input:
+    | { status: 'ACTIVO' }
+    | { status: 'BLOQUEADO_TEMPORAL'; blockedUntil: string }
+    | { status: 'BLOQUEADO_PERMANENTE'; reviewChannel: string }
+  ) {
+    let blockedUntil: Date | null = null
+    let reviewChannel: string | null = null
+    if (input.status === 'BLOQUEADO_TEMPORAL') {
+      blockedUntil = new Date(input.blockedUntil)
+      if (Number.isNaN(blockedUntil.getTime()) || blockedUntil <= new Date()) throw new AppError(422, 'INVALID_BLOCK_END', 'La fecha de fin del bloqueo debe estar en el futuro.')
+    }
+    if (input.status === 'BLOQUEADO_PERMANENTE') reviewChannel = input.reviewChannel.trim()
+    try {
+      const user = await studentAuthRepository.updateStatusAndRevokeSessions(userId, { status: input.status, blockedUntil, reviewChannel })
+      return publicUser(user)
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') throw new AppError(404, 'STUDENT_NOT_FOUND', 'La cuenta estudiantil no existe.')
+      throw error
+    }
   }
 }

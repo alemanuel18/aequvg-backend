@@ -45,6 +45,21 @@ export const studentAuthRepository = {
     include: studentAuthenticationInclude
   }),
 
+  updateStatusAndRevokeSessions: (userId: number, data: {
+    status: 'ACTIVO' | 'BLOQUEADO_TEMPORAL' | 'BLOQUEADO_PERMANENTE'
+    blockedUntil: Date | null
+    reviewChannel: string | null
+  }) => prisma.$transaction(async tx => {
+    const user = await tx.studentUser.update({
+      where: { id: userId }, data: { ...data, deletedAt: null }, include: studentAuthenticationInclude
+    })
+    await tx.studentSession.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date(), revocationReason: 'ACCOUNT_STATUS_CHANGED' }
+    })
+    return user
+  }),
+
   deleteAccountAndRevokeSessions: (userId: number) => prisma.$transaction(async tx => {
     await tx.studentUser.update({
       where: { id: userId },
