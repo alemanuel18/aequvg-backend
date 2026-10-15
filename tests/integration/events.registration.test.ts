@@ -3,14 +3,24 @@ import { createApp } from '../../src/app'
 import { clearRateLimitsForTests } from '../../src/middleware/rate-limit'
 import { prisma } from '../../src/shared/database/prisma'
 import { createAdminSessionHeaders } from '../helpers/admin-session'
+import { createStudentSessionHeaders } from '../helpers/student-session'
 
 const runDatabaseTests = process.env.EVENTS_DATABASE_TEST === 'true'
 const describeDatabase = runDatabaseTests ? describe : describe.skip
 const runId = `events-reg-test-${Date.now()}`
 let roleId: number
 let authorId = 0
+let studentId = 0
+let studentHeaders: Record<string, string> = {}
 
-const request = (path: string, options: RequestInit = {}) => new Request(`http://localhost${path}`, options)
+const request = (path: string, options: RequestInit = {}) => {
+  const needsStudentSession = options.method === 'POST' && /^\/api\/v1\/events\/\d+\/registrations$/.test(path)
+  const headers = needsStudentSession
+    ? { ...studentHeaders, ...(options.headers as Record<string, string> | undefined) }
+    : options.headers
+  return new Request(`http://localhost${path}`, { ...options, headers })
+}
+const anonymousRequest = (path: string, options: RequestInit = {}) => new Request(`http://localhost${path}`, options)
 let adminHeaders: Record<string, string>
 
 const baseRegistrationPayload = (overrides: Record<string, unknown> = {}) => ({
@@ -36,6 +46,9 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
     })
     authorId = author.id
     adminHeaders = await createAdminSessionHeaders(prisma, author.id, role.id, ['EVENTS_MANAGE'])
+    const student = await prisma.studentUser.create({ data: { name: 'Estudiante autenticado', email: `${runId}-student@uvg.edu.gt` } })
+    studentId = student.id
+    studentHeaders = await createStudentSessionHeaders(prisma, student.id)
   })
 
   afterAll(async () => {
@@ -46,6 +59,10 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
         await prisma.administrativeUser.deleteMany({ where: { roleId } })
         await prisma.rolePermission.deleteMany({ where: { roleId } })
         await prisma.role.delete({ where: { id: roleId } })
+      }
+      if (studentId) {
+        await prisma.studentSession.deleteMany({ where: { userId: studentId } })
+        await prisma.studentUser.delete({ where: { id: studentId } })
       }
     } finally {
       await prisma.$disconnect()
@@ -72,6 +89,16 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
   }
 
   describe('Happy path y contrato seguro sin PII', () => {
+    it('rechaza la inscripción anónima y mantiene público el detalle del evento', async () => {
+      const event = await createEvent()
+      expect((await app.handle(anonymousRequest(`/api/v1/events/${event.id}`))).status).toBe(200)
+      const response = await app.handle(anonymousRequest(`/api/v1/events/${event.id}/registrations`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(baseRegistrationPayload())
+      }))
+      expect(response.status).toBe(401)
+      expect(await response.json()).toMatchObject({ error: { code: 'UNAUTHORIZED' } })
+    })
+
     it('inscribe a un participante en un evento publicado y devuelve contrato seguro sin PII', async () => {
       const event = await createEvent({ maximumCapacity: 10 })
 
