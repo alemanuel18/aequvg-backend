@@ -8,6 +8,11 @@ const testAdministrator = {
   email: 'admin.pruebas@uvg.edu.gt',
   password: 'AEQUVG-Pruebas-2026!'
 } as const
+const testStudent = {
+  name: 'Estudiante de pruebas',
+  email: 'estudiante.pruebas@uvg.edu.gt',
+  password: 'AEQUVG-Estudiante-2026!'
+} as const
 
 const board = [
   ['Pablo José', 'Presidente', 'ros23193@uvg.edu.gt'],
@@ -92,6 +97,30 @@ async function main() {
       where: { userId: user.id },
       update: { passwordHash },
       create: { userId: user.id, passwordHash }
+    })
+
+    const student = await prisma.studentUser.upsert({
+      where: { email: testStudent.email },
+      update: {
+        name: testStudent.name,
+        isStudent: true,
+        status: 'ACTIVO',
+        blockedUntil: null,
+        reviewChannel: null,
+        deletedAt: null
+      },
+      create: {
+        name: testStudent.name,
+        email: testStudent.email,
+        isStudent: true,
+        status: 'ACTIVO'
+      }
+    })
+    const studentPasswordHash = await hashPassword(testStudent.password)
+    await prisma.studentCredential.upsert({
+      where: { userId: student.id },
+      update: { passwordHash: studentPasswordHash },
+      create: { userId: student.id, passwordHash: studentPasswordHash }
     })
   }
 
