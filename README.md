@@ -62,6 +62,18 @@ El portal estudiantil usa `/api/v1/student-auth/register`, `/login`, `/me`, `/lo
 
 Los estados son `ACTIVO`, `BLOQUEADO_TEMPORAL`, `BLOQUEADO_PERMANENTE` y `ELIMINADO`. Las respuestas de bloqueo incluyen respectivamente la fecha de fin o el canal de revisión. `PATCH /api/v1/admin/student-users/:id/status`, protegido por `USERS_MANAGE`, coordina MOD y revoca sesiones de forma transaccional. Consulta contratos, matriz de acceso, coordinación con MOD/BAJA y evidencia en [`docs/student-access-flow.md`](docs/student-access-flow.md). La colección Hoppscotch incluye el flujo manual y OpenAPI publica el tag `Acceso estudiantil`.
 
+### Estudiante local de pruebas
+
+Al ejecutar la seed con `NODE_ENV` distinto de `production`, se crea o restablece esta cuenta estudiantil ficticia:
+
+```text
+Correo: estudiante.pruebas@uvg.edu.gt
+Contraseña: AEQUVG-Estudiante-2026!
+Perfil: Estudiante normal
+```
+
+Estas credenciales son públicas y sirven exclusivamente para desarrollo y pruebas locales. La cuenta se guarda en las tablas estudiantiles, no recibe rol ni permisos administrativos y la seed la restablece con estado `ACTIVO`. No se crea cuando `NODE_ENV=production`; no debe copiarse manualmente ni utilizarse en un despliegue real.
+
 ## Autenticación y perfiles administrativos
 
 Las solicitudes de cuenta se envían desde `POST /api/v1/auth/registration-requests` con nombre, correo `@uvg.edu.gt` y contraseña. Se guardan como pendientes y no crean una cuenta ni otorgan acceso. Una persona con `USERS_MANAGE` puede consultarlas en `GET /api/v1/admin/registration-requests` y aprobarlas con un rol o rechazarlas mediante `POST /api/v1/admin/registration-requests/:id/review`. La aprobación crea la cuenta activa y mueve el hash de contraseña a sus credenciales; al resolver la solicitud, el hash se elimina de la solicitud. Los cambios administrativos requieren CSRF. Quien aprueba debe verificar la identidad del solicitante por un canal institucional antes de aprobar.
@@ -445,6 +457,7 @@ El seed está en `prisma/seed.ts`. Carga de forma idempotente:
 - Cuatro roles administrativos y permisos RBAC.
 - Un usuario ficticio de contenido; si se define `SEED_ADMIN_PASSWORD`, recibe credencial local.
 - El administrador local `admin.pruebas@uvg.edu.gt`, con la contraseña documentada en la sección de autenticación, únicamente fuera de producción.
+- El estudiante normal `estudiante.pruebas@uvg.edu.gt`, con la contraseña documentada en la sección de acceso estudiantil, únicamente fuera de producción.
 - Medios de contacto, integrantes y orden de la junta directiva.
 - Bloques institucionales, una noticia y un recurso publicados de ejemplo.
 - Metadatos de un PDF de ejemplo para comprobar la relación entre recursos y archivos.
