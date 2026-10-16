@@ -5,6 +5,7 @@ import { usersRepository } from '../repositories/users.repository'
 
 const institutionalEmail = /^[^@\s]+@uvg\.edu\.gt$/i
 const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,128}$/
+const normalizeNamePart = (value: string) => value.trim().replace(/\s+/g, ' ')
 
 type PublicUserSource = NonNullable<Awaited<ReturnType<typeof usersRepository.findById>>>
 type RoleSource = Awaited<ReturnType<typeof usersRepository.listRoles>>[number]
@@ -12,6 +13,8 @@ type RoleSource = Awaited<ReturnType<typeof usersRepository.listRoles>>[number]
 const serializeUser = (user: PublicUserSource) => ({
   id: user.id,
   name: user.name,
+  firstNames: user.firstNames,
+  lastNames: user.lastNames,
   email: user.email,
   status: user.status,
   role: { id: user.role.id, name: user.role.name },
@@ -54,24 +57,30 @@ export const usersService = {
     return (await usersRepository.listRoles()).map(serializeRole)
   },
 
-  async create(input: { name: string; email: string; roleId: number; password?: string }) {
-    const name = input.name.trim()
+  async create(input: { firstNames: string; lastNames: string; email: string; roleId: number; password?: string }) {
+    const firstNames = normalizeNamePart(input.firstNames)
+    const lastNames = normalizeNamePart(input.lastNames)
+    const name = `${firstNames} ${lastNames}`
     const email = input.email.trim().toLowerCase()
+    if (firstNames.length < 2 || lastNames.length < 2 || firstNames.length > 80 || lastNames.length > 80 || name.length > 160) throw new AppError(422, 'INVALID_NAME', 'Escribe nombres y apellidos válidos.')
     if (!institutionalEmail.test(email)) throw new AppError(422, 'INSTITUTIONAL_EMAIL_REQUIRED', 'El correo debe pertenecer al dominio @uvg.edu.gt.')
     await assertRole(input.roleId)
     if (input.password) assertPassword(input.password)
     try {
-      const user = await usersRepository.create({ name, email, roleId: input.roleId, passwordHash: input.password ? await hashPassword(input.password) : undefined })
+      const user = await usersRepository.create({ name, firstNames, lastNames, email, roleId: input.roleId, passwordHash: input.password ? await hashPassword(input.password) : undefined })
       return serializeUser(user)
     } catch (error) {
       return mapPersistenceError(error)
     }
   },
 
-  async update(id: number, input: { name?: string; roleId?: number; status?: 'ACTIVO' | 'INACTIVO' | 'BLOQUEADO' }) {
+  async update(id: number, input: { firstNames?: string; lastNames?: string; roleId?: number; status?: 'ACTIVO' | 'INACTIVO' | 'BLOQUEADO' }) {
     if (input.roleId !== undefined) await assertRole(input.roleId)
     try {
-      const data = { ...input, name: input.name?.trim() }
+      const firstNames = input.firstNames === undefined ? undefined : normalizeNamePart(input.firstNames)
+      const lastNames = input.lastNames === undefined ? undefined : normalizeNamePart(input.lastNames)
+      if ((firstNames !== undefined && (firstNames.length < 2 || firstNames.length > 80)) || (lastNames !== undefined && (lastNames.length < 2 || lastNames.length > 80))) throw new AppError(422, 'INVALID_NAME', 'Escribe nombres y apellidos válidos.')
+      const data = { ...input, firstNames, lastNames }
       const user = input.roleId !== undefined || input.status !== undefined
         ? await usersRepository.updateAndRevokeSessions(id, data, 'ACCOUNT_AUTHORIZATION_CHANGED')
         : await usersRepository.update(id, data)

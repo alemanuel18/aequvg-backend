@@ -5,11 +5,15 @@ import { hashPassword } from '../../../shared/utils/auth-crypto'
 
 const institutionalEmail = /^[^@\s]+@uvg\.edu\.gt$/i
 const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,128}$/
+const normalizeNamePart = (value: string) => value.trim().replace(/\s+/g, ' ')
 
 export const registrationService = {
-  async request(input: { name: string; email: string; password: string }) {
-    const name = input.name.trim()
+  async request(input: { firstNames: string; lastNames: string; email: string; password: string }) {
+    const firstNames = normalizeNamePart(input.firstNames)
+    const lastNames = normalizeNamePart(input.lastNames)
+    const name = `${firstNames} ${lastNames}`
     const email = input.email.trim().toLowerCase()
+    if (firstNames.length < 2 || lastNames.length < 2 || firstNames.length > 80 || lastNames.length > 80 || name.length > 160) throw new AppError(422, 'INVALID_NAME', 'Escribe nombres y apellidos válidos.')
     if (!institutionalEmail.test(email)) throw new AppError(422, 'INSTITUTIONAL_EMAIL_REQUIRED', 'El correo debe pertenecer al dominio @uvg.edu.gt.')
     if (!strongPassword.test(input.password)) throw new AppError(422, 'WEAK_PASSWORD', 'La contraseña debe tener entre 12 y 128 caracteres e incluir mayúscula, minúscula, número y símbolo.')
     if (await prisma.administrativeUser.findUnique({ where: { email }, select: { id: true } })) {
@@ -17,7 +21,7 @@ export const registrationService = {
     }
     const passwordHash = await hashPassword(input.password)
     try {
-      await prisma.administrativeRegistrationRequest.create({ data: { name, email, passwordHash } })
+      await prisma.administrativeRegistrationRequest.create({ data: { name, firstNames, lastNames, email, passwordHash } })
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new AppError(409, 'REGISTRATION_UNAVAILABLE', 'Ya hay una solicitud pendiente para ese correo.')
@@ -30,7 +34,7 @@ export const registrationService = {
   list() {
     return prisma.administrativeRegistrationRequest.findMany({
       where: { status: 'PENDIENTE' },
-      select: { id: true, name: true, email: true, status: true, createdAt: true },
+      select: { id: true, name: true, firstNames: true, lastNames: true, email: true, status: true, createdAt: true },
       orderBy: { createdAt: 'asc' }
     }).then(requests => requests.map(request => ({ ...request, status: 'PENDIENTE' as const })))
   },
@@ -55,7 +59,7 @@ export const registrationService = {
             throw new AppError(409, 'REGISTRATION_UNAVAILABLE', 'La cuenta ya existe.')
           }
           await tx.administrativeUser.create({
-            data: { name: request.name, email: request.email, roleId: decision.roleId, credential: { create: { passwordHash: request.passwordHash } } }
+            data: { name: request.name, firstNames: request.firstNames, lastNames: request.lastNames, email: request.email, roleId: decision.roleId, credential: { create: { passwordHash: request.passwordHash } } }
           })
         }
         return { id, status: decision.status }
