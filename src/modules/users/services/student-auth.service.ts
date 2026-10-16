@@ -26,6 +26,8 @@ const sessionSecret = () => {
 const publicUser = (user: Student) => ({
   id: user.id,
   name: user.name,
+  firstNames: user.firstNames,
+  lastNames: user.lastNames,
   email: user.email,
   isStudent: user.isStudent,
   status: user.status,
@@ -82,16 +84,19 @@ const verifyCredentials = async (emailInput: string, password: string) => {
 export const studentAuthService = {
   publicUser,
 
-  async register(input: { name: string; email: string; password: string; isStudent: true; role?: string }) {
-    const name = input.name.trim().replace(/\s+/g, ' ')
+  async register(input: { firstNames: string; lastNames: string; email: string; password: string; isStudent: true; role?: string }) {
+    const firstNames = input.firstNames.trim().replace(/\s+/g, ' ')
+    const lastNames = input.lastNames.trim().replace(/\s+/g, ' ')
+    const name = `${firstNames} ${lastNames}`
     const email = normalizeEmail(input.email)
     if (input.role !== undefined) throw new AppError(422, 'ROLE_ASSIGNMENT_FORBIDDEN', 'No se permite asignar roles durante el registro estudiantil.')
     if (!input.isStudent) throw new AppError(422, 'STUDENT_STATUS_REQUIRED', 'Debes confirmar que eres estudiante de UVG.')
     if (!institutionalEmail.test(email)) throw new AppError(422, 'INSTITUTIONAL_EMAIL_REQUIRED', 'El correo debe pertenecer al dominio @uvg.edu.gt.')
-    if (containsOffensiveName(name)) throw new AppError(422, 'OFFENSIVE_NAME', 'El nombre contiene términos no permitidos.')
+    if (firstNames.length < 2 || lastNames.length < 2 || firstNames.length > 80 || lastNames.length > 80 || name.length > 160) throw new AppError(422, 'INVALID_NAME', 'Escribe nombres y apellidos válidos.')
+    if (containsOffensiveName(name)) throw new AppError(422, 'OFFENSIVE_NAME', 'Los nombres o apellidos contienen términos no permitidos.')
     if (!strongPassword.test(input.password)) throw new AppError(422, 'WEAK_PASSWORD', 'La contraseña debe tener entre 12 y 128 caracteres e incluir mayúscula, minúscula, número y símbolo.')
     try {
-      const user = await studentAuthRepository.createUser({ name, email, passwordHash: await hashPassword(input.password) })
+      const user = await studentAuthRepository.createUser({ name, firstNames, lastNames, email, passwordHash: await hashPassword(input.password) })
       return publicUser(user)
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {

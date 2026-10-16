@@ -11,9 +11,11 @@ export const studentAuthRepository = {
     where: { id }, include: { user: { include: studentAuthenticationInclude } }
   }),
 
-  createUser: (data: { name: string; email: string; passwordHash: string }) => prisma.studentUser.create({
+  createUser: (data: { name: string; firstNames: string; lastNames: string; email: string; passwordHash: string }) => prisma.studentUser.create({
     data: {
       name: data.name,
+      firstNames: data.firstNames,
+      lastNames: data.lastNames,
       email: data.email,
       isStudent: true,
       credential: { create: { passwordHash: data.passwordHash } }

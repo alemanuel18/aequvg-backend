@@ -220,10 +220,10 @@ model Project {
   updatedAt       DateTime      @updatedAt @map("actualizado_en") @db.Timestamptz(3)
 
   // Relaciones
-  author     AdministrativeUser  @relation("ProjectAuthor", fields: [authorId], references: [id], onDelete: Restrict)
-  reviewer   AdministrativeUser? @relation("ProjectReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
-  coverImage File?               @relation("ProjectCoverImage", fields: [coverImageId], references: [id], onDelete: Restrict)
-  documentFile File?             @relation("ProjectDocument", fields: [documentFileId], references: [id], onDelete: Restrict)
+  author       AdministrativeUser  @relation("ProjectAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  reviewer     AdministrativeUser? @relation("ProjectReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  coverImage   File?               @relation("ProjectCoverImage", fields: [coverImageId], references: [id], onDelete: Restrict)
+  documentFile File?               @relation("ProjectDocument", fields: [documentFileId], references: [id], onDelete: Restrict)
 
   // Índices 
   @@index([status, createdAt])
@@ -236,27 +236,29 @@ model Project {
 }
 
 model AdministrativeUser {
-  id        Int                      @id @default(autoincrement()) @map("id_usuario")
-  roleId    Int                      @map("id_rol")
-  name      String                   @map("nombre") @db.VarChar(160)
-  email     String                   @unique @map("correo") @db.Citext
-  status    AdministrativeUserStatus @default(ACTIVO) @map("estado")
-  createdAt DateTime                 @default(now()) @map("creado_en") @db.Timestamptz(3)
-  updatedAt DateTime                 @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  id         Int                      @id @default(autoincrement()) @map("id_usuario")
+  roleId     Int                      @map("id_rol")
+  name       String                   @map("nombre") @db.VarChar(160)
+  firstNames String                   @default("") @map("nombres") @db.VarChar(80)
+  lastNames  String                   @default("") @map("apellidos") @db.VarChar(80)
+  email      String                   @unique @map("correo") @db.Citext
+  status     AdministrativeUserStatus @default(ACTIVO) @map("estado")
+  createdAt  DateTime                 @default(now()) @map("creado_en") @db.Timestamptz(3)
+  updatedAt  DateTime                 @updatedAt @map("actualizado_en") @db.Timestamptz(3)
 
-  role                    Role                      @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  credential              AdministrativeCredential?
-  identities              AdministrativeIdentity[]
-  sessions                AdministrativeSession[]
-  uploadedFiles           File[]
-  createdPublications     ScientificPublication[]   @relation("PublicationCreator")
-  publicationApprovals    PublicationApproval[]
-  createdNews             News[]
-  createdEvents           Event[]
-  createdResources        Resource[]
-  assignedContactRequests ContactRequest[]
+  role                         Role                                @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  credential                   AdministrativeCredential?
+  identities                   AdministrativeIdentity[]
+  sessions                     AdministrativeSession[]
+  uploadedFiles                File[]
+  createdPublications          ScientificPublication[]             @relation("PublicationCreator")
+  publicationApprovals         PublicationApproval[]
+  createdNews                  News[]
+  createdEvents                Event[]
+  createdResources             Resource[]
+  assignedContactRequests      ContactRequest[]
   reviewedRegistrationRequests AdministrativeRegistrationRequest[] @relation("RegistrationReviewer")
-  passwordResetRequests AdministrativePasswordReset[]
+  passwordResetRequests        AdministrativePasswordReset[]
 
   // Relaciones con proyectos
   createdProjects  Project[] @relation("ProjectAuthor")
@@ -267,15 +269,17 @@ model AdministrativeUser {
 }
 
 model AdministrativeRegistrationRequest {
-  id Int @id @default(autoincrement()) @map("id_solicitud")
-  name String @map("nombre") @db.VarChar(160)
-  email String @map("correo") @db.Citext
-  passwordHash String? @map("password_hash") @db.VarChar(255)
-  status AdministrativeRegistrationStatus @default(PENDIENTE) @map("estado")
-  reviewedById Int? @map("id_revisor")
-  reviewedAt DateTime? @map("revisado_en") @db.Timestamptz(3)
-  createdAt DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
-  reviewer AdministrativeUser? @relation("RegistrationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  id           Int                              @id @default(autoincrement()) @map("id_solicitud")
+  name         String                           @map("nombre") @db.VarChar(160)
+  firstNames   String                           @default("") @map("nombres") @db.VarChar(80)
+  lastNames    String                           @default("") @map("apellidos") @db.VarChar(80)
+  email        String                           @map("correo") @db.Citext
+  passwordHash String?                          @map("password_hash") @db.VarChar(255)
+  status       AdministrativeRegistrationStatus @default(PENDIENTE) @map("estado")
+  reviewedById Int?                             @map("id_revisor")
+  reviewedAt   DateTime?                        @map("revisado_en") @db.Timestamptz(3)
+  createdAt    DateTime                         @default(now()) @map("creado_en") @db.Timestamptz(3)
+  reviewer     AdministrativeUser?              @relation("RegistrationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
   @@index([email, status])
@@ -283,12 +287,12 @@ model AdministrativeRegistrationRequest {
 }
 
 model AdministrativePasswordReset {
-  id        Int      @id @default(autoincrement()) @map("id_recuperacion")
-  userId    Int      @map("id_usuario")
-  tokenHash String   @unique @map("hash_token") @db.Char(64)
-  expiresAt DateTime @map("expira_en") @db.Timestamptz(3)
-  usedAt    DateTime? @map("usado_en") @db.Timestamptz(3)
-  createdAt DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  id        Int                @id @default(autoincrement()) @map("id_recuperacion")
+  userId    Int                @map("id_usuario")
+  tokenHash String             @unique @map("hash_token") @db.Char(64)
+  expiresAt DateTime           @map("expira_en") @db.Timestamptz(3)
+  usedAt    DateTime?          @map("usado_en") @db.Timestamptz(3)
+  createdAt DateTime           @default(now()) @map("creado_en") @db.Timestamptz(3)
   user      AdministrativeUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, usedAt, expiresAt])
@@ -345,6 +349,8 @@ model AdministrativeSession {
 model StudentUser {
   id            Int                  @id @default(autoincrement()) @map("id_estudiante")
   name          String               @map("nombre") @db.VarChar(160)
+  firstNames    String               @default("") @map("nombres") @db.VarChar(80)
+  lastNames     String               @default("") @map("apellidos") @db.VarChar(80)
   email         String               @unique @map("correo") @db.Citext
   isStudent     Boolean              @default(true) @map("es_estudiante")
   status        StudentAccountStatus @default(ACTIVO) @map("estado")
@@ -424,7 +430,7 @@ model File {
   boardPhotos  BoardMember[]           @relation("BoardPhoto")
 
   //Relacion con proyecto
-  projectCovers Project[] @relation("ProjectCoverImage")
+  projectCovers    Project[] @relation("ProjectCoverImage")
   projectDocuments Project[] @relation("ProjectDocument")
 
   @@index([uploadedById])
@@ -534,9 +540,9 @@ model News {
   updatedAt   DateTime      @updatedAt @map("actualizado_en") @db.Timestamptz(3)
   publishedAt DateTime?     @map("publicado_en") @db.Timestamptz(3)
 
-  createdBy AdministrativeUser @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  category  NewsCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  image     File?              @relation("NewsImage", fields: [imageId], references: [id], onDelete: Restrict)
+  createdBy     AdministrativeUser @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  category      NewsCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  image         File?              @relation("NewsImage", fields: [imageId], references: [id], onDelete: Restrict)
   featuredItems FeaturedItem[]
 
   @@index([status, publishedAt])

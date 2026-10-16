@@ -4,12 +4,14 @@ import { hashPassword } from '../src/shared/utils/auth-crypto'
 const prisma = new PrismaClient()
 const developmentPublishedAt = new Date('2026-01-15T12:00:00.000Z')
 const testAdministrator = {
-  name: 'Administrador de pruebas',
+  firstNames: 'Administrador',
+  lastNames: 'de pruebas',
   email: 'admin.pruebas@uvg.edu.gt',
   password: 'AEQUVG-Pruebas-2026!'
 } as const
 const testStudent = {
-  name: 'Estudiante de pruebas',
+  firstNames: 'Estudiante',
+  lastNames: 'de pruebas',
   email: 'estudiante.pruebas@uvg.edu.gt',
   password: 'AEQUVG-Estudiante-2026!'
 } as const
@@ -74,8 +76,8 @@ async function main() {
 
   const developmentUser = await prisma.administrativeUser.upsert({
     where: { email: 'contenido.desarrollo@uvg.edu.gt' },
-    update: { name: 'Contenido de desarrollo', roleId: role.id, status: 'ACTIVO' },
-    create: { name: 'Contenido de desarrollo', email: 'contenido.desarrollo@uvg.edu.gt', roleId: role.id }
+    update: { name: 'Contenido de desarrollo', firstNames: 'Contenido', lastNames: 'de desarrollo', roleId: role.id, status: 'ACTIVO' },
+    create: { name: 'Contenido de desarrollo', firstNames: 'Contenido', lastNames: 'de desarrollo', email: 'contenido.desarrollo@uvg.edu.gt', roleId: role.id }
   })
   if (process.env.SEED_ADMIN_PASSWORD) {
     const passwordHash = await hashPassword(process.env.SEED_ADMIN_PASSWORD)
@@ -89,8 +91,8 @@ async function main() {
   if (process.env.NODE_ENV !== 'production') {
     const user = await prisma.administrativeUser.upsert({
       where: { email: testAdministrator.email },
-      update: { name: testAdministrator.name, roleId: role.id, status: 'ACTIVO' },
-      create: { name: testAdministrator.name, email: testAdministrator.email, roleId: role.id }
+      update: { name: `${testAdministrator.firstNames} ${testAdministrator.lastNames}`, firstNames: testAdministrator.firstNames, lastNames: testAdministrator.lastNames, roleId: role.id, status: 'ACTIVO' },
+      create: { name: `${testAdministrator.firstNames} ${testAdministrator.lastNames}`, firstNames: testAdministrator.firstNames, lastNames: testAdministrator.lastNames, email: testAdministrator.email, roleId: role.id }
     })
     const passwordHash = await hashPassword(testAdministrator.password)
     await prisma.administrativeCredential.upsert({
@@ -102,7 +104,9 @@ async function main() {
     const student = await prisma.studentUser.upsert({
       where: { email: testStudent.email },
       update: {
-        name: testStudent.name,
+        name: `${testStudent.firstNames} ${testStudent.lastNames}`,
+        firstNames: testStudent.firstNames,
+        lastNames: testStudent.lastNames,
         isStudent: true,
         status: 'ACTIVO',
         blockedUntil: null,
@@ -110,7 +114,9 @@ async function main() {
         deletedAt: null
       },
       create: {
-        name: testStudent.name,
+        name: `${testStudent.firstNames} ${testStudent.lastNames}`,
+        firstNames: testStudent.firstNames,
+        lastNames: testStudent.lastNames,
         email: testStudent.email,
         isStudent: true,
         status: 'ACTIVO'

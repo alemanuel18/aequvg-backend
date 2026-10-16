@@ -19,7 +19,7 @@ export const usersRoutes = new Elysia({ prefix: '/api/v1/admin' })
     await requireAdmin(request, 'USERS_MANAGE')
     return registrationService.list()
   }, {
-    response: { 200: t.Array(t.Object({ id: t.Integer(), name: t.String(), email: t.String(), status: t.Literal('PENDIENTE'), createdAt: t.Date() })), 401: usersErrorResponse, 403: usersErrorResponse },
+    response: { 200: t.Array(t.Object({ id: t.Integer(), name: t.String(), firstNames: t.String(), lastNames: t.String(), email: t.String(), status: t.Literal('PENDIENTE'), createdAt: t.Date() })), 401: usersErrorResponse, 403: usersErrorResponse },
     detail: { tags: ['Administración'], summary: 'Lista solicitudes de cuentas administrativas pendientes' }
   })
   .post('/registration-requests/:id/review', async ({ request, params, body }) => {
