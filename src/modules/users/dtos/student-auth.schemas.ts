@@ -20,6 +20,11 @@ export const studentDeleteBody = t.Object({
   confirm: t.Literal(true)
 }, { additionalProperties: false })
 
+export const studentProfileBody = t.Object({
+  firstNames: t.String({ minLength: 2, maxLength: 80 }),
+  lastNames: t.String({ minLength: 2, maxLength: 80 })
+}, { additionalProperties: false, minProperties: 1 })
+
 export const studentUserResponse = t.Object({
   id: t.Integer(),
   name: t.String(),
