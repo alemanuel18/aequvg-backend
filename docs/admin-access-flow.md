@@ -26,7 +26,7 @@ No se modifica ningún contrato API en esta entrega. Esquemas y respuestas exact
 | `GET /api/v1/auth/me` | Sesión válida | Devuelve el perfil y permisos actuales. |
 | `POST /api/v1/auth/logout` | Sesión y CSRF | Revoca sesión; responde `204`. |
 | `GET /api/v1/auth/microsoft` y callback | Configuración Entra ID y cuenta ya aprovisionada | Flujo OpenID Connect con PKCE; no crea usuarios. Actualmente no está conectado a un botón de la UI. |
-| `POST /api/v1/auth/registration-requests` | Público; rate limit | Solicita cuenta con nombre, correo y contraseña; queda pendiente, sin sesión ni acceso. No hay formulario en el frontend. |
+| `POST /api/v1/auth/registration-requests` | Público; rate limit | Solicita cuenta con `firstNames`, `lastNames`, correo y contraseña; queda pendiente, sin sesión ni acceso. |
 | `GET /api/v1/admin/registration-requests` | `USERS_MANAGE` | Lista solicitudes pendientes. |
 | `POST /api/v1/admin/registration-requests/:id/review` | `USERS_MANAGE` + CSRF | Recibe aprobación con `roleId` o rechazo. La aprobación crea la cuenta activa. |
 | `GET /api/v1/admin/roles`, `/users` | `ROLES_READ` o `USERS_MANAGE` | Lee roles asignables o cuentas. |

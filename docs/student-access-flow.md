@@ -10,7 +10,7 @@ Una cuenta estudiantil nunca contiene un rol configurable ni permisos administra
 
 | Método | Ruta | Sesión | Resultado |
 | --- | --- | --- | --- |
-| `POST` | `/api/v1/student-auth/register` | Anónima | Crea la cuenta estudiantil; exige nombre, correo `@uvg.edu.gt`, contraseña robusta e `isStudent: true`. |
+| `POST` | `/api/v1/student-auth/register` | Anónima | Crea la cuenta estudiantil; exige `firstNames`, `lastNames`, correo `@uvg.edu.gt`, contraseña robusta e `isStudent: true`. |
 | `POST` | `/api/v1/student-auth/login` | Anónima | Crea cookies estudiantiles separadas y devuelve perfil, CSRF y expiración. |
 | `GET` | `/api/v1/student-auth/me` | Estudiante | Consulta la sesión vigente. |
 | `POST` | `/api/v1/student-auth/logout` | Estudiante + CSRF | Revoca la sesión y elimina las cookies. |

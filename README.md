@@ -58,7 +58,7 @@ La API usa el prefijo `/api/v1`. OpenAPI se publica en `http://localhost:3000/op
 
 ## Acceso de estudiantes
 
-El portal estudiantil usa `/api/v1/student-auth/register`, `/login`, `/me`, `/logout` y `/account`. Solo admite estudiantes actuales con correo `@uvg.edu.gt`; no incluye aspirantes. Las cuentas, credenciales, sesiones, cookies y audiencia JWT estudiantiles están separadas por completo de las administrativas. El servidor asigna siempre `STUDENT`, rechaza campos adicionales como `role`, filtra nombres antes del alta y revoca sesiones al cerrar o dar de baja la cuenta.
+El portal estudiantil usa `/api/v1/student-auth/register`, `/login`, `/me`, `/logout` y `/account`. Solo admite estudiantes actuales con correo `@uvg.edu.gt`; no incluye aspirantes. El registro recibe `firstNames` y `lastNames`, que se almacenan en columnas separadas. Las cuentas, credenciales, sesiones, cookies y audiencia JWT estudiantiles están separadas por completo de las administrativas. El servidor asigna siempre `STUDENT`, rechaza campos adicionales como `role`, filtra nombres y apellidos antes del alta y revoca sesiones al cerrar o dar de baja la cuenta.
 
 Los estados son `ACTIVO`, `BLOQUEADO_TEMPORAL`, `BLOQUEADO_PERMANENTE` y `ELIMINADO`. Las respuestas de bloqueo incluyen respectivamente la fecha de fin o el canal de revisión. `PATCH /api/v1/admin/student-users/:id/status`, protegido por `USERS_MANAGE`, coordina MOD y revoca sesiones de forma transaccional. Consulta contratos, matriz de acceso, coordinación con MOD/BAJA y evidencia en [`docs/student-access-flow.md`](docs/student-access-flow.md). La colección Hoppscotch incluye el flujo manual y OpenAPI publica el tag `Acceso estudiantil`.
 
@@ -76,7 +76,7 @@ Estas credenciales son públicas y sirven exclusivamente para desarrollo y prueb
 
 ## Autenticación y perfiles administrativos
 
-Las solicitudes de cuenta se envían desde `POST /api/v1/auth/registration-requests` con nombre, correo `@uvg.edu.gt` y contraseña. Se guardan como pendientes y no crean una cuenta ni otorgan acceso. Una persona con `USERS_MANAGE` puede consultarlas en `GET /api/v1/admin/registration-requests` y aprobarlas con un rol o rechazarlas mediante `POST /api/v1/admin/registration-requests/:id/review`. La aprobación crea la cuenta activa y mueve el hash de contraseña a sus credenciales; al resolver la solicitud, el hash se elimina de la solicitud. Los cambios administrativos requieren CSRF. Quien aprueba debe verificar la identidad del solicitante por un canal institucional antes de aprobar.
+Las solicitudes de cuenta se envían desde `POST /api/v1/auth/registration-requests` con `firstNames`, `lastNames`, correo `@uvg.edu.gt` y contraseña. Nombres y apellidos se almacenan en columnas separadas. Se guardan como pendientes y no crean una cuenta ni otorgan acceso. Una persona con `USERS_MANAGE` puede consultarlas en `GET /api/v1/admin/registration-requests` y aprobarlas con un rol o rechazarlas mediante `POST /api/v1/admin/registration-requests/:id/review`. La aprobación crea la cuenta activa y mueve el hash de contraseña a sus credenciales; al resolver la solicitud, el hash se elimina de la solicitud. Los cambios administrativos requieren CSRF. Quien aprueba debe verificar la identidad del solicitante por un canal institucional antes de aprobar.
 
 Los cuatro perfiles definidos en la planificación son:
 
@@ -105,6 +105,8 @@ La API admite dos formas de inicio de sesión:
 - `GET /api/v1/auth/microsoft`: crea un desafío OpenID Connect con Authorization Code, PKCE, `state` y `nonce`, y devuelve `authorizationUrl`. El callback es `GET /api/v1/auth/microsoft/callback`. Se validan firma RS256, tenant, audiencia, expiración y `nonce` del ID token.
 
 Microsoft no crea administradores automáticamente. La cuenta debe existir en `usuario_administrativo`, estar activa y pertenecer a un rol activo; el primer acceso enlaza su `sub` de Microsoft con el usuario ya aprobado.
+
+Las contraseñas locales de ambos perfiles se procesan con `scrypt` y una sal criptográfica aleatoria antes de persistirse. Solo se almacena el hash codificado en `credencial_administrativa` o `credencial_estudiante`; nunca se guarda ni se registra la contraseña original. Las solicitudes administrativas conservan temporalmente ese mismo hash, no texto plano, hasta ser aprobadas o rechazadas.
 
 Otros endpoints:
 

@@ -443,7 +443,7 @@
           "params": [],
           "headers": [{ "key": "Content-Type", "value": "application/json", "active": true }],
           "auth": { "authType": "none", "authActive": true },
-          "body": { "contentType": "application/json", "body": "{\n  \"name\": \"Estudiante de Prueba\",\n  \"email\": \"<<studentEmail>>\",\n  \"password\": \"<<studentPassword>>\",\n  \"isStudent\": true\n}" }
+          "body": { "contentType": "application/json", "body": "{\n  \"firstNames\": \"Estudiante\",\n  \"lastNames\": \"de Prueba\",\n  \"email\": \"<<studentEmail>>\",\n  \"password\": \"<<studentPassword>>\",\n  \"isStudent\": true\n}" }
         },
         {
           "v": "1",
@@ -453,7 +453,7 @@
           "params": [],
           "headers": [{ "key": "Content-Type", "value": "application/json", "active": true }],
           "auth": { "authType": "none", "authActive": true },
-          "body": { "contentType": "application/json", "body": "{\n  \"name\": \"Estudiante de Prueba\",\n  \"email\": \"otra.cuenta@uvg.edu.gt\",\n  \"password\": \"<<studentPassword>>\",\n  \"isStudent\": true,\n  \"role\": \"ADMIN\"\n}" }
+          "body": { "contentType": "application/json", "body": "{\n  \"firstNames\": \"Estudiante\",\n  \"lastNames\": \"de Prueba\",\n  \"email\": \"otra.cuenta@uvg.edu.gt\",\n  \"password\": \"<<studentPassword>>\",\n  \"isStudent\": true,\n  \"role\": \"ADMIN\"\n}" }
         },
         {
           "v": "1",
@@ -652,7 +652,7 @@
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"name\": \"Secretaria de prueba\",\n  \"email\": \"secretaria.prueba@uvg.edu.gt\",\n  \"roleId\": 1,\n  \"password\": \"Change-this-test-password-123!\"\n}"
+            "body": "{\n  \"firstNames\": \"Secretaria\",\n  \"lastNames\": \"de prueba\",\n  \"email\": \"secretaria.prueba@uvg.edu.gt\",\n  \"roleId\": 1,\n  \"password\": \"Change-this-test-password-123!\"\n}"
           }
         },
         {
