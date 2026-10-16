@@ -54,10 +54,10 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
 
   it('rechaza correos externos, condición falsa, nombres ofensivos y campos de rol', async () => {
     const cases = [
-      { name: 'Estudiante UVG', email: `${runId}@example.com`, password, isStudent: true },
-      { name: 'Estudiante UVG', email: `${runId}-false@uvg.edu.gt`, password, isStudent: false },
-      { name: 'Nombre cerote', email: `${runId}-offensive@uvg.edu.gt`, password, isStudent: true },
-      { name: 'Estudiante UVG', email: `${runId}-role@uvg.edu.gt`, password, isStudent: true, role: 'ADMIN' }
+      { firstNames: 'Estudiante', lastNames: 'UVG', email: `${runId}@example.com`, password, isStudent: true },
+      { firstNames: 'Estudiante', lastNames: 'UVG', email: `${runId}-false@uvg.edu.gt`, password, isStudent: false },
+      { firstNames: 'Nombre', lastNames: 'cerote', email: `${runId}-offensive@uvg.edu.gt`, password, isStudent: true },
+      { firstNames: 'Estudiante', lastNames: 'UVG', email: `${runId}-role@uvg.edu.gt`, password, isStudent: true, role: 'ADMIN' }
     ]
     for (const body of cases) {
       const response = await app.handle(request('/api/v1/student-auth/register', {
@@ -68,15 +68,18 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
   })
 
   it('registra una cuenta estudiantil en su tabla y evita duplicados', async () => {
-    const payload = { name: 'Estudiante de integración', email, password, isStudent: true }
+    const payload = { firstNames: 'Estudiante', lastNames: 'de integración', email, password, isStudent: true }
     const created = await app.handle(request('/api/v1/student-auth/register', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload)
     }))
     expect(created.status).toBe(201)
-    const body = await created.json() as { id: number; role: string; isStudent: boolean }
+    const body = await created.json() as { id: number; name: string; firstNames: string; lastNames: string; role: string; isStudent: boolean }
     userId = body.id
-    expect(body).toMatchObject({ role: 'STUDENT', isStudent: true })
-    expect(await prisma.studentUser.findUnique({ where: { id: userId } })).toBeTruthy()
+    expect(body).toMatchObject({ name: 'Estudiante de integración', firstNames: 'Estudiante', lastNames: 'de integración', role: 'STUDENT', isStudent: true })
+    expect(await prisma.studentUser.findUnique({ where: { id: userId } })).toMatchObject({ firstNames: 'Estudiante', lastNames: 'de integración' })
+    const credential = await prisma.studentCredential.findUnique({ where: { userId } })
+    expect(credential?.passwordHash).toMatch(/^scrypt\$/)
+    expect(credential?.passwordHash).not.toBe(password)
     expect(await prisma.administrativeUser.findUnique({ where: { email } })).toBeNull()
 
     const duplicate = await app.handle(request('/api/v1/student-auth/register', {

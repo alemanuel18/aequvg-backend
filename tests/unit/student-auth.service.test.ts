@@ -20,6 +20,8 @@ import { hashPassword } from '../../src/shared/utils/auth-crypto'
 const activeStudent = async () => ({
   id: 41,
   name: 'Estudiante UVG',
+  firstNames: 'Estudiante',
+  lastNames: 'UVG',
   email: 'estudiante@uvg.edu.gt',
   isStudent: true,
   status: 'ACTIVO' as const,
@@ -43,17 +45,19 @@ describe('servicio de acceso estudiantil', () => {
     const user = await activeStudent()
     repositoryMocks.createUser.mockResolvedValue(user)
     await expect(studentAuthService.register({
-      name: ' Estudiante UVG ',
+      firstNames: ' Estudiante ',
+      lastNames: ' UVG ',
       email: 'ESTUDIANTE@UVG.EDU.GT',
       password: 'Clave-estudiante-123!',
       isStudent: true
     })).resolves.toMatchObject({ role: 'STUDENT', isStudent: true })
-    expect(repositoryMocks.createUser).toHaveBeenCalledWith(expect.objectContaining({ name: 'Estudiante UVG', email: 'estudiante@uvg.edu.gt' }))
+    expect(repositoryMocks.createUser).toHaveBeenCalledWith(expect.objectContaining({ name: 'Estudiante UVG', firstNames: 'Estudiante', lastNames: 'UVG', email: 'estudiante@uvg.edu.gt' }))
   })
 
   it('rechaza nombres ofensivos antes de crear la cuenta', async () => {
     await expect(studentAuthService.register({
-      name: 'Nombre cerote',
+      firstNames: 'Nombre',
+      lastNames: 'cerote',
       email: 'estudiante@uvg.edu.gt',
       password: 'Clave-estudiante-123!',
       isStudent: true
@@ -63,7 +67,8 @@ describe('servicio de acceso estudiantil', () => {
 
   it('rechaza una asignación de rol aunque el cliente la incluya', async () => {
     await expect(studentAuthService.register({
-      name: 'Estudiante UVG',
+      firstNames: 'Estudiante',
+      lastNames: 'UVG',
       email: 'estudiante@uvg.edu.gt',
       password: 'Clave-estudiante-123!',
       isStudent: true,

@@ -7,6 +7,7 @@ const describeDatabase = process.env.AUTH_DATABASE_TEST === 'true' ? describe : 
 const runId = `auth-test-${Date.now()}`
 const email = `${runId}@uvg.edu.gt`
 const password = 'Clave-integracion-123!'
+const requestEmail = `${runId}-solicitud@uvg.edu.gt`
 const userAgent = 'AEQUVG-Auth-Integration/1.0'
 let roleId = 0
 let userId = 0
@@ -35,6 +36,7 @@ describeDatabase('autenticación y RBAC con PostgreSQL', () => {
   })
 
   afterAll(async () => {
+    await prisma.administrativeRegistrationRequest.deleteMany({ where: { email: requestEmail } })
     await prisma.administrativeCredential.deleteMany({ where: { userId: { in: [userId, createdUserId].filter(Boolean) } } })
     await prisma.administrativeUser.deleteMany({ where: { id: { in: [userId, createdUserId].filter(Boolean) } } })
     await prisma.rolePermission.deleteMany({ where: { roleId } })
@@ -64,8 +66,21 @@ describeDatabase('autenticación y RBAC con PostgreSQL', () => {
     expect(await me.json()).toEqual({ user: expect.objectContaining({ id: userId, email }) })
   })
 
+  it('guarda nombres y apellidos separados y solo el hash en solicitudes administrativas', async () => {
+    const response = await app.handle(request('/api/v1/auth/registration-requests', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ firstNames: 'María Fernanda', lastNames: 'López Pérez', email: requestEmail, password })
+    }))
+    expect(response.status).toBe(200)
+    const saved = await prisma.administrativeRegistrationRequest.findFirst({ where: { email: requestEmail } })
+    expect(saved).toMatchObject({ name: 'María Fernanda López Pérez', firstNames: 'María Fernanda', lastNames: 'López Pérez' })
+    expect(saved?.passwordHash).toMatch(/^scrypt\$/)
+    expect(saved?.passwordHash).not.toBe(password)
+  })
+
   it('exige CSRF y asigna un rol al crear una cuenta institucional', async () => {
-    const payload = { name: 'Secretaria de integración', email: `${runId}-secretaria@uvg.edu.gt`, roleId, password: 'Otra-clave-segura-123!' }
+    const payload = { firstNames: 'Secretaria', lastNames: 'de integración', email: `${runId}-secretaria@uvg.edu.gt`, roleId, password: 'Otra-clave-segura-123!' }
     const withoutCsrf = await app.handle(request('/api/v1/admin/users', {
       method: 'POST', headers: { cookie: cookieHeader, 'content-type': 'application/json', 'user-agent': userAgent }, body: JSON.stringify(payload)
     }))
@@ -78,10 +93,14 @@ describeDatabase('autenticación y RBAC con PostgreSQL', () => {
       body: JSON.stringify(payload)
     }))
     expect(created.status).toBe(201)
-    const createdBody = await created.json() as { id: number; role: { id: number }; authenticationProviders: string[] }
+    const createdBody = await created.json() as { id: number; name: string; firstNames: string; lastNames: string; role: { id: number }; authenticationProviders: string[] }
     createdUserId = createdBody.id
     expect(createdBody.role.id).toBe(roleId)
+    expect(createdBody).toMatchObject({ name: 'Secretaria de integración', firstNames: 'Secretaria', lastNames: 'de integración' })
     expect(createdBody.authenticationProviders).toContain('PASSWORD')
+    const credential = await prisma.administrativeCredential.findUnique({ where: { userId: createdUserId } })
+    expect(credential?.passwordHash).toMatch(/^scrypt\$/)
+    expect(credential?.passwordHash).not.toBe(payload.password)
   })
 
   it('revoca y bloquea inmediatamente las sesiones al desactivar una cuenta', async () => {
