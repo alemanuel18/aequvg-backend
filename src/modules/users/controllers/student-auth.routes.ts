@@ -1,7 +1,7 @@
 import { Elysia, t } from 'elysia'
 import { clearAuthFailures, enforceAuthRateLimit, enforceRegistrationRateLimit, recordAuthFailure, recordRegistrationAttempt } from '../../../middleware/auth-rate-limit'
 import { AppError } from '../../../shared/errors/app-error'
-import { studentAuthErrorResponse, studentDeleteBody, studentLoginBody, studentRegisterBody, studentSessionResponse, studentUserResponse } from '../dtos/student-auth.schemas'
+import { studentAuthErrorResponse, studentDeleteBody, studentLoginBody, studentProfileBody, studentRegisterBody, studentSessionResponse, studentUserResponse } from '../dtos/student-auth.schemas'
 import { STUDENT_AUTH_COOKIE, STUDENT_CSRF_COOKIE, STUDENT_DEVICE_COOKIE, studentAuthService } from '../services/student-auth.service'
 
 const secureCookies = () => process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === 'true'
@@ -43,6 +43,14 @@ export const studentAuthRoutes = new Elysia({ prefix: '/api/v1/student-auth' })
   }, {
     response: { 200: studentSessionResponse, 401: studentAuthErrorResponse, 403: studentAuthErrorResponse },
     detail: { tags: ['Acceso estudiantil'], summary: 'Consulta la sesión estudiantil actual' }
+  })
+  .patch('/me', async ({ request, body }) => {
+    const authenticated = await studentAuthService.authenticate(request)
+    return { user: await studentAuthService.updateOwnProfile(authenticated.user.id, body) }
+  }, {
+    body: studentProfileBody,
+    response: { 200: studentSessionResponse, 401: studentAuthErrorResponse, 403: studentAuthErrorResponse, 404: studentAuthErrorResponse, 422: studentAuthErrorResponse },
+    detail: { tags: ['Acceso estudiantil'], summary: 'Actualiza los nombres del perfil estudiantil propio' }
   })
   .post('/logout', async ({ cookie, request, set }) => {
     await studentAuthService.authenticate(request)

@@ -126,6 +126,38 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
     const me = await app.handle(request('/api/v1/student-auth/me', { headers: { cookie: studentCookies, 'user-agent': userAgent } }))
     expect(me.status).toBe(200)
 
+    const profile = await app.handle(request('/api/v1/student-auth/me', {
+      method: 'PATCH',
+      headers: { cookie: studentCookies, 'user-agent': userAgent, 'x-csrf-token': studentCsrf, 'content-type': 'application/json' },
+      body: JSON.stringify({ firstNames: 'Ana María', lastNames: 'de integración' })
+    }))
+    expect(profile.status).toBe(200)
+    expect(await prisma.studentUser.findUnique({ where: { id: userId } })).toMatchObject({
+      name: 'Ana María de integración', firstNames: 'Ana María', lastNames: 'de integración'
+    })
+
+    for (const protectedPayload of [
+      { firstNames: 'No debe guardarse', lastNames: 'Cambio', id: userId + 1 },
+      { firstNames: 'No debe guardarse', lastNames: 'Cambio', status: 'ACTIVO' },
+      { firstNames: 'No debe guardarse', lastNames: 'Cambio', role: 'ADMIN' },
+      { firstNames: 'No debe guardarse', lastNames: 'Cambio', isStudent: false }
+    ]) {
+      const rejected = await app.handle(request('/api/v1/student-auth/me', {
+        method: 'PATCH',
+        headers: { cookie: studentCookies, 'user-agent': userAgent, 'x-csrf-token': studentCsrf, 'content-type': 'application/json' },
+        body: JSON.stringify(protectedPayload)
+      }))
+      expect(rejected.status).toBe(422)
+      expect(await prisma.studentUser.findUnique({ where: { id: userId } })).toMatchObject({
+        name: 'Ana María de integración', firstNames: 'Ana María', lastNames: 'de integración', status: 'ACTIVO', isStudent: true
+      })
+    }
+
+    const anonymousUpdate = await app.handle(request('/api/v1/student-auth/me', {
+      method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ firstNames: 'Ajeno', lastNames: 'Cambio' })
+    }))
+    expect(anonymousUpdate.status).toBe(401)
+
     const logout = await app.handle(request('/api/v1/student-auth/logout', {
       method: 'POST', headers: { cookie: studentCookies, 'user-agent': userAgent, 'x-csrf-token': studentCsrf }
     }))

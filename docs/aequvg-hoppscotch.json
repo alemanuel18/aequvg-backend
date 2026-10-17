@@ -477,6 +477,19 @@
         },
         {
           "v": "1",
+          "name": "Actualizar perfil propio",
+          "method": "PATCH",
+          "endpoint": "<<baseUrl>>/student-auth/me",
+          "params": [],
+          "headers": [
+            { "key": "Content-Type", "value": "application/json", "active": true },
+            { "key": "X-CSRF-Token", "value": "<<studentCsrfToken>>", "active": true }
+          ],
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": "application/json", "body": "{\n  \"firstNames\": \"Ana María\",\n  \"lastNames\": \"López Pérez\"\n}" }
+        },
+        {
+          "v": "1",
           "name": "Cerrar sesión estudiantil",
           "method": "POST",
           "endpoint": "<<baseUrl>>/student-auth/logout",

@@ -7,6 +7,14 @@ export const studentAuthRepository = {
     where: { email }, include: studentAuthenticationInclude
   }),
 
+  findUserById: (id: number) => prisma.studentUser.findUnique({
+    where: { id }, include: studentAuthenticationInclude
+  }),
+
+  updateProfile: (id: number, data: { name: string; firstNames: string; lastNames: string }) => prisma.studentUser.update({
+    where: { id }, data, include: studentAuthenticationInclude
+  }),
+
   findSession: (id: string) => prisma.studentSession.findUnique({
     where: { id }, include: { user: { include: studentAuthenticationInclude } }
   }),

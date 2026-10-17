@@ -135,6 +135,23 @@ export const studentAuthService = {
     return { sessionId: session.id, user }
   },
 
+  async updateOwnProfile(userId: number, input: { firstNames: string; lastNames: string }) {
+    const firstNames = input.firstNames.trim().replace(/\s+/g, ' ')
+    const lastNames = input.lastNames.trim().replace(/\s+/g, ' ')
+    const name = `${firstNames} ${lastNames}`
+    if (firstNames.length < 2 || lastNames.length < 2 || firstNames.length > 80 || lastNames.length > 80 || name.length > 160) {
+      throw new AppError(422, 'INVALID_NAME', 'Escribe nombres y apellidos válidos.')
+    }
+    if (containsOffensiveName(name)) throw new AppError(422, 'OFFENSIVE_NAME', 'Los nombres o apellidos contienen términos no permitidos.')
+    try {
+      const user = await studentAuthRepository.updateProfile(userId, { name, firstNames, lastNames })
+      return publicUser(user)
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') throw new AppError(404, 'STUDENT_NOT_FOUND', 'La cuenta estudiantil no existe.')
+      throw error
+    }
+  },
+
   async revokeFromRequest(request: Request, reason = 'LOGOUT') {
     const cookies = Object.fromEntries((request.headers.get('cookie') ?? '').split(';').map(part => part.trim().split(/=(.*)/s, 2)).filter(([name]) => name))
     const token = cookies[STUDENT_AUTH_COOKIE]

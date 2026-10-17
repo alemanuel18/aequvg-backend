@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const repositoryMocks = vi.hoisted(() => ({
   findUserByEmail: vi.fn(),
+  findUserById: vi.fn(),
+  updateProfile: vi.fn(),
   findSession: vi.fn(),
   createUser: vi.fn(),
   createSession: vi.fn(),
@@ -63,6 +65,18 @@ describe('servicio de acceso estudiantil', () => {
       isStudent: true
     })).rejects.toMatchObject({ status: 422, code: 'OFFENSIVE_NAME' })
     expect(repositoryMocks.createUser).not.toHaveBeenCalled()
+  })
+
+  it('normaliza y modera los nombres del perfil antes de persistirlos', async () => {
+    const user = await activeStudent()
+    repositoryMocks.updateProfile.mockResolvedValue({ ...user, firstNames: 'Ana María', lastNames: 'López Pérez', name: 'Ana María López Pérez' })
+    await expect(studentAuthService.updateOwnProfile(41, { firstNames: ' Ana   María ', lastNames: ' López Pérez ' }))
+      .resolves.toMatchObject({ firstNames: 'Ana María', lastNames: 'López Pérez', name: 'Ana María López Pérez' })
+    expect(repositoryMocks.updateProfile).toHaveBeenCalledWith(41, { name: 'Ana María López Pérez', firstNames: 'Ana María', lastNames: 'López Pérez' })
+
+    await expect(studentAuthService.updateOwnProfile(41, { firstNames: 'Nombre', lastNames: 'cerote' }))
+      .rejects.toMatchObject({ status: 422, code: 'OFFENSIVE_NAME' })
+    expect(repositoryMocks.updateProfile).toHaveBeenCalledTimes(1)
   })
 
   it('rechaza una asignación de rol aunque el cliente la incluya', async () => {
