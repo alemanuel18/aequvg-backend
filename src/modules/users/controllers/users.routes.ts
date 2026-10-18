@@ -4,6 +4,8 @@ import { AppError } from '../../../shared/errors/app-error'
 import { createUserBody, passwordBody, roleListResponse, updateUserBody, userIdParams, userListResponse, userResponse, usersErrorResponse } from '../dtos/users.schemas'
 import { usersService } from '../services/users.service'
 import { registrationService } from '../services/registration.service'
+import { studentAuthErrorResponse, studentStatusBody, studentUserResponse } from '../dtos/student-auth.schemas'
+import { studentAuthService } from '../services/student-auth.service'
 
 export const usersRoutes = new Elysia({ prefix: '/api/v1/admin' })
   .get('/roles', async ({ request }) => {
@@ -17,7 +19,7 @@ export const usersRoutes = new Elysia({ prefix: '/api/v1/admin' })
     await requireAdmin(request, 'USERS_MANAGE')
     return registrationService.list()
   }, {
-    response: { 200: t.Array(t.Object({ id: t.Integer(), name: t.String(), email: t.String(), status: t.Literal('PENDIENTE'), createdAt: t.Date() })), 401: usersErrorResponse, 403: usersErrorResponse },
+    response: { 200: t.Array(t.Object({ id: t.Integer(), name: t.String(), firstNames: t.String(), lastNames: t.String(), email: t.String(), status: t.Literal('PENDIENTE'), createdAt: t.Date() })), 401: usersErrorResponse, 403: usersErrorResponse },
     detail: { tags: ['Administración'], summary: 'Lista solicitudes de cuentas administrativas pendientes' }
   })
   .post('/registration-requests/:id/review', async ({ request, params, body }) => {
@@ -66,4 +68,13 @@ export const usersRoutes = new Elysia({ prefix: '/api/v1/admin' })
     params: userIdParams, body: passwordBody,
     response: { 200: t.Object({ message: t.String() }), 401: usersErrorResponse, 403: usersErrorResponse, 404: usersErrorResponse, 422: usersErrorResponse },
     detail: { tags: ['Administración'], summary: 'Establece una contraseña y revoca las sesiones anteriores' }
+  })
+  .patch('/student-users/:id/status', async ({ request, params, body }) => {
+    await requireAdmin(request, 'USERS_MANAGE')
+    return studentAuthService.updateStatus(params.id, body)
+  }, {
+    params: userIdParams,
+    body: studentStatusBody,
+    response: { 200: studentUserResponse, 401: studentAuthErrorResponse, 403: studentAuthErrorResponse, 404: studentAuthErrorResponse, 422: studentAuthErrorResponse },
+    detail: { tags: ['Administración'], summary: 'Actualiza el estado estudiantil y revoca todas sus sesiones' }
   })

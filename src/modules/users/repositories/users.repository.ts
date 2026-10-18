@@ -16,17 +16,17 @@ export const usersRepository = {
     include: { permissions: { include: { permission: true } } },
     orderBy: { name: 'asc' }
   }),
-  create: (data: { name: string; email: string; roleId: number; passwordHash?: string }) => prisma.$transaction(async tx => {
+  create: (data: { name: string; firstNames: string; lastNames: string; email: string; roleId: number; passwordHash?: string }) => prisma.$transaction(async tx => {
     const user = await tx.administrativeUser.create({
-      data: { name: data.name, email: data.email, roleId: data.roleId }
+      data: { name: data.name, firstNames: data.firstNames, lastNames: data.lastNames, email: data.email, roleId: data.roleId }
     })
     if (data.passwordHash) await tx.administrativeCredential.create({ data: { userId: user.id, passwordHash: data.passwordHash } })
     return tx.administrativeUser.findUniqueOrThrow({ where: { id: user.id }, include: publicInclude })
   }),
-  update: (id: number, data: { name?: string; roleId?: number; status?: AdministrativeUserStatus }) => prisma.administrativeUser.update({
+  update: (id: number, data: { firstNames?: string; lastNames?: string; roleId?: number; status?: AdministrativeUserStatus }) => prisma.administrativeUser.update({
     where: { id }, data, include: publicInclude
   }),
-  updateAndRevokeSessions: (id: number, data: { name?: string; roleId?: number; status?: AdministrativeUserStatus }, reason: string) => prisma.$transaction(async tx => {
+  updateAndRevokeSessions: (id: number, data: { firstNames?: string; lastNames?: string; roleId?: number; status?: AdministrativeUserStatus }, reason: string) => prisma.$transaction(async tx => {
     const user = await tx.administrativeUser.update({ where: { id }, data, include: publicInclude })
     await tx.administrativeSession.updateMany({
       where: { userId: id, revokedAt: null },

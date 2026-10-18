@@ -36,7 +36,7 @@ type JwtPayload = {
   iat: number
   exp: number
   iss: 'aequvg'
-  aud: 'aequvg-admin'
+  aud: 'aequvg-admin' | 'aequvg-student'
 }
 
 const jwtSecret = () => {
@@ -56,7 +56,7 @@ export const signSessionJwt = (payload: JwtPayload) => {
   return `${header}.${body}.${signature}`
 }
 
-export const verifySessionJwt = (token: string): JwtPayload => {
+const verifyJwt = (token: string, audience: JwtPayload['aud']): JwtPayload => {
   const [header, body, signature, extra] = token.split('.')
   if (!header || !body || !signature || extra) throw new AppError(401, 'INVALID_SESSION', 'La sesión no es válida.')
   const expected = createHmac('sha256', jwtSecret()).update(`${header}.${body}`).digest('base64url')
@@ -65,7 +65,7 @@ export const verifySessionJwt = (token: string): JwtPayload => {
     const parsedHeader = JSON.parse(Buffer.from(header, 'base64url').toString('utf8')) as { alg?: string; typ?: string }
     const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as JwtPayload
     const now = Math.floor(Date.now() / 1000)
-    if (parsedHeader.alg !== 'HS256' || parsedHeader.typ !== 'JWT' || payload.iss !== 'aequvg' || payload.aud !== 'aequvg-admin' || !payload.sub || !payload.sid || !payload.jti || payload.iat > now + 60 || payload.exp <= now || payload.exp <= payload.iat) {
+    if (parsedHeader.alg !== 'HS256' || parsedHeader.typ !== 'JWT' || payload.iss !== 'aequvg' || payload.aud !== audience || !payload.sub || !payload.sid || !payload.jti || payload.iat > now + 60 || payload.exp <= now || payload.exp <= payload.iat) {
       throw new Error('invalid claims')
     }
     return payload
@@ -73,6 +73,9 @@ export const verifySessionJwt = (token: string): JwtPayload => {
     throw new AppError(401, 'INVALID_SESSION', 'La sesión no es válida.')
   }
 }
+
+export const verifySessionJwt = (token: string) => verifyJwt(token, 'aequvg-admin')
+export const verifyStudentSessionJwt = (token: string) => verifyJwt(token, 'aequvg-student')
 
 export const pkceChallenge = (verifier: string) => createHash('sha256').update(verifier).digest('base64url')
 export const utf8 = (value: string) => encoder.encode(value)

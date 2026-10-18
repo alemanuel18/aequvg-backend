@@ -39,6 +39,8 @@ const sessionSecret = () => {
 const publicUser = (user: NonNullable<AuthenticatedUser>) => ({
   id: user.id,
   name: user.name,
+  firstNames: user.firstNames,
+  lastNames: user.lastNames,
   email: user.email,
   status: user.status,
   role: user.role.name,
