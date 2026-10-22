@@ -4,6 +4,8 @@ const repoMocks = vi.hoisted(() => ({
   listPublished: vi.fn(),
   listAll: vi.fn(),
   listFeatured: vi.fn(),
+  featuredNewsCandidates: vi.fn(),
+  featuredEventCandidates: vi.fn(),
   findById: vi.fn(),
   findExistingNews: vi.fn(),
   findExistingEvents: vi.fn(),
@@ -125,6 +127,25 @@ describe('servicio de contenido institucional', () => {
       newsIds: [1],
       eventIds: [1, 2, 3, 4]
     })).rejects.toThrowError(AppError)
+  })
+
+  it('busca candidatos por tipo y conserva los seleccionados fuera de los cuatro recientes', async () => {
+    repoMocks.listFeatured.mockResolvedValue([
+      { news: { id: 1, title: 'Noticia anterior', status: 'PUBLICADO', category: { name: 'Noticias' } }, event: null },
+      { news: null, event: { id: 2, name: 'Evento anterior', location: 'Campus', status: 'PUBLICADO' } }
+    ])
+    repoMocks.featuredNewsCandidates.mockResolvedValue([{ id: 3, title: 'Noticia reciente' }])
+    repoMocks.featuredEventCandidates.mockResolvedValue([{ id: 4, name: 'Evento reciente' }])
+
+    await expect(institutionalService.featuredCandidates('news', '  química  ')).resolves.toMatchObject({
+      items: [{ id: 3 }], selected: [{ id: 1 }]
+    })
+    expect(repoMocks.featuredNewsCandidates).toHaveBeenCalledWith('química')
+
+    await expect(institutionalService.featuredCandidates('events')).resolves.toMatchObject({
+      items: [{ id: 4 }], selected: [{ id: 2 }]
+    })
+    expect(repoMocks.featuredEventCandidates).toHaveBeenCalledWith('')
   })
 
   it('rechaza IDs duplicados en destacados', async () => {

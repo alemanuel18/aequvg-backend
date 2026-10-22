@@ -131,6 +131,29 @@ export const institutionalService = {
     return { newsIds, eventIds }
   },
 
+  featuredCandidates: async (kind: 'news' | 'events', query = '') => {
+    const q = cleanText(query).trim()
+    const featured = await institutionalRepository.listFeatured()
+    if (kind === 'news') {
+      const items = await institutionalRepository.featuredNewsCandidates(q)
+      const selected = featured.filter(item => item.news).map(item => ({
+        id: item.news!.id,
+        title: item.news!.title,
+        status: item.news!.status,
+        category: { name: item.news!.category.name }
+      }))
+      return { items, selected }
+    }
+    const items = await institutionalRepository.featuredEventCandidates(q)
+    const selected = featured.filter(item => item.event).map(item => ({
+      id: item.event!.id,
+      name: item.event!.name,
+      location: item.event!.location,
+      status: item.event!.status
+    }))
+    return { items, selected }
+  },
+
   saveFeatured: async (input: FeaturedInput) => {
     if (input.newsIds.length > 3) {
       throw new AppError(422, 'FEATURED_LIMIT_EXCEEDED', 'No se pueden destacar más de 3 noticias.')
