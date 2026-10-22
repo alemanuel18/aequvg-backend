@@ -46,6 +46,23 @@ describe('servicio de contenido institucional', () => {
     })).rejects.toThrowError(AppError)
   })
 
+  it('exige texto y destino para el botón principal del Hero', async () => {
+    const hero = { type: 'HERO' as const, title: 'Inicio', body: 'Descripción principal' }
+    await expect(institutionalService.create(hero)).rejects.toMatchObject({ code: 'HERO_ACTION_REQUIRED' })
+    await expect(institutionalService.create({ ...hero, actionLabel: 'Conocer la carrera' })).rejects.toMatchObject({ code: 'HERO_ACTION_REQUIRED' })
+    await expect(institutionalService.create({ ...hero, actionLabel: 'Conocer la carrera', actionUrl: '  ' })).rejects.toMatchObject({ code: 'HERO_ACTION_REQUIRED' })
+    repoMocks.create.mockResolvedValue({ id: 1 })
+    await expect(institutionalService.create({ ...hero, actionLabel: 'Conocer la carrera', actionUrl: '/contacto' })).resolves.toEqual({ id: 1 })
+  })
+
+  it('exige texto y destino juntos para los enlaces opcionales de anuncios', async () => {
+    const announcement = { type: 'LABORATORIO' as const, title: 'Laboratorios', body: 'Descripción del laboratorio' }
+    await expect(institutionalService.create({ ...announcement, actionLabel: 'Ver más' })).rejects.toMatchObject({ code: 'INCOMPLETE_ACTION' })
+    await expect(institutionalService.create({ ...announcement, actionUrl: '/contacto' })).rejects.toMatchObject({ code: 'INCOMPLETE_ACTION' })
+    repoMocks.create.mockResolvedValue({ id: 2 })
+    await expect(institutionalService.create(announcement)).resolves.toEqual({ id: 2 })
+  })
+
   it('impide superar el límite de 3 anuncios activos en Conocer la Licenciatura de Química', async () => {
     repoMocks.countActiveAnnouncements.mockResolvedValue(3)
 

@@ -523,6 +523,8 @@ Tipos permitidos: `EMAIL`, `TELEFONO`, `UBICACION`, `INSTAGRAM`, `FACEBOOK` y `O
 
 ### Agregar otra entidad
 
+En contenido institucional, todos los bloques requieren `type`, `title` y `body`. El bloque `HERO` requiere además `actionLabel` y `actionUrl` para su botón principal. En anuncios, estos dos campos son opcionales, pero deben enviarse juntos si se agrega un enlace. `subtitle` e `imageUrl` siguen siendo opcionales.
+
 Usa el mismo patrón repetible: busca una clave estable y luego actualiza o crea.
 
 ```ts
