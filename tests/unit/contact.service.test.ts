@@ -70,6 +70,29 @@ describe('normalización de solicitudes de contacto', () => {
     expect(repositoryMocks.createMethod).toHaveBeenCalledWith(expect.objectContaining({ type: 'OTRO', url: 'https://tiktok.com/@aeq', displayOrder: 0 }))
   })
 
+  it('agrega +502 y genera el enlace telefónico a partir de ocho dígitos', async () => {
+    repositoryMocks.allMethods.mockResolvedValue([])
+    repositoryMocks.createMethod.mockResolvedValue({ id: 1 })
+    await contactService.createMethod({ type: 'TELEFONO', label: 'Teléfono', value: '23688000', url: 'https://example.com' })
+    expect(repositoryMocks.createMethod).toHaveBeenCalledWith(expect.objectContaining({
+      value: '+502 2368 8000', url: 'tel:+50223688000'
+    }))
+
+    repositoryMocks.allMethods.mockResolvedValue([{ id: 1, type: 'TELEFONO', displayOrder: 0 }])
+    repositoryMocks.updateMethod.mockResolvedValue({ id: 1 })
+    await contactService.updateMethod(1, { type: 'TELEFONO', label: 'Teléfono', value: '+502 2368-8000' })
+    expect(repositoryMocks.updateMethod).toHaveBeenCalledWith(1, expect.objectContaining({
+      value: '+502 2368 8000', url: 'tel:+50223688000'
+    }))
+  })
+
+  it('rechaza números extranjeros o guatemaltecos incompletos', () => {
+    for (const value of ['1234567', '+50312345678', '123456789', '50223688000']) {
+      expect(() => contactService.createMethod({ type: 'TELEFONO', label: 'Teléfono', value }))
+        .toThrow(expect.objectContaining({ code: 'INVALID_CONTACT_PHONE' }))
+    }
+  })
+
   it('ordena ubicaciones al final y resuelve empates por ID', async () => {
     repositoryMocks.publicMethods.mockResolvedValue([
       { id: 4, type: 'UBICACION', displayOrder: 0 },

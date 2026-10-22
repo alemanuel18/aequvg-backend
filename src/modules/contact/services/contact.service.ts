@@ -29,13 +29,17 @@ const normalizeMethod = (input: MethodInput) => {
   if (label.length < 2 || value.length < 2) throw new AppError(422, 'INVALID_CONTACT_METHOD', 'Completa el nombre y el valor público del medio.')
   const suppliedUrl = input.url?.trim() || null
   let url = suppliedUrl
+  let normalizedValue = value
 
   if (input.type === 'EMAIL') {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) throw new AppError(422, 'INVALID_CONTACT_EMAIL', 'Ingresa un correo de contacto válido.', { value: 'El correo no es válido.' })
     url = `mailto:${value.toLowerCase()}`
   } else if (input.type === 'TELEFONO') {
-    if (!/^[+\d][\d\s().-]{6,39}$/.test(value)) throw new AppError(422, 'INVALID_CONTACT_PHONE', 'Ingresa un teléfono de contacto válido.', { value: 'El teléfono no es válido.' })
-    url = suppliedUrl ?? `tel:${value.replace(/[^+\d]/g, '')}`
+    const compactPhone = value.replace(/[\s().-]/g, '')
+    const nationalPhone = compactPhone.startsWith('+502') ? compactPhone.slice(4) : compactPhone
+    if (!/^\d{8}$/.test(nationalPhone)) throw new AppError(422, 'INVALID_CONTACT_PHONE', 'Ingresa los 8 dígitos de un número de Guatemala.', { value: 'Ingresa un número guatemalteco de 8 dígitos, sin +502.' })
+    normalizedValue = `+502 ${nationalPhone.slice(0, 4)} ${nationalPhone.slice(4)}`
+    url = `tel:+502${nationalPhone}`
   } else {
     if (!suppliedUrl || !isHttpUrl(suppliedUrl)) throw new AppError(422, 'CONTACT_URL_REQUIRED', 'Este medio requiere un enlace HTTPS válido.', { url: 'Ingresa un enlace válido.' })
     const parsedUrl = new URL(suppliedUrl)
@@ -45,7 +49,7 @@ const normalizeMethod = (input: MethodInput) => {
     }
   }
 
-  return { ...method, label, value: input.type === 'EMAIL' ? value.toLowerCase() : value, url, active: input.active ?? true }
+  return { ...method, label, value: input.type === 'EMAIL' ? value.toLowerCase() : normalizedValue, url, active: input.active ?? true }
 }
 
 const translateMissingMethod = (error: unknown): never => {
