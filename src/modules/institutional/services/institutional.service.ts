@@ -36,10 +36,18 @@ const normalizeOptionalText = (value?: string | null) => {
 }
 
 const normalize = (input: BlockInput, current?: { status: ContentStatus; publishedAt: Date | null }) => {
+  const actionLabel = normalizeOptionalText(input.actionLabel)
+  const actionUrl = input.actionUrl?.trim() || null
+  if (input.type === 'HERO' && (!actionLabel || !actionUrl)) {
+    throw new AppError(422, 'HERO_ACTION_REQUIRED', 'El botón principal requiere texto y enlace.')
+  }
+  if (input.type !== 'HERO' && Boolean(actionLabel) !== Boolean(actionUrl)) {
+    throw new AppError(422, 'INCOMPLETE_ACTION', 'El enlace del anuncio requiere texto y destino.')
+  }
   if (input.imageUrl && !isHttpUrl(input.imageUrl)) {
     throw new AppError(422, 'INVALID_IMAGE_URL', 'La URL de imagen debe usar HTTP o HTTPS.')
   }
-  if (input.actionUrl && !isHttpUrl(input.actionUrl) && !input.actionUrl.startsWith('/')) {
+  if (actionUrl && !isHttpUrl(actionUrl) && !actionUrl.startsWith('/')) {
     throw new AppError(422, 'INVALID_ACTION_URL', 'El enlace de acción no es válido.')
   }
   const status = input.status ?? current?.status ?? 'BORRADOR'
@@ -48,7 +56,8 @@ const normalize = (input: BlockInput, current?: { status: ContentStatus; publish
     title: normalizeRequiredText(input.title, 'title'),
     subtitle: normalizeOptionalText(input.subtitle),
     body: normalizeRequiredText(input.body, 'body'),
-    actionLabel: normalizeOptionalText(input.actionLabel),
+    actionLabel,
+    actionUrl,
     displayOrder: input.displayOrder ?? 0,
     status,
     publishedAt: status === 'PUBLICADO' ? current?.publishedAt ?? new Date() : null
@@ -120,6 +129,29 @@ export const institutionalService = {
     const newsIds = items.filter(item => item.newsId !== null).map(item => item.newsId!)
     const eventIds = items.filter(item => item.eventId !== null).map(item => item.eventId!)
     return { newsIds, eventIds }
+  },
+
+  featuredCandidates: async (kind: 'news' | 'events', query = '') => {
+    const q = cleanText(query).trim()
+    const featured = await institutionalRepository.listFeatured()
+    if (kind === 'news') {
+      const items = await institutionalRepository.featuredNewsCandidates(q)
+      const selected = featured.filter(item => item.news).map(item => ({
+        id: item.news!.id,
+        title: item.news!.title,
+        status: item.news!.status,
+        category: { name: item.news!.category.name }
+      }))
+      return { items, selected }
+    }
+    const items = await institutionalRepository.featuredEventCandidates(q)
+    const selected = featured.filter(item => item.event).map(item => ({
+      id: item.event!.id,
+      name: item.event!.name,
+      location: item.event!.location,
+      status: item.event!.status
+    }))
+    return { items, selected }
   },
 
   saveFeatured: async (input: FeaturedInput) => {

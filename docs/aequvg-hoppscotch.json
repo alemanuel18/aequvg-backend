@@ -1846,7 +1846,7 @@
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"type\": \"HERO\",\n  \"title\": \"Licenciatura en Química UVG\",\n  \"subtitle\": \"Liderazgo científico con excelencia analítica\",\n  \"body\": \"Formamos profesionales con capacidad innovadora para resolver los retos del país.\",\n  \"actionLabel\": \"Conocer el programa\",\n  \"actionUrl\": \"#conocer-carrera\",\n  \"displayOrder\": 0,\n  \"status\": \"PUBLICADO\"\n}"
+            "body": "{\n  \"type\": \"HERO\",\n  \"title\": \"Licenciatura en Química UVG\",\n  \"subtitle\": \"Liderazgo científico con excelencia analítica\",\n  \"body\": \"Formamos profesionales con capacidad innovadora para resolver los retos del país.\",\n  \"actionLabel\": \"Conocer el programa\",\n  \"actionUrl\": \"/contacto\",\n  \"displayOrder\": 0,\n  \"status\": \"PUBLICADO\"\n}"
           }
         },
         {
