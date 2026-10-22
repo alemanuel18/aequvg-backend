@@ -31,6 +31,11 @@ describe('normalización de solicitudes de contacto', () => {
   it('exige fecha tentativa para reuniones', () => expect(() => normalizeContactRequest({ ...valid, type: 'REUNION' })).toThrowError(AppError))
   it('rechaza el campo trampa contra bots', () => expect(() => normalizeContactRequest({ ...valid, website: 'https://spam.invalid' })).toThrowError(AppError))
 
+  it('rechaza campos obligatorios vacíos después de sanitizar', () => {
+    expect(() => normalizeContactRequest({ ...valid, subject: '<p> </p>' })).toThrowError(/obligatorios/)
+    expect(() => contactService.createMethod({ type: 'EMAIL', label: '<p> </p>', value: 'contacto@uvg.edu.gt' })).toThrowError(/nombre y el valor/)
+  })
+
   it('envía al correo oficial activo sin persistir una bandeja de solicitudes', async () => {
     repositoryMocks.primaryEmailMethod.mockResolvedValue({ value: 'contacto@uvg.edu.gt' })
     emailMocks.send.mockResolvedValue(undefined)

@@ -12,13 +12,21 @@ export const normalizeContactRequest = (input: RequestInput) => {
   if (!input.consent) throw new AppError(422, 'CONSENT_REQUIRED', 'Debes aceptar el aviso de privacidad.')
   if (input.website) throw new AppError(400, 'INVALID_REQUEST', 'La solicitud no es válida.')
   if (input.type === 'REUNION' && !input.preferredAt) throw new AppError(422, 'PREFERRED_DATE_REQUIRED', 'Indica una fecha tentativa para la reunión.', { preferredAt: 'Campo obligatorio para reuniones.' })
-  return { name: cleanText(input.name), email: input.email.trim().toLowerCase(), phone: cleanText(input.phone), type: input.type, subject: cleanText(input.subject), message: cleanText(input.message), preferredAt: input.preferredAt ? new Date(input.preferredAt) : null, consentedAt: new Date(), privacyVersion: cleanText(input.privacyVersion) }
+  const name = cleanText(input.name)
+  const phone = cleanText(input.phone)
+  const subject = cleanText(input.subject)
+  const message = cleanText(input.message)
+  if (name.length < 2 || phone.length < 7 || subject.length < 3 || message.length < 10 || !cleanText(input.privacyVersion)) {
+    throw new AppError(422, 'INVALID_CONTACT_REQUEST', 'Completa los campos obligatorios de la solicitud.')
+  }
+  return { name, email: input.email.trim().toLowerCase(), phone, type: input.type, subject, message, preferredAt: input.preferredAt ? new Date(input.preferredAt) : null, consentedAt: new Date(), privacyVersion: cleanText(input.privacyVersion) }
 }
 
 const normalizeMethod = (input: MethodInput) => {
   const { displayOrder: _displayOrder, ...method } = input
   const label = cleanText(input.label)
   const value = cleanText(input.value)
+  if (label.length < 2 || value.length < 2) throw new AppError(422, 'INVALID_CONTACT_METHOD', 'Completa el nombre y el valor público del medio.')
   const suppliedUrl = input.url?.trim() || null
   let url = suppliedUrl
 
