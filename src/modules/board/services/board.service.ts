@@ -3,7 +3,7 @@ import { AppError } from '../../../shared/errors/app-error'
 import { cleanText } from '../../../shared/utils/text'
 import { boardRepository } from '../repositories/board.repository'
 
-export type BoardInput = { name: string; position: string; description?: string | null; institutionalEmail: string; termStartsAt: string; termEndsAt: string; displayOrder?: number; status?: BoardMemberStatus }
+export type BoardInput = { name: string; position: string; description?: string | null; institutionalEmail: string; termStartsAt: string; termEndsAt: string; displayOrder?: number; status: BoardMemberStatus }
 
 const notFound = () => new AppError(404, 'BOARD_MEMBER_NOT_FOUND', 'El integrante de junta solicitado no existe.')
 
@@ -17,7 +17,7 @@ export const normalizeBoardInput = async (input: BoardInput, currentDisplayOrder
   const startYear = Number(input.termStartsAt.slice(0, 4))
   const endYear = Number(input.termEndsAt.slice(0, 4))
   const term = startYear === endYear ? String(startYear) : `${startYear}–${endYear}`
-  return { name, position, description: input.description ? cleanText(input.description) : null, institutionalEmail: email, term, termStartsAt: new Date(`${input.termStartsAt}T00:00:00.000Z`), termEndsAt: new Date(`${input.termEndsAt}T00:00:00.000Z`), displayOrder: input.displayOrder ?? currentDisplayOrder, status: input.status ?? 'ACTIVO' as BoardMemberStatus }
+  return { name, position, description: input.description ? cleanText(input.description) : null, institutionalEmail: email, term, termStartsAt: new Date(`${input.termStartsAt}T00:00:00.000Z`), termEndsAt: new Date(`${input.termEndsAt}T00:00:00.000Z`), displayOrder: input.displayOrder ?? currentDisplayOrder, status: input.status }
 }
 
 export const boardService = {

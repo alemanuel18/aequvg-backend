@@ -490,6 +490,8 @@ PostgreSQL no almacena el contenido de PDFs ni de ningún archivo. La tabla `arc
 
 ### Agregar un integrante
 
+La API administrativa exige `name`, `position`, `institutionalEmail` (`@uvg.edu.gt`), `termStartsAt`, `termEndsAt` y `status` (`ACTIVO` o `INACTIVO`). `description` es opcional y `displayOrder` se calcula cuando no se envía.
+
 Añade una tupla al arreglo `board` de `prisma/seed.ts`:
 
 ```ts
