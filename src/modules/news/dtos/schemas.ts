@@ -50,6 +50,10 @@ export const newsCategoryResponse = t.Object({
   active: t.Boolean()
 })
 
+export const newsCategoryCreateBody = t.Object({
+  name: t.String({ minLength: 2, maxLength: 80 })
+})
+
 export const newsResponse = t.Object({
   id: t.Integer(),
   categoryId: t.Integer(),

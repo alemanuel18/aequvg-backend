@@ -779,6 +779,33 @@
         },
         {
           "v": "1",
+          "name": "Crear categoría de noticias",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/news/categories",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"name\": \"Convocatorias\"\n}"
+          }
+        },
+        {
+          "v": "1",
           "name": "Crear noticia",
           "method": "POST",
           "endpoint": "<<baseUrl>>/admin/news",

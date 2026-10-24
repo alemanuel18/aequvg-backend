@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeNewsText, publicationDate } from '../../src/modules/news/services/news.service'
+import { normalizeNewsCategoryName, normalizeNewsText, publicationDate } from '../../src/modules/news/services/news.service'
 
 describe('servicio de noticias', () => {
   it('solo conserva la fecha para publicaciones activas', () => {
@@ -11,5 +11,11 @@ describe('servicio de noticias', () => {
   it('limpia HTML y rechaza contenido vacío después de normalizarlo', () => {
     expect(normalizeNewsText('  Noticia <strong>importante</strong>  ', 'title', 3)).toBe('Noticia importante')
     expect(() => normalizeNewsText('   <p></p>   ', 'summary', 10)).toThrowError(/summary/i)
+  })
+
+  it('normaliza nombres de categorías y aplica límites de longitud', () => {
+    expect(normalizeNewsCategoryName('  <strong>Comunidad</strong>  ')).toBe('Comunidad')
+    expect(() => normalizeNewsCategoryName('<p></p>')).toThrowError(/categoría/i)
+    expect(() => normalizeNewsCategoryName('x'.repeat(81))).toThrowError(/categoría/i)
   })
 })
