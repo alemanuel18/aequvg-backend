@@ -81,7 +81,7 @@ Ejemplo de creación de noticia:
 }
 ```
 
-`title` admite 3–220 caracteres, `summary` 10–2000 y `content` 20–20000. El servicio limpia HTML y rechaza valores vacíos después de normalizarlos. `imageId`, si se envía, debe referir un archivo existente cuyo MIME comience con `image/`. Las categorías y el autor deben estar activos.
+Al crear una noticia, `categoryId`, `title`, `summary` y `content` son obligatorios. El panel también requiere seleccionar `status`; la API acepta omitirlo y usa `BORRADOR`. `title` admite 3–220 caracteres, `summary` 10–2000 y `content` 20–20000. El servicio limpia HTML y rechaza valores vacíos después de normalizarlos. `imageId` es opcional; si se envía, debe referir un archivo existente cuyo MIME comience con `image/`. `publishedAt` también es opcional y el servidor lo asigna al publicar. El autor siempre se deriva de la sesión autenticada. Las categorías y el autor deben estar activos.
 
 La consulta pública excluye borradores, archivados, publicaciones futuras y noticias de categorías inactivas. Cambiar a `BORRADOR` o `ARCHIVADO` elimina `publishedAt`; `PUBLICADO` lo asigna o conserva.
 
