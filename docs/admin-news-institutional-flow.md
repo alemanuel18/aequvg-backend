@@ -25,6 +25,7 @@ El dominio `@uvg.edu.gt` solo identifica una cuenta institucional; no crea por s
 
 - Lista con búsqueda, categoría, estado, orden y paginación.
 - Formulario con categoría, imagen por `imageId`, título, resumen, contenido y estado.
+- Creación de categorías desde el panel de noticias. Requiere `NEWS_MANAGE`; el nombre tiene 2–80 caracteres y no puede duplicarse.
 - Previsualización, confirmación para guardar/eliminar y toast de resultado.
 - Cambio de estado mediante lista: `BORRADOR`, `PUBLICADO` o `ARCHIVADO`.
 - La consulta pública está en `/noticias`; solo muestra publicaciones vigentes y de categorías activas.
@@ -48,6 +49,7 @@ Ambas pantallas contemplan carga, vacío, error y éxito, navegación por teclad
 GET    /api/v1/news?q=&categoryId=&page=&pageSize=
 GET    /api/v1/news/:id
 GET    /api/v1/news/categories
+POST   /api/v1/admin/news/categories
 GET    /api/v1/admin/news
 GET    /api/v1/admin/news/:id
 POST   /api/v1/admin/news
@@ -56,7 +58,17 @@ PATCH  /api/v1/admin/news/:id/archive
 DELETE /api/v1/admin/news/:id
 ```
 
-Ejemplo de creación:
+Ejemplo de creación de categoría:
+
+```json
+{
+  "name": "Convocatorias"
+}
+```
+
+Crear categoría requiere sesión administrativa con `NEWS_MANAGE` y `X-CSRF-Token`. El nombre se limpia antes de guardar; duplicados sin distinción de mayúsculas devuelven `409 NEWS_CATEGORY_EXISTS`.
+
+Ejemplo de creación de noticia:
 
 ```json
 {

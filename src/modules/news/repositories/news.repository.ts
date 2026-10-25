@@ -43,6 +43,7 @@ export const newsRepository = {
   update: (id: number, data: Prisma.NewsUncheckedUpdateInput) => prisma.news.update({ where: { id }, data, select }),
   remove: (id: number) => prisma.news.delete({ where: { id }, select }),
   activeCategories: () => prisma.newsCategory.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+  createCategory: (name: string) => prisma.newsCategory.create({ data: { name }, select: { id: true, name: true, active: true } }),
   findActiveCategory: (id: number) => prisma.newsCategory.findFirst({ where: { id, active: true }, select: { id: true } }),
   findActiveUser: (id: number) => prisma.administrativeUser.findFirst({ where: { id, status: 'ACTIVO' }, select: { id: true } }),
   findImage: (id: number) => prisma.file.findUnique({ where: { id }, select: { id: true, mimeType: true } })
