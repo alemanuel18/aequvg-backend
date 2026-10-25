@@ -125,6 +125,7 @@ export const studentAuthRepository = {
         data: { studentId: null, dedupeHash: createHash('sha256').update(randomUUID()).digest('hex') }
       })
     }
+    await tx.publicationCommentRevision.updateMany({ where: { actorStudentId: userId }, data: { actorStudentId: null } })
     const user = await tx.studentUser.update({
       where: { id: userId },
       data: {

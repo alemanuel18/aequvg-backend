@@ -19,6 +19,20 @@ const pageResult = (result: Awaited<ReturnType<typeof commentsRepository.listFor
   items: result.items.map(formatComment), page, pageSize, total: result.total
 })
 
+const adminHistoryResult = (result: Awaited<ReturnType<typeof commentsRepository.listHistoryForAdmins>>, page: number, pageSize: number) => ({
+  items: result.items.map(item => ({
+    id: item.id,
+    commentId: item.comment.id,
+    targetType: item.comment.targetType,
+    targetId: item.comment.newsId ?? item.comment.projectId ?? item.comment.eventId!,
+    action: item.action,
+    previousContent: item.previousContent,
+    nextContent: item.nextContent,
+    actorName: item.actor ? `${item.actor.firstNames} ${item.actor.lastNames}`.trim() : 'Cuenta anonimizada',
+    changedAt: item.changedAt.toISOString()
+  })), page, pageSize, total: result.total
+})
+
 const validatePage = (page: number, pageSize: number) => {
   if (!Number.isInteger(page) || page < 1 || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100) {
     throw new AppError(422, 'INVALID_PAGINATION', 'La paginación solicitada no es válida.')
@@ -52,5 +66,31 @@ export const commentsService = {
   async byStudent(studentId: number, page: number, pageSize: number) {
     validatePage(page, pageSize)
     return pageResult(await commentsRepository.listForStudent(studentId, { page, pageSize }), page, pageSize)
+  },
+  async updateOwn(studentId: number, commentId: number, input: { content: string }) {
+    const content = normalizeComment(input.content)
+    const length = [...content].length
+    if (length < 1 || length > 2000) throw new AppError(422, 'INVALID_COMMENT_CONTENT', 'El comentario debe tener entre 1 y 2000 caracteres.')
+    await commentModerationService.assertAllowed(content)
+    try {
+      const result = await commentsRepository.updateOwned(studentId, commentId, content)
+      if (!result) throw new AppError(404, 'COMMENT_NOT_FOUND', 'El comentario no existe o no pertenece a esta cuenta.')
+      return formatComment(result.comment)
+    } catch (error) {
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') {
+        throw new AppError(409, 'DUPLICATE_COMMENT', 'Ya publicaste ese comentario en esta publicación.')
+      }
+      throw error
+    }
+  },
+  async deleteOwn(studentId: number, commentId: number) {
+    if (!await commentsRepository.deleteOwned(studentId, commentId)) {
+      throw new AppError(404, 'COMMENT_NOT_FOUND', 'El comentario no existe o no pertenece a esta cuenta.')
+    }
+    return { deleted: true }
+  },
+  async adminHistory(page: number, pageSize: number) {
+    validatePage(page, pageSize)
+    return adminHistoryResult(await commentsRepository.listHistoryForAdmins({ page, pageSize }), page, pageSize)
   }
 }

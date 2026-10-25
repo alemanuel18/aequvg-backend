@@ -9,10 +9,15 @@ Los comentarios pertenecen a una noticia (`NOTICIA`), un proyecto aprobado (`PRO
 | `GET` | `/api/v1/publications/:targetType/:targetId/comments?page=1&pageSize=20` | Público; solo destino visible |
 | `POST` | `/api/v1/publications/:targetType/:targetId/comments` | Sesión estudiantil activa y `X-CSRF-Token` |
 | `GET` | `/api/v1/student-auth/me/comments?page=1&pageSize=20` | Sesión estudiantil activa |
+| `PUT` | `/api/v1/student-auth/me/comments/:id` | Autor del comentario, sesión activa y `X-CSRF-Token` |
+| `DELETE` | `/api/v1/student-auth/me/comments/:id` | Autor del comentario, sesión activa y `X-CSRF-Token` |
+| `GET` | `/api/v1/admin/comments/history?page=1&pageSize=20` | Administrador (`ADMIN_ACCESS`) |
 
 El cuerpo de creación contiene solo `{ "content": "..." }`. El servidor obtiene el autor de la sesión, normaliza Unicode NFC, recorta espacios laterales y admite de 1 a 2000 caracteres. El historial se ordena por fecha descendente y usa páginas de 1 a 100 elementos. Las respuestas no exponen correo ni otros datos de cuenta.
 
 Un hash SHA-256 compuesto por autor, destino y texto normalizado permite que PostgreSQL rechace de forma atómica un texto duplicado por el mismo autor en el mismo destino (`409 DUPLICATE_COMMENT`). La moderación se ejecuta después de validar la publicación y antes de persistir; un rechazo responde `422 COMMENT_REJECTED_BY_MODERATION`.
+
+Cada edición vuelve a ejecutar moderación sobre el texto nuevo antes de guardar. Solo el autor puede editar o eliminar un comentario; una edición idéntica no crea una revisión. El borrado es lógico: el comentario sale de las listas públicas y del historial personal, mientras la revisión con texto anterior queda disponible únicamente en la ruta administrativa. Las revisiones son de solo lectura y no se incluyen en respuestas públicas o estudiantiles.
 
 ## Moderación y renderizado seguro
 
@@ -26,7 +31,7 @@ La regla de longitud, la deduplicación exacta por autor/destino y el alcance de
 
 ## Anonimización del autor
 
-La baja propia anonimiza los comentarios dentro de la misma transacción que elimina la cuenta lógicamente y revoca sus sesiones. Se limpia `id_estudiante` y se rota el hash de deduplicación; se conservan el comentario, su destino y `creado_en`. El historial personal previo deja de asociarse a la cuenta y las listas públicas muestran `Anónimo`.
+La baja propia anonimiza los comentarios dentro de la misma transacción que elimina la cuenta lógicamente y revoca sus sesiones. Se limpia `id_estudiante` y se rota el hash de deduplicación; se conservan el comentario, su destino y `creado_en`. Los eventos de auditoría también conservan su fecha y contenido anterior, pero no exponen al público ni mantienen la cuenta como actor después de su anonimización. El historial personal previo deja de asociarse a la cuenta y las listas públicas muestran `Anónimo`.
 
 La API entrega el contenido como texto plano. El cliente debe representarlo con interpolación/texto escapado (por ejemplo, `{{ comment.content }}` en Vue) y nunca interpretarlo como HTML (`v-html`).
 

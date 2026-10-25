@@ -34,8 +34,34 @@ export const commentsRepository = {
       ...(data.targetType === 'EVENTO' ? { eventId: data.targetId } : {})
     }, select
   }),
+  updateOwned: (studentId: number, commentId: number, content: string) => prisma.$transaction(async tx => {
+    const current = await tx.publicationComment.findFirst({ where: { id: commentId, studentId, deletedAt: null }, select })
+    if (!current) return null
+    if (current.content === content) return { comment: current, changed: false }
+    const targetId = current.newsId ?? current.projectId ?? current.eventId!
+    const dedupeHash = commentHash(studentId, current.targetType, targetId, content)
+    await tx.publicationComment.update({ where: { id: commentId }, data: { content, dedupeHash } })
+    await tx.publicationCommentRevision.create({ data: {
+      commentId, actorStudentId: studentId, action: 'EDIT', previousContent: current.content, nextContent: content
+    } })
+    const updated = await tx.publicationComment.findUniqueOrThrow({ where: { id: commentId }, select })
+    return { comment: updated, changed: true }
+  }),
+  deleteOwned: (studentId: number, commentId: number) => prisma.$transaction(async tx => {
+    const current = await tx.publicationComment.findFirst({ where: { id: commentId, studentId, deletedAt: null }, select })
+    if (!current) return false
+    await tx.publicationCommentRevision.create({ data: {
+      commentId, actorStudentId: studentId, action: 'DELETE', previousContent: current.content, nextContent: null
+    } })
+    const targetId = current.newsId ?? current.projectId ?? current.eventId!
+    await tx.publicationComment.update({
+      where: { id: commentId },
+      data: { deletedAt: new Date(), dedupeHash: commentHash(studentId, current.targetType, targetId, `deleted:${commentId}:${Date.now()}`) }
+    })
+    return true
+  }),
   listForTarget: async (targetType: CommentTargetType, targetId: number, { page, pageSize }: CommentPage) => {
-    const where = targetWhere(targetType, targetId)
+    const where = { ...targetWhere(targetType, targetId), deletedAt: null }
     const [items, total] = await Promise.all([
       prisma.publicationComment.findMany({ where, select, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: (page - 1) * pageSize, take: pageSize }),
       prisma.publicationComment.count({ where })
@@ -43,10 +69,25 @@ export const commentsRepository = {
     return { items, total }
   },
   listForStudent: async (studentId: number, { page, pageSize }: CommentPage) => {
-    const where = { studentId }
+    const where = { studentId, deletedAt: null }
     const [items, total] = await Promise.all([
       prisma.publicationComment.findMany({ where, select, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: (page - 1) * pageSize, take: pageSize }),
       prisma.publicationComment.count({ where })
+    ])
+    return { items, total }
+  },
+  listHistoryForAdmins: async ({ page, pageSize }: CommentPage) => {
+    const [items, total] = await Promise.all([
+      prisma.publicationCommentRevision.findMany({
+        include: {
+          actor: { select: { firstNames: true, lastNames: true } },
+          comment: { select: { id: true, targetType: true, newsId: true, projectId: true, eventId: true } }
+        },
+        orderBy: [{ changedAt: 'desc' }, { id: 'desc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize
+      }),
+      prisma.publicationCommentRevision.count()
     ])
     return { items, total }
   }
