@@ -67,6 +67,14 @@ describe('acceso administrativo de Junta Directiva', () => {
     for (const route of routes) expect((await request(route.method, route.path, session(), route.body)).status).toBe(route.method === 'POST' ? 201 : 200)
   })
 
+  it('rechaza integrantes sin los campos obligatorios antes de escribir', async () => {
+    for (const field of ['name', 'position', 'institutionalEmail', 'termStartsAt', 'termEndsAt', 'status'] as const) {
+      const response = await request('POST', '/api/v1/admin/board-members', session(), { ...validMember, [field]: undefined })
+      expect(response.status).toBe(422)
+    }
+    expect(boardRepoMocks.create).not.toHaveBeenCalled()
+  })
+
   it('rechaza manipulación de IDs sin tocar el repositorio', async () => {
     expect((await request('DELETE', '/api/v1/admin/board-members/no-es-id', session())).status).toBe(422)
     expect(boardRepoMocks.retire).not.toHaveBeenCalled()

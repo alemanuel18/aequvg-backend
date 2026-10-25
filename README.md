@@ -490,6 +490,8 @@ PostgreSQL no almacena el contenido de PDFs ni de ningún archivo. La tabla `arc
 
 ### Agregar un integrante
 
+La API administrativa exige `name`, `position`, `institutionalEmail` (`@uvg.edu.gt`), `termStartsAt`, `termEndsAt` y `status` (`ACTIVO` o `INACTIVO`). `description` es opcional y `displayOrder` se calcula cuando no se envía.
+
 Añade una tupla al arreglo `board` de `prisma/seed.ts`:
 
 ```ts
@@ -520,6 +522,8 @@ Añade un objeto al arreglo `methods`:
 Tipos permitidos: `EMAIL`, `TELEFONO`, `UBICACION`, `INSTAGRAM`, `FACEBOOK` y `OTRO`. Para cambiar el valor de un medio existente sin crear otro, usa el CRUD administrativo o adapta la búsqueda del seed para emplear una clave estable.
 
 ### Agregar otra entidad
+
+En contenido institucional, todos los bloques requieren `type`, `title` y `body`. El bloque `HERO` requiere además `actionLabel` y `actionUrl` para su botón principal. En anuncios, estos dos campos son opcionales, pero deben enviarse juntos si se agrega un enlace. `subtitle` e `imageUrl` siguen siendo opcionales.
 
 Usa el mismo patrón repetible: busca una clave estable y luego actualiza o crea.
 

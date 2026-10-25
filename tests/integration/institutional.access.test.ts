@@ -112,7 +112,7 @@ describe('Verificación de acceso administrativo en contenido institucional', ()
 
   const routesToTest = [
     { method: 'POST', path: '/api/v1/admin/institutional-content', body: { type: 'LABORATORIO', title: 'Nuevo Lab', body: 'Detalles de lab' } },
-    { method: 'PUT', path: '/api/v1/admin/institutional-content/10', body: { type: 'HERO', title: 'Hero Actualizado', body: 'Cuerpo hero' } },
+    { method: 'PUT', path: '/api/v1/admin/institutional-content/10', body: { type: 'HERO', title: 'Hero Actualizado', body: 'Cuerpo hero', actionLabel: 'Conocer la carrera', actionUrl: '/contacto' } },
     { method: 'DELETE', path: '/api/v1/admin/institutional-content/10' },
     { method: 'PUT', path: '/api/v1/admin/institutional-content/featured', body: { newsIds: [1], eventIds: [2] } },
     { method: 'GET', path: '/api/v1/admin/institutional-content' },
@@ -205,7 +205,7 @@ describe('Verificación de acceso administrativo en contenido institucional', ()
           'Origin': 'https://sitio-externo-malicioso.com',
           'content-type': 'application/json'
         },
-        body: JSON.stringify({ type: 'HERO', title: 'Ataque', body: 'Contenido no autorizado' })
+        body: JSON.stringify({ type: 'HERO', title: 'Ataque', body: 'Contenido no autorizado', actionLabel: 'Conocer la carrera', actionUrl: '/contacto' })
       }))
 
       expect(response.status).toBe(401)
@@ -386,7 +386,7 @@ describe('Verificación de acceso administrativo en contenido institucional', ()
           'sec-ch-ua-platform': PLATFORM,
           'content-type': 'application/json'
         },
-        body: JSON.stringify({ type: 'HERO', title: 'Hero actualizado', body: 'Contenido actualizado' })
+        body: JSON.stringify({ type: 'HERO', title: 'Hero actualizado', body: 'Contenido actualizado', actionLabel: 'Conocer la carrera', actionUrl: '/contacto' })
       }))
 
       expect(response.status).toBe(200)
@@ -443,6 +443,18 @@ describe('Verificación de acceso administrativo en contenido institucional', ()
       expect(institutionalRepoMocks.create).not.toHaveBeenCalled()
     })
 
+    it('rechaza un Hero sin botón completo desde la API', async () => {
+      const auth = createAuthSession()
+      const response = await app.handle(new Request('http://localhost/api/v1/admin/institutional-content', {
+        method: 'POST',
+        headers: { cookie: auth.cookies, 'x-csrf-token': auth.csrfToken, 'user-agent': USER_AGENT, 'sec-ch-ua-platform': PLATFORM, 'content-type': 'application/json' },
+        body: JSON.stringify({ type: 'HERO', title: 'Título principal', body: 'Descripción principal', actionLabel: 'Conocer la carrera' })
+      }))
+      expect(response.status).toBe(422)
+      expect((await response.json() as { error: { code: string } }).error.code).toBe('VALIDATION_ERROR')
+      expect(institutionalRepoMocks.create).not.toHaveBeenCalled()
+    })
+
     it('rechaza una cuenta autenticada sin INSTITUTIONAL_MANAGE con 403', async () => {
       const auth = createAuthSession({ permissions: ['NEWS_MANAGE'] })
       const response = await app.handle(new Request('http://localhost/api/v1/admin/institutional-content', {
@@ -487,7 +499,7 @@ describe('Verificación de acceso administrativo en contenido institucional', ()
           'sec-ch-ua-platform': PLATFORM,
           'content-type': 'application/json'
         },
-        body: JSON.stringify({ type: 'HERO', title: 'Inexistente', body: 'No existe' })
+        body: JSON.stringify({ type: 'HERO', title: 'Inexistente', body: 'No existe', actionLabel: 'Conocer la carrera', actionUrl: '/contacto' })
       }))
 
       expect(response.status).toBe(404)

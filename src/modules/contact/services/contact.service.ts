@@ -12,22 +12,34 @@ export const normalizeContactRequest = (input: RequestInput) => {
   if (!input.consent) throw new AppError(422, 'CONSENT_REQUIRED', 'Debes aceptar el aviso de privacidad.')
   if (input.website) throw new AppError(400, 'INVALID_REQUEST', 'La solicitud no es válida.')
   if (input.type === 'REUNION' && !input.preferredAt) throw new AppError(422, 'PREFERRED_DATE_REQUIRED', 'Indica una fecha tentativa para la reunión.', { preferredAt: 'Campo obligatorio para reuniones.' })
-  return { name: cleanText(input.name), email: input.email.trim().toLowerCase(), phone: cleanText(input.phone), type: input.type, subject: cleanText(input.subject), message: cleanText(input.message), preferredAt: input.preferredAt ? new Date(input.preferredAt) : null, consentedAt: new Date(), privacyVersion: cleanText(input.privacyVersion) }
+  const name = cleanText(input.name)
+  const phone = cleanText(input.phone)
+  const subject = cleanText(input.subject)
+  const message = cleanText(input.message)
+  if (name.length < 2 || phone.length < 7 || subject.length < 3 || message.length < 10 || !cleanText(input.privacyVersion)) {
+    throw new AppError(422, 'INVALID_CONTACT_REQUEST', 'Completa los campos obligatorios de la solicitud.')
+  }
+  return { name, email: input.email.trim().toLowerCase(), phone, type: input.type, subject, message, preferredAt: input.preferredAt ? new Date(input.preferredAt) : null, consentedAt: new Date(), privacyVersion: cleanText(input.privacyVersion) }
 }
 
 const normalizeMethod = (input: MethodInput) => {
   const { displayOrder: _displayOrder, ...method } = input
   const label = cleanText(input.label)
   const value = cleanText(input.value)
+  if (label.length < 2 || value.length < 2) throw new AppError(422, 'INVALID_CONTACT_METHOD', 'Completa el nombre y el valor público del medio.')
   const suppliedUrl = input.url?.trim() || null
   let url = suppliedUrl
+  let normalizedValue = value
 
   if (input.type === 'EMAIL') {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) throw new AppError(422, 'INVALID_CONTACT_EMAIL', 'Ingresa un correo de contacto válido.', { value: 'El correo no es válido.' })
     url = `mailto:${value.toLowerCase()}`
   } else if (input.type === 'TELEFONO') {
-    if (!/^[+\d][\d\s().-]{6,39}$/.test(value)) throw new AppError(422, 'INVALID_CONTACT_PHONE', 'Ingresa un teléfono de contacto válido.', { value: 'El teléfono no es válido.' })
-    url = suppliedUrl ?? `tel:${value.replace(/[^+\d]/g, '')}`
+    const compactPhone = value.replace(/[\s().-]/g, '')
+    const nationalPhone = compactPhone.startsWith('+502') ? compactPhone.slice(4) : compactPhone
+    if (!/^\d{8}$/.test(nationalPhone)) throw new AppError(422, 'INVALID_CONTACT_PHONE', 'Ingresa los 8 dígitos de un número de Guatemala.', { value: 'Ingresa un número guatemalteco de 8 dígitos, sin +502.' })
+    normalizedValue = `+502 ${nationalPhone.slice(0, 4)} ${nationalPhone.slice(4)}`
+    url = `tel:+502${nationalPhone}`
   } else {
     if (!suppliedUrl || !isHttpUrl(suppliedUrl)) throw new AppError(422, 'CONTACT_URL_REQUIRED', 'Este medio requiere un enlace HTTPS válido.', { url: 'Ingresa un enlace válido.' })
     const parsedUrl = new URL(suppliedUrl)
@@ -37,7 +49,7 @@ const normalizeMethod = (input: MethodInput) => {
     }
   }
 
-  return { ...method, label, value: input.type === 'EMAIL' ? value.toLowerCase() : value, url, active: input.active ?? true }
+  return { ...method, label, value: input.type === 'EMAIL' ? value.toLowerCase() : normalizedValue, url, active: input.active ?? true }
 }
 
 const translateMissingMethod = (error: unknown): never => {

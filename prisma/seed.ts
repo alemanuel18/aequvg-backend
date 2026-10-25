@@ -150,7 +150,7 @@ async function main() {
   }
 
   const blocks = [
-    { type: 'HERO' as const, title: 'Contenido de desarrollo', subtitle: 'Datos de ejemplo para una base local.', body: 'Este bloque permite verificar el flujo público sin usar contenido institucional definitivo.', displayOrder: 1 },
+    { type: 'HERO' as const, title: 'Contenido de desarrollo', subtitle: 'Datos de ejemplo para una base local.', body: 'Este bloque permite verificar el flujo público sin usar contenido institucional definitivo.', actionLabel: 'Conocer la carrera', actionUrl: '/contacto', displayOrder: 1 },
     { type: 'LABORATORIO' as const, title: 'Laboratorios', subtitle: null, body: 'Información de ejemplo para validar el orden del contenido.', displayOrder: 1 }
   ]
   for (const block of blocks) {
