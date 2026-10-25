@@ -13,6 +13,7 @@ const request = (path: string, options: RequestInit = {}) => new Request(`http:/
 describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
   const app = createApp()
   let userId = 0
+  let deletionUserId = 0
   let adminId = 0
   let roleId = 0
   let studentCookies = ''
@@ -36,9 +37,14 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
   })
 
   afterAll(async () => {
+    if (userId) await prisma.studentAccountStatusHistory.deleteMany({ where: { studentId: userId } })
     if (userId) await prisma.studentSession.deleteMany({ where: { userId } })
     if (userId) await prisma.studentCredential.deleteMany({ where: { userId } })
     if (userId) await prisma.studentUser.deleteMany({ where: { id: userId } })
+    if (deletionUserId) await prisma.studentAccountStatusHistory.deleteMany({ where: { studentId: deletionUserId } })
+    if (deletionUserId) await prisma.studentSession.deleteMany({ where: { userId: deletionUserId } })
+    if (deletionUserId) await prisma.studentCredential.deleteMany({ where: { userId: deletionUserId } })
+    if (deletionUserId) await prisma.studentUser.deleteMany({ where: { id: deletionUserId } })
     if (adminId) await prisma.administrativeCredential.deleteMany({ where: { userId: adminId } })
     if (adminId) await prisma.administrativeUser.deleteMany({ where: { id: adminId } })
     if (roleId) await prisma.rolePermission.deleteMany({ where: { roleId } })
@@ -109,6 +115,32 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
     adminCookies = `${setCookie.match(/aequvg_session=[^;]+/)?.[0]}; ${setCookie.match(/aequvg_device=[^;]+/)?.[0]}`
   })
 
+  it('administra solo cuentas normales y expone el historial de actor, motivo y transición', async () => {
+    const headers = { cookie: adminCookies, 'user-agent': userAgent }
+    const list = await app.handle(request('/api/v1/admin/student-users?q=integración&page=1&pageSize=10', { headers }))
+    expect(list.status).toBe(200)
+    expect(await list.json()).toMatchObject({ items: [expect.objectContaining({ id: userId, email })], pagination: { page: 1, pageSize: 10, total: 1 } })
+
+    const detail = await app.handle(request(`/api/v1/admin/student-users/${userId}`, { headers }))
+    expect(detail.status).toBe(200)
+    expect(await detail.json()).toMatchObject({ id: userId, isStudent: true, statusHistory: [] })
+
+    const change = await app.handle(request(`/api/v1/admin/student-users/${userId}/status`, {
+      method: 'PATCH', headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': adminCsrf },
+      body: JSON.stringify({ status: 'BLOQUEADO_PERMANENTE', reviewChannel: 'revision@uvg.edu.gt', reason: 'Revisión administrativa pendiente' })
+    }))
+    expect(change.status).toBe(200)
+    const updated = await app.handle(request(`/api/v1/admin/student-users/${userId}`, { headers }))
+    expect(await updated.json()).toMatchObject({ statusHistory: [expect.objectContaining({ fromStatus: 'ACTIVO', toStatus: 'BLOQUEADO_PERMANENTE', reason: 'Revisión administrativa pendiente' })] })
+    const history = await prisma.studentAccountStatusHistory.findFirst({ where: { studentId: userId } })
+    expect(history).toMatchObject({ actorId: adminId, fromStatus: 'ACTIVO', toStatus: 'BLOQUEADO_PERMANENTE', reason: 'Revisión administrativa pendiente' })
+    const activated = await app.handle(request(`/api/v1/admin/student-users/${userId}/status`, {
+      method: 'PATCH', headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': adminCsrf },
+      body: JSON.stringify({ status: 'ACTIVO', reason: 'Validación completada' })
+    }))
+    expect(activated.status).toBe(200)
+  })
+
   it('inicia, recarga y cierra una sesión estudiantil revocándola', async () => {
     const login = await app.handle(request('/api/v1/student-auth/login', {
       method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': userAgent }, body: JSON.stringify({ email, password })
@@ -177,7 +209,7 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
     const blocked = await app.handle(request(`/api/v1/admin/student-users/${userId}/status`, {
       method: 'PATCH',
       headers: { cookie: adminCookies, 'content-type': 'application/json', 'user-agent': userAgent, 'x-csrf-token': adminCsrf },
-      body: JSON.stringify({ status: 'BLOQUEADO_PERMANENTE', reviewChannel: 'revision@uvg.edu.gt' })
+      body: JSON.stringify({ status: 'BLOQUEADO_PERMANENTE', reviewChannel: 'revision@uvg.edu.gt', reason: 'Incumplimiento documentado' })
     }))
     expect(blocked.status).toBe(200)
     expect((await blocked.json() as { role: string }).role).toBe('STUDENT')
@@ -188,9 +220,34 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
     const activated = await app.handle(request(`/api/v1/admin/student-users/${userId}/status`, {
       method: 'PATCH',
       headers: { cookie: adminCookies, 'content-type': 'application/json', 'user-agent': userAgent, 'x-csrf-token': adminCsrf },
-      body: JSON.stringify({ status: 'ACTIVO' })
+      body: JSON.stringify({ status: 'ACTIVO', reason: 'Revisión completada y bloqueo levantado' })
     }))
     expect(activated.status).toBe(200)
+  })
+
+  it('da de baja cuentas normales por el flujo administrativo y revoca sesiones con auditoría', async () => {
+    const deletionEmail = `${runId}-admin-delete@uvg.edu.gt`
+    const created = await app.handle(request('/api/v1/student-auth/register', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ firstNames: 'Cuenta', lastNames: 'Baja', email: deletionEmail, password, isStudent: true })
+    }))
+    expect(created.status).toBe(201)
+    deletionUserId = (await created.json() as { id: number }).id
+    const login = await app.handle(request('/api/v1/student-auth/login', {
+      method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': userAgent },
+      body: JSON.stringify({ email: deletionEmail, password })
+    }))
+    expect(login.status).toBe(200)
+
+    const deletion = await app.handle(request(`/api/v1/admin/student-users/${deletionUserId}`, {
+      method: 'DELETE', headers: { cookie: adminCookies, 'user-agent': userAgent, 'content-type': 'application/json', 'x-csrf-token': adminCsrf },
+      body: JSON.stringify({ reason: 'Solicitud administrativa documentada' })
+    }))
+    expect(deletion.status).toBe(200)
+    expect(await deletion.json()).toMatchObject({ id: deletionUserId, status: 'ELIMINADO' })
+    const history = await prisma.studentAccountStatusHistory.findFirst({ where: { studentId: deletionUserId } })
+    expect(history).toMatchObject({ actorId: adminId, fromStatus: 'ACTIVO', toStatus: 'ELIMINADO', reason: 'Solicitud administrativa documentada' })
+    expect((await prisma.studentSession.findMany({ where: { userId: deletionUserId } })).every(session => session.revocationReason === 'ACCOUNT_DELETED')).toBe(true)
   })
 
   it('expone fecha o canal según el tipo de bloqueo y permite la baja bloqueada', async () => {

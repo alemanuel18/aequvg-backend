@@ -4,6 +4,8 @@ import { AppError } from '../../../shared/errors/app-error'
 import { containsOffensiveName } from '../../../shared/utils/name-moderation'
 import { hashPassword, hmacSha256, randomToken, secureEqual, sha256, signSessionJwt, verifyPassword, verifyStudentSessionJwt } from '../../../shared/utils/auth-crypto'
 import { studentAuthRepository } from '../repositories/student-auth.repository'
+import { clearAuthFailuresForEmail } from '../../../middleware/auth-rate-limit'
+import { studentAccountDeletionService } from './student-account-deletion.service'
 
 export const STUDENT_AUTH_COOKIE = 'aequvg_student_session'
 export const STUDENT_DEVICE_COOKIE = 'aequvg_student_device'
@@ -168,13 +170,28 @@ export const studentAuthService = {
     if (!input.confirm) throw new AppError(422, 'ACCOUNT_DELETION_CONFIRMATION_REQUIRED', 'Debes confirmar la baja de la cuenta.')
     const user = await verifyCredentials(input.email, input.password)
     if (user.status === 'ELIMINADO') throw new AppError(403, 'ACCOUNT_DELETED', 'La cuenta ya fue eliminada.')
-    await studentAuthRepository.deleteAccountAndRevokeSessions(user.id)
+    await studentAccountDeletionService.delete(user.id, { actorId: null, reason: 'BAJA_SOLICITADA_POR_USUARIO' })
+  },
+
+  async listManagedAccounts(input: { q?: string; status?: string; page?: number; pageSize?: number }) {
+    const page = input.page ?? 1
+    const pageSize = input.pageSize ?? 20
+    const result = await studentAuthRepository.listManagedAccounts({
+      q: input.q?.trim() || undefined, status: input.status, page, pageSize
+    })
+    return { items: result.items, pagination: { page, pageSize, total: result.total } }
+  },
+
+  async getManagedAccount(userId: number) {
+    const user = await studentAuthRepository.findManagedAccount(userId)
+    if (!user) throw new AppError(404, 'STUDENT_NOT_FOUND', 'La cuenta estudiantil no existe.')
+    return user
   },
 
   async updateStatus(userId: number, input:
-    | { status: 'ACTIVO' }
-    | { status: 'BLOQUEADO_TEMPORAL'; blockedUntil: string }
-    | { status: 'BLOQUEADO_PERMANENTE'; reviewChannel: string }
+    | { status: 'ACTIVO'; reason: string }
+    | { status: 'BLOQUEADO_TEMPORAL'; blockedUntil: string; reason: string }
+    | { status: 'BLOQUEADO_PERMANENTE'; reviewChannel: string; reason: string }, actorId: number
   ) {
     let blockedUntil: Date | null = null
     let reviewChannel: string | null = null
@@ -182,10 +199,18 @@ export const studentAuthService = {
       blockedUntil = new Date(input.blockedUntil)
       if (Number.isNaN(blockedUntil.getTime()) || blockedUntil <= new Date()) throw new AppError(422, 'INVALID_BLOCK_END', 'La fecha de fin del bloqueo debe estar en el futuro.')
     }
-    if (input.status === 'BLOQUEADO_PERMANENTE') reviewChannel = input.reviewChannel.trim()
+    if (input.status === 'BLOQUEADO_PERMANENTE') {
+      reviewChannel = input.reviewChannel.trim()
+      if (reviewChannel.length < 2) throw new AppError(422, 'INVALID_REVIEW_CHANNEL', 'Indica un canal válido para solicitar revisión.')
+    }
+    const reason = input.reason.trim()
+    if (reason.length < 5) throw new AppError(422, 'INVALID_STATUS_REASON', 'El motivo debe tener al menos 5 caracteres.')
     try {
-      const user = await studentAuthRepository.updateStatusAndRevokeSessions(userId, { status: input.status, blockedUntil, reviewChannel })
-      return publicUser(user)
+      const result = await studentAuthRepository.updateStatusAndRevokeSessions(userId, { status: input.status, blockedUntil, reviewChannel, actorId, reason })
+      if (!result) throw new AppError(404, 'STUDENT_NOT_FOUND', 'La cuenta estudiantil no existe.')
+      if (result.deleted) throw new AppError(409, 'STUDENT_ALREADY_DELETED', 'Una cuenta dada de baja no puede reactivarse ni modificarse.')
+      if (result.changed) clearAuthFailuresForEmail(result.user.email)
+      return publicUser(result.user)
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') throw new AppError(404, 'STUDENT_NOT_FOUND', 'La cuenta estudiantil no existe.')
       throw error
