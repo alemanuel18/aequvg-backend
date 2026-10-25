@@ -74,6 +74,10 @@ Perfil: Estudiante normal
 
 Estas credenciales son públicas y sirven exclusivamente para desarrollo y pruebas locales. La cuenta se guarda en las tablas estudiantiles, no recibe rol ni permisos administrativos y la seed la restablece con estado `ACTIVO`. No se crea cuando `NODE_ENV=production`; no debe copiarse manualmente ni utilizarse en un despliegue real.
 
+## Comentarios e historial personal
+
+S4-COM expone comentarios por noticias publicadas, proyectos aprobados y eventos publicados, además del historial paginado del estudiante autenticado. La moderación de texto libre depende del módulo MOD; hasta conectar una política aprobada, el backend rechaza la creación con `COMMENT_MODERATION_UNAVAILABLE`. Contrato, límites, deduplicación y anonimización se documentan en [`docs/comments-flow.md`](docs/comments-flow.md).
+
 ## Autenticación y perfiles administrativos
 
 Las solicitudes de cuenta se envían desde `POST /api/v1/auth/registration-requests` con `firstNames`, `lastNames`, correo `@uvg.edu.gt` y contraseña. Nombres y apellidos se almacenan en columnas separadas. Se guardan como pendientes y no crean una cuenta ni otorgan acceso. Una persona con `USERS_MANAGE` puede consultarlas en `GET /api/v1/admin/registration-requests` y aprobarlas con un rol o rechazarlas mediante `POST /api/v1/admin/registration-requests/:id/review`. La aprobación crea la cuenta activa y mueve el hash de contraseña a sus credenciales; al resolver la solicitud, el hash se elimina de la solicitud. Los cambios administrativos requieren CSRF. Quien aprueba debe verificar la identidad del solicitante por un canal institucional antes de aprobar.

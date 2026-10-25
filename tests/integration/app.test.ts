@@ -91,6 +91,20 @@ describe('contrato HTTP base', () => {
     expect(document.paths['/api/v1/admin/events/{id}/registrations']?.get?.responses['200']).toBeTruthy()
   })
 
+  it('documenta comentarios por publicación e historial estudiantil', async () => {
+    const response = await app.handle(new Request('http://localhost/openapi/json'))
+    const document = await response.json() as { paths: Record<string, Record<string, { responses: Record<string, unknown> }>> }
+    expect(document.paths['/api/v1/publications/{targetType}/{targetId}/comments']?.get?.responses['200']).toBeTruthy()
+    expect(document.paths['/api/v1/publications/{targetType}/{targetId}/comments']?.post?.responses['201']).toBeTruthy()
+    expect(document.paths['/api/v1/student-auth/me/comments']?.get?.responses['200']).toBeTruthy()
+  })
+
+  it('protege la consulta del historial de comentarios propios', async () => {
+    const response = await app.handle(new Request('http://localhost/api/v1/student-auth/me/comments'))
+    expect(response.status).toBe(401)
+    expect(await response.json()).toMatchObject({ error: { code: 'UNAUTHORIZED' } })
+  })
+
   it('devuelve un error público estable cuando el cuerpo no es válido', async () => {
     const response = await app.handle(new Request('http://localhost/api/v1/contact-requests', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }))
     expect(response.status).toBe(422)

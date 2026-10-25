@@ -3,6 +3,7 @@ import { openapi } from '@elysiajs/openapi'
 import { Elysia } from 'elysia'
 import { boardRoutes } from './modules/board/controllers/routes'
 import { contactRoutes } from './modules/contact/controllers/routes'
+import { commentsRoutes } from './modules/comments/controllers/routes'
 import { eventsRoutes } from './modules/events/controllers/routes'
 import { institutionalRoutes } from './modules/institutional/controllers/routes'
 import { newsRoutes } from './modules/news/controllers/routes'
@@ -17,7 +18,7 @@ import { requestIdFor, requestLogger } from './middleware/request-logger'
 export const createApp = () => new Elysia()
   .use(requestLogger)
   .use(cors({ origin: process.env.CORS_ORIGIN ?? 'http://localhost:3001', credentials: true }))
-  .use(openapi({ path: '/openapi', documentation: { info: { title: 'AEQUVG API', version: '1.0.0', description: 'API pública, estudiantil y administrativa de la Asociación de Estudiantes de Química UVG.' }, tags: [{ name: 'Contenido institucional' }, { name: 'Junta directiva' }, { name: 'Contacto' }, { name: 'Noticias' }, { name: 'Recursos' }, { name: 'Proyectos' }, { name: 'Eventos' }, { name: 'Autenticación' }, { name: 'Acceso estudiantil' }, { name: 'Administración' }], components: { securitySchemes: { cookieAuth: { type: 'apiKey', in: 'cookie', name: 'aequvg_session', description: 'JWT de sesión administrativa en cookie HttpOnly, acompañado por la cookie de dispositivo.' }, studentCookieAuth: { type: 'apiKey', in: 'cookie', name: 'aequvg_student_session', description: 'JWT de sesión estudiantil en cookie HttpOnly, acompañado por su cookie de dispositivo.' }, csrfToken: { type: 'apiKey', in: 'header', name: 'X-CSRF-Token', description: 'Obligatorio en operaciones autenticadas que modifican estado.' } } } } }))
+  .use(openapi({ path: '/openapi', documentation: { info: { title: 'AEQUVG API', version: '1.0.0', description: 'API pública, estudiantil y administrativa de la Asociación de Estudiantes de Química UVG.' }, tags: [{ name: 'Contenido institucional' }, { name: 'Junta directiva' }, { name: 'Contacto' }, { name: 'Noticias' }, { name: 'Recursos' }, { name: 'Proyectos' }, { name: 'Eventos' }, { name: 'Comentarios' }, { name: 'Autenticación' }, { name: 'Acceso estudiantil' }, { name: 'Administración' }], components: { securitySchemes: { cookieAuth: { type: 'apiKey', in: 'cookie', name: 'aequvg_session', description: 'JWT de sesión administrativa en cookie HttpOnly, acompañado por la cookie de dispositivo.' }, studentCookieAuth: { type: 'apiKey', in: 'cookie', name: 'aequvg_student_session', description: 'JWT de sesión estudiantil en cookie HttpOnly, acompañado por su cookie de dispositivo.' }, csrfToken: { type: 'apiKey', in: 'header', name: 'X-CSRF-Token', description: 'Obligatorio en operaciones autenticadas que modifican estado.' } } } } }))
   .onError(({ code, error, request, set }) => {
     if (code === 'VALIDATION') { set.status = 422; return { error: { code: 'VALIDATION_ERROR', message: 'Revisa los datos enviados.' } } }
     if (code === 'NOT_FOUND') { set.status = 404; return { error: { code: 'NOT_FOUND', message: 'El recurso solicitado no existe.' } } }
@@ -34,3 +35,4 @@ export const createApp = () => new Elysia()
   .use(eventsRoutes)
   .use(boardRoutes)
   .use(contactRoutes)
+  .use(commentsRoutes)

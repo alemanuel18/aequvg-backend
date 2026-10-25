@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from 'node:crypto'
 import { prisma } from '../../../shared/database/prisma'
 
 const studentAccountWhere = { isStudent: true, email: { endsWith: '@uvg.edu.gt', mode: 'insensitive' as const } }
@@ -117,6 +118,13 @@ export const studentAuthRepository = {
     if (!current) return null
     if (current.status === 'ELIMINADO') return { alreadyDeleted: true as const }
     const deletedAt = new Date()
+    const comments = await tx.publicationComment.findMany({ where: { studentId: userId }, select: { id: true } })
+    for (const comment of comments) {
+      await tx.publicationComment.update({
+        where: { id: comment.id },
+        data: { studentId: null, dedupeHash: createHash('sha256').update(randomUUID()).digest('hex') }
+      })
+    }
     const user = await tx.studentUser.update({
       where: { id: userId },
       data: {
