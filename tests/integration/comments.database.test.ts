@@ -48,6 +48,7 @@ describeDatabase('comentarios de publicaciones con PostgreSQL', () => {
       if (eventId) await prisma.publicationComment.deleteMany({ where: { eventId } })
       if (eventId) await prisma.event.delete({ where: { id: eventId } })
       if (studentId) {
+        await prisma.studentAccountStatusHistory.deleteMany({ where: { studentId } })
         await prisma.studentSession.deleteMany({ where: { userId: studentId } })
         await prisma.studentUser.delete({ where: { id: studentId } })
       }
@@ -83,10 +84,24 @@ describeDatabase('comentarios de publicaciones con PostgreSQL', () => {
     expect(await publicComments.json()).toMatchObject({ total: 1, items: [{ id: created.id }] })
   })
 
+  it('no permite comentar a una cuenta que dejó de estar activa', async () => {
+    await prisma.studentUser.update({ where: { id: studentId }, data: { status: 'BLOQUEADO_PERMANENTE' } })
+    try {
+      const commentsBefore = await prisma.publicationComment.count({ where: { studentId, eventId } })
+      const response = await app.handle(request(`/api/v1/publications/EVENTO/${eventId}/comments`, {
+        method: 'POST', headers: studentHeaders, body: JSON.stringify({ content: 'No debe guardarse' })
+      }))
+      expect(response.status).toBe(403)
+      expect(await prisma.publicationComment.count({ where: { studentId, eventId } })).toBe(commentsBefore)
+    } finally {
+      await prisma.studentUser.update({ where: { id: studentId }, data: { status: 'ACTIVO' } })
+    }
+  })
+
   it('anonimiza al autor sin borrar el comentario, la publicación ni su fecha', async () => {
     const comment = await prisma.publicationComment.findFirstOrThrow({ where: { eventId } })
     const createdAt = comment.createdAt
-    await studentAuthRepository.deleteAccountAndRevokeSessions(studentId)
+    await studentAuthRepository.deleteAccountAndRevokeSessions(studentId, { actorId: null, reason: 'BAJA_SOLICITADA_POR_USUARIO' })
     const after = await prisma.publicationComment.findUniqueOrThrow({ where: { id: comment.id } })
     expect(after).toMatchObject({ id: comment.id, eventId, studentId: null, createdAt })
     expect(after.dedupeHash).not.toBe(comment.dedupeHash)

@@ -1,10 +1,11 @@
 import { AppError } from '../../../shared/errors/app-error'
+import { publicTextModerationService } from '../../moderation/services/public-text-moderation.service'
 
 export type CommentModerator = (content: string) => Promise<boolean> | boolean
 
-let moderator: CommentModerator | undefined
+let moderator: CommentModerator | undefined = content => publicTextModerationService.isCommentAllowed(content)
 
-/** MOD registers its approved policy here; comments fail closed until that dependency is connected. */
+/** The MOD policy is the default; register allows replacing it with a central moderation provider. */
 export const commentModerationService = {
   register(policy: CommentModerator) {
     moderator = policy

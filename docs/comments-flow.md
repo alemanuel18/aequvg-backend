@@ -14,13 +14,17 @@ El cuerpo de creación contiene solo `{ "content": "..." }`. El servidor obtiene
 
 Un hash SHA-256 compuesto por autor, destino y texto normalizado permite que PostgreSQL rechace de forma atómica un texto duplicado por el mismo autor en el mismo destino (`409 DUPLICATE_COMMENT`). La moderación se ejecuta después de validar la publicación y antes de persistir; un rechazo responde `422 COMMENT_REJECTED_BY_MODERATION`.
 
-## Integración MOD pendiente
+## Moderación y renderizado seguro
 
-El repositorio no contiene un moderador para texto libre ni una política aprobada de comentarios. El servicio define el contrato `CommentModerator` y falla de forma cerrada con `503 COMMENT_MODERATION_UNAVAILABLE` hasta que el módulo MOD registre su política aprobada mediante `commentModerationService.register`. No se reutiliza el filtro de nombres, porque no define moderación de comentarios. Por lo tanto, el endpoint de creación no publicará comentarios en un entorno donde MOD todavía no esté conectado.
+El módulo `moderation` conecta una política léxica inicial al servicio de comentarios. Antes de guardar, normaliza Unicode, tildes, mayúsculas y separadores; rechaza como palabra completa los insultos directos configurados en español e inglés. La política es independiente del filtro de nombres y se puede sustituir con `commentModerationService.register` cuando MOD integre un proveedor central.
+
+El filtro es una primera barrera: no interpreta contexto, ironía o amenazas implícitas y no detecta contenido abusivo fuera de su lista. Si no hay moderador disponible, la operación falla de forma segura con `503 COMMENT_MODERATION_UNAVAILABLE`; si el texto es rechazado responde `422 COMMENT_REJECTED_BY_MODERATION`.
+
+El API conserva el comentario como texto plano, sin interpretarlo como HTML. Los clientes deben renderizar `content` mediante interpolación/texto escapado (por ejemplo, `{{ comment.content }}` en Vue) y nunca con `v-html` o `innerHTML`.
 
 La regla de longitud, la deduplicación exacta por autor/destino y el alcance de destinos son decisiones iniciales de esta implementación; deben confirmarse con el equipo S4 si existe otro criterio aprobado.
 
-## Anonimización y renderizado
+## Anonimización del autor
 
 La baja propia anonimiza los comentarios dentro de la misma transacción que elimina la cuenta lógicamente y revoca sus sesiones. Se limpia `id_estudiante` y se rota el hash de deduplicación; se conservan el comentario, su destino y `creado_en`. El historial personal previo deja de asociarse a la cuenta y las listas públicas muestran `Anónimo`.
 
@@ -28,8 +32,8 @@ La API entrega el contenido como texto plano. El cliente debe representarlo con 
 
 ## Evidencia automatizada
 
-- Unitarias: moderación antes de persistir, rechazo cuando MOD no está disponible o rechaza, destino visible, historial paginado y límites.
+- Unitarias: política de moderación y moderación antes de persistir, rechazo cuando MOD no está disponible o rechaza, destino visible, historial paginado y límites.
 - Contrato HTTP: rutas documentadas en OpenAPI y autenticación requerida para el historial propio.
-- Persistencia: migración con destino único, claves foráneas, autor anulable, índice único de duplicados e índices de consulta.
+- Persistencia: migración con destino único, claves foráneas, autor anulable, índice único de duplicados e índices de consulta. La baja conserva texto, publicación y fecha, elimina la asociación del autor y rota la clave de deduplicación.
 
 La migración requiere PostgreSQL actualizado con `bun run migrate:deploy` en un entorno de prueba; no ejecutar sobre producción como parte de esta tarea.

@@ -54,6 +54,18 @@ describe('comentarios', () => {
     expect(repository.create).not.toHaveBeenCalled()
   })
 
+  it('aplica el límite de 2000 caracteres antes de moderar o persistir', async () => {
+    await expect(commentsService.create(4, 'EVENTO', 7, { content: 'a'.repeat(2001) }))
+      .rejects.toMatchObject({ status: 422, code: 'INVALID_COMMENT_CONTENT' })
+    expect(repository.create).not.toHaveBeenCalled()
+  })
+
+  it('rechaza contenido vacío después de recortar espacios', async () => {
+    await expect(commentsService.create(4, 'EVENTO', 7, { content: '   \n  ' }))
+      .rejects.toMatchObject({ status: 422, code: 'INVALID_COMMENT_CONTENT' })
+    expect(repository.create).not.toHaveBeenCalled()
+  })
+
   it('rechaza destinos inexistentes o no visibles', async () => {
     repository.findVisibleTarget.mockResolvedValue(null)
     await expect(commentsService.create(4, 'EVENTO', 999, { content: 'Comentario de prueba' }))

@@ -76,7 +76,7 @@ Estas credenciales son públicas y sirven exclusivamente para desarrollo y prueb
 
 ## Comentarios e historial personal
 
-S4-COM expone comentarios por noticias publicadas, proyectos aprobados y eventos publicados, además del historial paginado del estudiante autenticado. La moderación de texto libre depende del módulo MOD; hasta conectar una política aprobada, el backend rechaza la creación con `COMMENT_MODERATION_UNAVAILABLE`. Contrato, límites, deduplicación y anonimización se documentan en [`docs/comments-flow.md`](docs/comments-flow.md).
+S4-COM expone comentarios por noticias publicadas, proyectos aprobados y eventos publicados, además del historial paginado del estudiante autenticado. La creación aplica una política léxica inicial de MOD antes de persistir; el API entrega texto plano para renderizado escapado. Contrato, límites, deduplicación y anonimización se documentan en [`docs/comments-flow.md`](docs/comments-flow.md).
 
 ## Autenticación y perfiles administrativos
 
