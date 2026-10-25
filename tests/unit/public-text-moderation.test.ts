@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { commentModerationService } from '../../src/modules/comments/services/comment-moderation.service'
+import { moderationService } from '../../src/modules/moderation/services/moderation.service'
 import { publicTextModerationService } from '../../src/modules/moderation/services/public-text-moderation.service'
 
 describe('moderación de texto público', () => {
@@ -17,6 +18,8 @@ describe('moderación de texto público', () => {
   })
 
   it('conecta MOD por defecto y rechaza antes de guardar', async () => {
+    await expect(moderationService.isCommentAllowed('Eres un idiota'))
+      .resolves.toBe(false)
     await expect(commentModerationService.assertAllowed('Eres un idiota'))
       .rejects.toMatchObject({ status: 422, code: 'COMMENT_REJECTED_BY_MODERATION' })
   })

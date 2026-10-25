@@ -2,7 +2,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app'
 import { commentsRepository } from '../../src/modules/comments/repositories/comments.repository'
 import { commentsService } from '../../src/modules/comments/services/comments.service'
-import { commentModerationService } from '../../src/modules/comments/services/comment-moderation.service'
 import { studentAuthRepository } from '../../src/modules/users/repositories/student-auth.repository'
 import { prisma } from '../../src/shared/database/prisma'
 import { createStudentSessionHeaders } from '../helpers/student-session'
@@ -39,11 +38,9 @@ describeDatabase('comentarios de publicaciones con PostgreSQL', () => {
       }
     })
     eventId = event.id
-    commentModerationService.register(() => true)
   })
 
   afterAll(async () => {
-    commentModerationService.reset()
     try {
       if (eventId) await prisma.publicationComment.deleteMany({ where: { eventId } })
       if (eventId) await prisma.event.delete({ where: { id: eventId } })
@@ -96,6 +93,16 @@ describeDatabase('comentarios de publicaciones con PostgreSQL', () => {
     } finally {
       await prisma.studentUser.update({ where: { id: studentId }, data: { status: 'ACTIVO' } })
     }
+  })
+
+  it('rechaza texto bloqueado por MOD antes de persistir', async () => {
+    const commentsBefore = await prisma.publicationComment.count({ where: { studentId, eventId } })
+    const response = await app.handle(request(`/api/v1/publications/EVENTO/${eventId}/comments`, {
+      method: 'POST', headers: studentHeaders, body: JSON.stringify({ content: 'Eres un idiota' })
+    }))
+    expect(response.status).toBe(422)
+    expect((await response.json()).error.code).toBe('COMMENT_REJECTED_BY_MODERATION')
+    expect(await prisma.publicationComment.count({ where: { studentId, eventId } })).toBe(commentsBefore)
   })
 
   it('anonimiza al autor sin borrar el comentario, la publicación ni su fecha', async () => {

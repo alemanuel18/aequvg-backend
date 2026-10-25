@@ -76,7 +76,7 @@ Estas credenciales son públicas y sirven exclusivamente para desarrollo y prueb
 
 ## Comentarios e historial personal
 
-S4-COM expone comentarios por noticias publicadas, proyectos aprobados y eventos publicados, además del historial paginado del estudiante autenticado. La creación aplica una política léxica inicial de MOD antes de persistir; el API entrega texto plano para renderizado escapado. Contrato, límites, deduplicación y anonimización se documentan en [`docs/comments-flow.md`](docs/comments-flow.md).
+S4-COM expone comentarios por noticias publicadas, proyectos aprobados y eventos publicados, además del historial paginado del estudiante autenticado. La creación consulta el proveedor central interno MOD antes de persistir; actualmente usa una política léxica explícita. El API entrega texto plano y el frontend renderiza el historial mediante interpolación escapada. Contrato, límites, deduplicación y anonimización se documentan en [`docs/comments-flow.md`](docs/comments-flow.md).
 
 ## Autenticación y perfiles administrativos
 

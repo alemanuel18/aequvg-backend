@@ -9,7 +9,7 @@ vi.mock('../../src/modules/comments/repositories/comments.repository', () => ({
   commentHash: (studentId: number, targetType: string, targetId: number, value: string) => `hash:${studentId}:${targetType}:${targetId}:${value.toLowerCase()}`
 }))
 
-import { commentModerationService } from '../../src/modules/comments/services/comment-moderation.service'
+import { moderationService } from '../../src/modules/moderation/services/moderation.service'
 import { commentsService } from '../../src/modules/comments/services/comments.service'
 
 const target = { id: 7 }
@@ -22,17 +22,17 @@ const saved = {
 describe('comentarios', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    commentModerationService.register(() => true)
+    moderationService.registerCommentProvider({ isCommentAllowed: () => true })
     repository.findVisibleTarget.mockResolvedValue(target)
     repository.create.mockResolvedValue(saved)
     repository.listForTarget.mockResolvedValue({ items: [saved], total: 1 })
     repository.listForStudent.mockResolvedValue({ items: [saved], total: 1 })
   })
-  afterEach(() => commentModerationService.reset())
+  afterEach(() => moderationService.useDefaultCommentProvider())
 
   it('usa el autor de sesión y modera antes de persistir', async () => {
     const order: string[] = []
-    commentModerationService.register(() => { order.push('moderation'); return true })
+    moderationService.registerCommentProvider({ isCommentAllowed: () => { order.push('moderation'); return true } })
     repository.create.mockImplementation(async () => { order.push('create'); return saved })
     await expect(commentsService.create(4, 'EVENTO', 7, { content: ' Comentario de prueba ' }))
       .resolves.toMatchObject({ authorName: 'Ana López', targetId: 7 })
@@ -41,14 +41,14 @@ describe('comentarios', () => {
   })
 
   it('falla de forma cerrada si MOD no está integrado', async () => {
-    commentModerationService.reset()
+    moderationService.resetCommentProvider()
     await expect(commentsService.create(4, 'EVENTO', 7, { content: 'Comentario de prueba' }))
       .rejects.toMatchObject({ status: 503, code: 'COMMENT_MODERATION_UNAVAILABLE' })
     expect(repository.create).not.toHaveBeenCalled()
   })
 
   it('no persiste cuando moderación rechaza el texto', async () => {
-    commentModerationService.register(() => false)
+    moderationService.registerCommentProvider({ isCommentAllowed: () => false })
     await expect(commentsService.create(4, 'EVENTO', 7, { content: 'Texto rechazado' }))
       .rejects.toMatchObject({ status: 422, code: 'COMMENT_REJECTED_BY_MODERATION' })
     expect(repository.create).not.toHaveBeenCalled()
