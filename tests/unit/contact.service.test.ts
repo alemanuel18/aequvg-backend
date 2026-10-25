@@ -4,7 +4,6 @@ import { AppError } from '../../src/shared/errors/app-error'
 const repositoryMocks = vi.hoisted(() => ({
   primaryEmailMethod: vi.fn(),
   createRequest: vi.fn(),
-  createRequest: vi.fn(),
   publicMethods: vi.fn(),
   allMethods: vi.fn(),
   createMethod: vi.fn(),
