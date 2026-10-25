@@ -16,7 +16,10 @@ Una cuenta estudiantil nunca contiene un rol configurable ni permisos administra
 | `PATCH` | `/api/v1/student-auth/me` | Estudiante + CSRF | Actualiza nombres y apellidos del usuario de la sesión. No admite ID, correo, rol ni estado. |
 | `POST` | `/api/v1/student-auth/logout` | Estudiante + CSRF | Revoca la sesión y elimina las cookies. |
 | `DELETE` | `/api/v1/student-auth/account` | Revalidación | Da de baja con correo, contraseña y `confirm: true`, incluso si la cuenta está bloqueada. |
-| `PATCH` | `/api/v1/admin/student-users/:id/status` | Admin + `USERS_MANAGE` + CSRF | Activa o bloquea la cuenta y revoca todas sus sesiones en la misma transacción. |
+| `GET` | `/api/v1/admin/student-users` | Admin + `USERS_MANAGE` | Lista cuentas normales con búsqueda `q`, filtro `status` y paginación. |
+| `GET` | `/api/v1/admin/student-users/:id` | Admin + `USERS_MANAGE` | Consulta perfil e historial de cambios, actor y motivo. |
+| `PATCH` | `/api/v1/admin/student-users/:id/status` | Admin + `USERS_MANAGE` + CSRF | Activa o bloquea; exige motivo, registra actor/fecha/transición y revoca sesiones al bloquear. |
+| `DELETE` | `/api/v1/admin/student-users/:id` | Admin + `USERS_MANAGE` + CSRF | Da de baja con motivo mediante el servicio común de BAJA. |
 
 Las cookies son `aequvg_student_session` y `aequvg_student_device`, ambas `HttpOnly`, más `aequvg_student_csrf`, legible por el navegador para mutaciones. No sirven en `/api/v1/auth` ni en rutas `/api/v1/admin`; los JWT usan audiencia `aequvg-student`, distinta de `aequvg-admin`.
 
@@ -38,7 +41,7 @@ Las cookies son `aequvg_student_session` y `aequvg_student_device`, ambas `HttpO
 | `BLOQUEADO_PERMANENTE` | Denegado | `403 ACCOUNT_PERMANENTLY_BLOCKED`, con `details.reviewChannel`. |
 | `ELIMINADO` | Denegado | `403 ACCOUNT_DELETED`; todas las sesiones quedan revocadas. |
 
-MOD puede enviar `{ "status": "ACTIVO" }`, un bloqueo temporal con `blockedUntil` futuro o un bloqueo permanente con `reviewChannel`. La operación revoca todas las sesiones abiertas dentro de la misma transacción. BAJA aplica la misma regla al eliminar la cuenta. Las credenciales se conservan tras la baja lógica para impedir recreaciones ambiguas y permitir trazabilidad; no conceden acceso.
+MOD envía un estado (`ACTIVO`, bloqueo temporal con `blockedUntil` futuro o bloqueo permanente con `reviewChannel`) y un `reason` de al menos cinco caracteres. La transacción guarda estado anterior/nuevo, motivo, fecha y actor en `historial_estado_cuenta_estudiante`. Al bloquear se revocan las sesiones; al activar no se revocan. Los cambios efectivos también limpian el contador en memoria de intentos fallidos para ese correo (cinco fallos por combinación IP/correo durante quince minutos). No se permite modificar o reactivar una cuenta dada de baja. BAJA propia y administrativa usan el mismo servicio de baja lógica, registran su motivo y revocan sesiones; la baja administrativa requiere `reason`. No hay borrado en cascada. Las rutas consultan exclusivamente `usuario_estudiante` y excluyen cuentas que no sean estudiantes institucionales; nunca listan ni modifican usuarios administrativos. Las credenciales se conservan tras la baja lógica para impedir recreaciones ambiguas y permitir trazabilidad; no conceden acceso.
 
 ## Matriz de acceso
 
@@ -69,4 +72,4 @@ bun run test
 bun run test:integration:student-auth
 ```
 
-`tests/unit/student-auth.service.test.ts` cubre rol fijo, aislamiento de tablas, moderación de nombres de alta y edición, bloqueos y baja bloqueada. `tests/integration/student-auth.database.test.ts` cubre acceso anónimo, estudiante y administrador; payload manipulado; duplicados; propiedad del perfil y campos protegidos; persistencia tras consulta; login/logout/recarga; revocación; ambos bloqueos; baja y regresión administrativa con PostgreSQL migrado. La colección `docs/aequvg-hoppscotch.json` contiene las peticiones manuales sin secretos reales.
+`tests/unit/student-auth.service.test.ts` cubre rol fijo, aislamiento de tablas, moderación de nombres de alta y edición, bloqueos y baja bloqueada. `tests/integration/student-auth.database.test.ts` cubre listado/detalle administrativos, historial del actor y motivo, revocación de sesiones, ambos bloqueos, baja propia y aislamiento entre dominios con PostgreSQL migrado. La colección `docs/aequvg-hoppscotch.json` contiene las peticiones manuales sin secretos reales.

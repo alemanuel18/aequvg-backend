@@ -1,7 +1,7 @@
 import { AppError } from '../shared/errors/app-error'
 import { sha256 } from '../shared/utils/auth-crypto'
 
-const attempts = new Map<string, { count: number; resetAt: number }>()
+const attempts = new Map<string, { count: number; resetAt: number; emailHash: string }>()
 const registrationAttempts = new Map<string, { count: number; resetAt: number }>()
 const recoveryAttempts = new Map<string, { count: number; resetAt: number }>()
 const recoveryIpAttempts = new Map<string, { count: number; resetAt: number }>()
@@ -25,13 +25,19 @@ export const enforceAuthRateLimit = (request: Request, email: string) => {
 
 export const recordAuthFailure = (request: Request, email: string) => {
   const key = rateLimitKey(request, email)
+  const emailHash = sha256(email.trim().toLowerCase())
   const now = Date.now()
   const current = attempts.get(key)
-  if (!current || current.resetAt <= now) attempts.set(key, { count: 1, resetAt: now + WINDOW_MS })
+  if (!current || current.resetAt <= now) attempts.set(key, { count: 1, resetAt: now + WINDOW_MS, emailHash })
   else current.count += 1
 }
 
 export const clearAuthFailures = (request: Request, email: string) => attempts.delete(rateLimitKey(request, email))
+
+export const clearAuthFailuresForEmail = (email: string) => {
+  const emailHash = sha256(email.trim().toLowerCase())
+  for (const [key, attempt] of attempts) if (attempt.emailHash === emailHash) attempts.delete(key)
+}
 
 export const enforceRegistrationRateLimit = (request: Request, email: string) => {
   const key = rateLimitKey(request, email)

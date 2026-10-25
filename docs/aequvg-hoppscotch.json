@@ -441,9 +441,21 @@
           "method": "POST",
           "endpoint": "<<baseUrl>>/student-auth/register",
           "params": [],
-          "headers": [{ "key": "Content-Type", "value": "application/json", "active": true }],
-          "auth": { "authType": "none", "authActive": true },
-          "body": { "contentType": "application/json", "body": "{\n  \"firstNames\": \"Estudiante\",\n  \"lastNames\": \"de Prueba\",\n  \"email\": \"<<studentEmail>>\",\n  \"password\": \"<<studentPassword>>\",\n  \"isStudent\": true\n}" }
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"firstNames\": \"Estudiante\",\n  \"lastNames\": \"de Prueba\",\n  \"email\": \"<<studentEmail>>\",\n  \"password\": \"<<studentPassword>>\",\n  \"isStudent\": true\n}"
+          }
         },
         {
           "v": "1",
@@ -451,9 +463,21 @@
           "method": "POST",
           "endpoint": "<<baseUrl>>/student-auth/register",
           "params": [],
-          "headers": [{ "key": "Content-Type", "value": "application/json", "active": true }],
-          "auth": { "authType": "none", "authActive": true },
-          "body": { "contentType": "application/json", "body": "{\n  \"firstNames\": \"Estudiante\",\n  \"lastNames\": \"de Prueba\",\n  \"email\": \"otra.cuenta@uvg.edu.gt\",\n  \"password\": \"<<studentPassword>>\",\n  \"isStudent\": true,\n  \"role\": \"ADMIN\"\n}" }
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"firstNames\": \"Estudiante\",\n  \"lastNames\": \"de Prueba\",\n  \"email\": \"otra.cuenta@uvg.edu.gt\",\n  \"password\": \"<<studentPassword>>\",\n  \"isStudent\": true,\n  \"role\": \"ADMIN\"\n}"
+          }
         },
         {
           "v": "1",
@@ -461,9 +485,21 @@
           "method": "POST",
           "endpoint": "<<baseUrl>>/student-auth/login",
           "params": [],
-          "headers": [{ "key": "Content-Type", "value": "application/json", "active": true }],
-          "auth": { "authType": "none", "authActive": true },
-          "body": { "contentType": "application/json", "body": "{\n  \"email\": \"<<studentEmail>>\",\n  \"password\": \"<<studentPassword>>\"\n}" }
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"email\": \"<<studentEmail>>\",\n  \"password\": \"<<studentPassword>>\"\n}"
+          }
         },
         {
           "v": "1",
@@ -472,8 +508,14 @@
           "endpoint": "<<baseUrl>>/student-auth/me",
           "params": [],
           "headers": [],
-          "auth": { "authType": "none", "authActive": true },
-          "body": { "contentType": null, "body": null }
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
         },
         {
           "v": "1",
@@ -482,11 +524,25 @@
           "endpoint": "<<baseUrl>>/student-auth/me",
           "params": [],
           "headers": [
-            { "key": "Content-Type", "value": "application/json", "active": true },
-            { "key": "X-CSRF-Token", "value": "<<studentCsrfToken>>", "active": true }
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<studentCsrfToken>>",
+              "active": true
+            }
           ],
-          "auth": { "authType": "none", "authActive": true },
-          "body": { "contentType": "application/json", "body": "{\n  \"firstNames\": \"Ana María\",\n  \"lastNames\": \"López Pérez\"\n}" }
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"firstNames\": \"Ana María\",\n  \"lastNames\": \"López Pérez\"\n}"
+          }
         },
         {
           "v": "1",
@@ -494,9 +550,21 @@
           "method": "POST",
           "endpoint": "<<baseUrl>>/student-auth/logout",
           "params": [],
-          "headers": [{ "key": "X-CSRF-Token", "value": "<<studentCsrfToken>>", "active": true }],
-          "auth": { "authType": "none", "authActive": true },
-          "body": { "contentType": null, "body": null }
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<studentCsrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
         },
         {
           "v": "1",
@@ -504,22 +572,119 @@
           "method": "DELETE",
           "endpoint": "<<baseUrl>>/student-auth/account",
           "params": [],
-          "headers": [{ "key": "Content-Type", "value": "application/json", "active": true }],
-          "auth": { "authType": "none", "authActive": true },
-          "body": { "contentType": "application/json", "body": "{\n  \"email\": \"<<studentEmail>>\",\n  \"password\": \"<<studentPassword>>\",\n  \"confirm\": true\n}" }
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"email\": \"<<studentEmail>>\",\n  \"password\": \"<<studentPassword>>\",\n  \"confirm\": true\n}"
+          }
         },
         {
           "v": "1",
-          "name": "Bloquear estudiante y revocar sesiones",
+          "name": "Listar cuentas normales de estudiantes",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/student-users?q=Ana&status=ACTIVO&page=1&pageSize=20",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Consultar cuenta e historial de estados",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/student-users/<<studentUserId>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Dar de baja cuenta normal mediante BAJA",
+          "method": "DELETE",
+          "endpoint": "<<baseUrl>>/admin/student-users/<<studentUserId>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"reason\": \"Solicitud administrativa documentada\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Actualizar estado y registrar motivo",
           "method": "PATCH",
           "endpoint": "<<baseUrl>>/admin/student-users/<<studentUserId>>/status",
           "params": [],
           "headers": [
-            { "key": "Content-Type", "value": "application/json", "active": true },
-            { "key": "X-CSRF-Token", "value": "<<csrfToken>>", "active": true }
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
           ],
-          "auth": { "authType": "none", "authActive": true },
-          "body": { "contentType": "application/json", "body": "{\n  \"status\": \"BLOQUEADO_PERMANENTE\",\n  \"reviewChannel\": \"revision@uvg.edu.gt\"\n}" }
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"status\": \"BLOQUEADO_PERMANENTE\",\n  \"reviewChannel\": \"revision@uvg.edu.gt\",\n  \"reason\": \"Revisión administrativa pendiente\"\n}"
+          }
         }
       ]
     },
@@ -1955,8 +2120,14 @@
           "endpoint": "<<baseUrl>>/admin/contact-methods",
           "params": [],
           "headers": [],
-          "auth": { "authType": "none", "authActive": true },
-          "body": { "contentType": null, "body": null }
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
         },
         {
           "v": "1",
@@ -1965,10 +2136,21 @@
           "endpoint": "<<baseUrl>>/admin/contact-methods",
           "params": [],
           "headers": [
-            { "key": "Content-Type", "value": "application/json", "active": true },
-            { "key": "X-CSRF-Token", "value": "<<csrfToken>>", "active": true }
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
           ],
-          "auth": { "authType": "none", "authActive": true },
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
           "body": {
             "contentType": "application/json",
             "body": "{\n  \"type\": \"OTRO\",\n  \"label\": \"TikTok\",\n  \"value\": \"@aeq_uvg\",\n  \"url\": \"https://www.tiktok.com/@aeq_uvg\",\n  \"active\": true\n}"
@@ -1981,10 +2163,21 @@
           "endpoint": "<<baseUrl>>/admin/contact-methods/<<contactMethodId>>",
           "params": [],
           "headers": [
-            { "key": "Content-Type", "value": "application/json", "active": true },
-            { "key": "X-CSRF-Token", "value": "<<csrfToken>>", "active": true }
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
           ],
-          "auth": { "authType": "none", "authActive": true },
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
           "body": {
             "contentType": "application/json",
             "body": "{\n  \"type\": \"EMAIL\",\n  \"label\": \"Correo oficial\",\n  \"value\": \"contacto@uvg.edu.gt\",\n  \"active\": true\n}"
@@ -1997,10 +2190,21 @@
           "endpoint": "<<baseUrl>>/admin/contact-methods/order",
           "params": [],
           "headers": [
-            { "key": "Content-Type", "value": "application/json", "active": true },
-            { "key": "X-CSRF-Token", "value": "<<csrfToken>>", "active": true }
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
           ],
-          "auth": { "authType": "none", "authActive": true },
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
           "body": {
             "contentType": "application/json",
             "body": "{\n  \"orderedIds\": [3, 1, 4]\n}"
@@ -2013,10 +2217,20 @@
           "endpoint": "<<baseUrl>>/admin/contact-methods/<<contactMethodId>>",
           "params": [],
           "headers": [
-            { "key": "X-CSRF-Token", "value": "<<csrfToken>>", "active": true }
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
           ],
-          "auth": { "authType": "none", "authActive": true },
-          "body": { "contentType": null, "body": null }
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
         }
       ]
     }

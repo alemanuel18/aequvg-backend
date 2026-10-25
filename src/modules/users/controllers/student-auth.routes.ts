@@ -45,6 +45,9 @@ export const studentAuthRoutes = new Elysia({ prefix: '/api/v1/student-auth' })
     detail: { tags: ['Acceso estudiantil'], summary: 'Consulta la sesión estudiantil actual' }
   })
   .patch('/me', async ({ request, body }) => {
+    const allowedProfileFields = new Set(['firstNames', 'lastNames'])
+    const unknownFields = Object.keys(body as Record<string, unknown>).filter(field => !allowedProfileFields.has(field))
+    if (unknownFields.length) throw new AppError(422, 'VALIDATION_ERROR', 'La solicitud contiene campos que no se pueden modificar.', { fields: unknownFields.join(',') })
     const authenticated = await studentAuthService.authenticate(request)
     return { user: await studentAuthService.updateOwnProfile(authenticated.user.id, body) }
   }, {

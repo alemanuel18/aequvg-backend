@@ -4,8 +4,9 @@ import { AppError } from '../../../shared/errors/app-error'
 import { createUserBody, passwordBody, roleListResponse, updateUserBody, userIdParams, userListResponse, userResponse, usersErrorResponse } from '../dtos/users.schemas'
 import { usersService } from '../services/users.service'
 import { registrationService } from '../services/registration.service'
-import { studentAuthErrorResponse, studentStatusBody, studentUserResponse } from '../dtos/student-auth.schemas'
+import { managedStudentDeleteBody, managedStudentDetailResponse, managedStudentListQuery, managedStudentListResponse, studentAuthErrorResponse, studentStatusBody, studentUserResponse } from '../dtos/student-auth.schemas'
 import { studentAuthService } from '../services/student-auth.service'
+import { studentAccountDeletionService } from '../services/student-account-deletion.service'
 
 export const usersRoutes = new Elysia({ prefix: '/api/v1/admin' })
   .get('/roles', async ({ request }) => {
@@ -69,12 +70,37 @@ export const usersRoutes = new Elysia({ prefix: '/api/v1/admin' })
     response: { 200: t.Object({ message: t.String() }), 401: usersErrorResponse, 403: usersErrorResponse, 404: usersErrorResponse, 422: usersErrorResponse },
     detail: { tags: ['Administración'], summary: 'Establece una contraseña y revoca las sesiones anteriores' }
   })
-  .patch('/student-users/:id/status', async ({ request, params, body }) => {
+  .get('/student-users', async ({ request, query }) => {
     await requireAdmin(request, 'USERS_MANAGE')
-    return studentAuthService.updateStatus(params.id, body)
+    return studentAuthService.listManagedAccounts(query)
+  }, {
+    query: managedStudentListQuery,
+    response: { 200: managedStudentListResponse, 401: studentAuthErrorResponse, 403: studentAuthErrorResponse },
+    detail: { tags: ['Administración'], summary: 'Lista cuentas normales de estudiantes con filtros y paginación' }
+  })
+  .get('/student-users/:id', async ({ request, params }) => {
+    await requireAdmin(request, 'USERS_MANAGE')
+    return studentAuthService.getManagedAccount(params.id)
+  }, {
+    params: userIdParams,
+    response: { 200: managedStudentDetailResponse, 401: studentAuthErrorResponse, 403: studentAuthErrorResponse, 404: studentAuthErrorResponse },
+    detail: { tags: ['Administración'], summary: 'Consulta una cuenta normal y su historial de estados' }
+  })
+  .patch('/student-users/:id/status', async ({ request, params, body }) => {
+    const actor = await requireAdmin(request, 'USERS_MANAGE')
+    return studentAuthService.updateStatus(params.id, body, actor.user.id)
   }, {
     params: userIdParams,
     body: studentStatusBody,
     response: { 200: studentUserResponse, 401: studentAuthErrorResponse, 403: studentAuthErrorResponse, 404: studentAuthErrorResponse, 422: studentAuthErrorResponse },
-    detail: { tags: ['Administración'], summary: 'Actualiza el estado estudiantil y revoca todas sus sesiones' }
+    detail: { tags: ['Administración'], summary: 'Cambia el estado, registra actor y motivo y revoca sesiones al bloquear' }
+  })
+  .delete('/student-users/:id', async ({ request, params, body }) => {
+    const actor = await requireAdmin(request, 'USERS_MANAGE')
+    return studentAccountDeletionService.delete(params.id, { actorId: actor.user.id, reason: body.reason })
+  }, {
+    params: userIdParams,
+    body: managedStudentDeleteBody,
+    response: { 200: t.Object({ id: t.Integer(), status: t.Literal('ELIMINADO'), deletedAt: t.Date() }), 401: studentAuthErrorResponse, 403: studentAuthErrorResponse, 404: studentAuthErrorResponse, 409: studentAuthErrorResponse, 422: studentAuthErrorResponse },
+    detail: { tags: ['Administración'], summary: 'Da de baja una cuenta normal mediante el servicio único de BAJA' }
   })

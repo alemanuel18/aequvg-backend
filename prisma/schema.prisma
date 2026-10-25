@@ -258,6 +258,7 @@ model AdministrativeUser {
   createdResources             Resource[]
   assignedContactRequests      ContactRequest[]
   reviewedRegistrationRequests AdministrativeRegistrationRequest[] @relation("RegistrationReviewer")
+  studentAccountActions       StudentAccountStatusHistory[]
   passwordResetRequests        AdministrativePasswordReset[]
 
   // Relaciones con proyectos
@@ -362,6 +363,7 @@ model StudentUser {
 
   credential StudentCredential?
   sessions   StudentSession[]
+  statusHistory StudentAccountStatusHistory[]
 
   @@index([status, blockedUntil])
   @@map("usuario_estudiante")
@@ -395,6 +397,25 @@ model StudentSession {
   @@index([userId, revokedAt, expiresAt])
   @@index([expiresAt])
   @@map("sesion_estudiante")
+}
+
+model StudentAccountStatusHistory {
+  id            Int                 @id @default(autoincrement()) @map("id_historial")
+  studentId     Int                 @map("id_estudiante")
+  actorId       Int?                @map("id_actor_administrativo")
+  fromStatus    StudentAccountStatus @map("estado_anterior")
+  toStatus      StudentAccountStatus @map("estado_nuevo")
+  reason        String              @map("motivo") @db.Text
+  blockedUntil  DateTime?            @map("bloqueado_hasta") @db.Timestamptz(3)
+  reviewChannel String?             @map("canal_revision") @db.VarChar(255)
+  createdAt     DateTime            @default(now()) @map("registrado_en") @db.Timestamptz(3)
+
+  student StudentUser         @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  actor   AdministrativeUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, createdAt])
+  @@index([actorId, createdAt])
+  @@map("historial_estado_cuenta_estudiante")
 }
 
 model MicrosoftLoginChallenge {
