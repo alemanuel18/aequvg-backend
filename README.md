@@ -468,6 +468,7 @@ El seed está en `prisma/seed.ts`. Carga de forma idempotente:
 - El estudiante normal `estudiante.pruebas@uvg.edu.gt`, con la contraseña documentada en la sección de acceso estudiantil, únicamente fuera de producción.
 - Medios de contacto, integrantes y orden de la junta directiva.
 - Bloques institucionales, una noticia y un recurso publicados de ejemplo.
+- Comentarios de muestra aprobados para la noticia, proyecto y evento de desarrollo; no se persisten textos rechazados por moderación.
 - Metadatos de un PDF de ejemplo para comprobar la relación entre recursos y archivos.
 
 Puede ejecutarse varias veces. La junta se busca por correo institucional; si existe, se actualiza. Los medios se buscan por `type` y `value`; una entrada idéntica se actualiza en lugar de duplicarse.
@@ -487,6 +488,8 @@ bun run db:seed
 ```
 
 La base debe tener las migraciones aplicadas antes de ejecutar el seed. Los datos de ejemplo están marcados como contenido de desarrollo y no reemplazan contenido institucional aprobado.
+
+Para ver los comentarios, abre los detalles desde las listas públicas de Noticias, Investigación o Eventos. Inicia sesión con `estudiante.pruebas@uvg.edu.gt` para probar el formulario. Un texto como `Eres un idiota` debe ser rechazado por MOD y quedarse sin publicar; la API no conserva comentarios bloqueados.
 
 Fuera de Docker la seed sigue siendo manual. El Compose de desarrollo sí la ejecuta automáticamente; el Compose de producción conserva la seed como herramienta manual.
 
