@@ -11,7 +11,7 @@ import { createApp } from '../../src/app'
 const SESSION_SECRET = 'secreto-de-junta-con-al-menos-32-caracteres'
 const USER_AGENT = 'AEQUVG-Board-Test/1.0'
 const PLATFORM = '"Linux"'
-const validMember = { name: 'Ana Pérez', position: 'Presidenta', description: null, institutionalEmail: 'ana@uvg.edu.gt', termStartsAt: '2026-01-01', termEndsAt: '2026-12-31', displayOrder: 1, status: 'ACTIVO' }
+const validMember = { firstNames: 'Ana', lastNames: 'Pérez', position: 'Presidenta', description: null, institutionalEmail: 'ana@uvg.edu.gt', termStartsAt: '2026-01-01', termEndsAt: '2026-12-31', displayOrder: 1, status: 'ACTIVO' }
 
 describe('acceso administrativo de Junta Directiva', () => {
   const app = createApp()

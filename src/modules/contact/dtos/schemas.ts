@@ -1,7 +1,8 @@
 import { t } from 'elysia'
 
 export const contactRequestBody = t.Object({
-  name: t.String({ minLength: 2, maxLength: 160 }),
+  firstNames: t.String({ minLength: 2, maxLength: 80 }),
+  lastNames: t.String({ minLength: 2, maxLength: 80 }),
   email: t.String({ format: 'email', maxLength: 320 }),
   phone: t.String({ minLength: 7, maxLength: 40 }),
   type: t.Union([t.Literal('CONSULTA'), t.Literal('REUNION')]),
