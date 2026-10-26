@@ -40,13 +40,13 @@ const validatePage = (page: number, pageSize: number) => {
 }
 
 export const commentsService = {
-  async create(studentId: number, targetType: CommentTargetType, targetId: number, input: { content: string }) {
+  async create(studentId: number, targetType: CommentTargetType, targetId: number, input: { content: string }, idempotencyKey?: string) {
     const target = await commentsRepository.findVisibleTarget(targetType, targetId)
     if (!target) throw new AppError(404, 'PUBLICATION_NOT_FOUND', 'La publicación no existe o no está visible.')
     const content = normalizeComment(input.content)
     const length = [...content].length
     if (length < 1 || length > 2000) throw new AppError(422, 'INVALID_COMMENT_CONTENT', 'El comentario debe tener entre 1 y 2000 caracteres.')
-    await commentModerationService.assertAllowed(content)
+    await commentModerationService.assertAllowed(content, { studentId, source: 'COMMENT_CREATE', idempotencyKey })
     try {
       return formatComment(await commentsRepository.create({ studentId, targetType, targetId, content, dedupeHash: commentHash(studentId, targetType, targetId, content) }))
     } catch (error) {
@@ -67,11 +67,11 @@ export const commentsService = {
     validatePage(page, pageSize)
     return pageResult(await commentsRepository.listForStudent(studentId, { page, pageSize }), page, pageSize)
   },
-  async updateOwn(studentId: number, commentId: number, input: { content: string }) {
+  async updateOwn(studentId: number, commentId: number, input: { content: string }, idempotencyKey?: string) {
     const content = normalizeComment(input.content)
     const length = [...content].length
     if (length < 1 || length > 2000) throw new AppError(422, 'INVALID_COMMENT_CONTENT', 'El comentario debe tener entre 1 y 2000 caracteres.')
-    await commentModerationService.assertAllowed(content)
+    await commentModerationService.assertAllowed(content, { studentId, source: 'COMMENT_EDIT', idempotencyKey })
     try {
       const result = await commentsRepository.updateOwned(studentId, commentId, content)
       if (!result) throw new AppError(404, 'COMMENT_NOT_FOUND', 'El comentario no existe o no pertenece a esta cuenta.')

@@ -76,7 +76,11 @@ export const usersRoutes = new Elysia({ prefix: '/api/v1/admin' })
   }, {
     query: managedStudentListQuery,
     response: { 200: managedStudentListResponse, 401: studentAuthErrorResponse, 403: studentAuthErrorResponse },
-    detail: { tags: ['Administración'], summary: 'Lista cuentas normales de estudiantes con filtros y paginación' }
+    detail: {
+      tags: ['Administración'], summary: 'Lista cuentas normales con filtros y paginación',
+      security: [{ cookieAuth: [] }],
+      description: 'Exclusivo para administradores con permiso USERS_MANAGE. Busca por nombre/correo con q, filtra por type (ESTUDIANTE o INTERESADO) y status, y pagina con page/pageSize (máximo 100). Las cuentas administrativas no forman parte de este recurso. Visitantes, estudiantes y administradores sin permiso reciben 401/403.'
+    }
   })
   .get('/student-users/:id', async ({ request, params }) => {
     await requireAdmin(request, 'USERS_MANAGE')
@@ -84,16 +88,31 @@ export const usersRoutes = new Elysia({ prefix: '/api/v1/admin' })
   }, {
     params: userIdParams,
     response: { 200: managedStudentDetailResponse, 401: studentAuthErrorResponse, 403: studentAuthErrorResponse, 404: studentAuthErrorResponse },
-    detail: { tags: ['Administración'], summary: 'Consulta una cuenta normal y su historial de estados' }
+    detail: {
+      tags: ['Administración'], summary: 'Consulta una cuenta normal y su historial de estados',
+      security: [{ cookieAuth: [] }],
+      description: 'Exclusivo para administradores con permiso USERS_MANAGE. Incluye historial con actor, fecha, motivo, transición y datos del bloqueo. No permite consultar cuentas administrativas.'
+    }
   })
   .patch('/student-users/:id/status', async ({ request, params, body }) => {
     const actor = await requireAdmin(request, 'USERS_MANAGE')
+    const allowedFields = body.status === 'ACTIVO'
+      ? new Set(['status', 'reason'])
+      : body.status === 'BLOQUEADO_TEMPORAL'
+        ? new Set(['status', 'blockedUntil', 'reason'])
+        : new Set(['status', 'reviewChannel', 'reason'])
+    const unknownFields = Object.keys(body as Record<string, unknown>).filter(field => !allowedFields.has(field))
+    if (unknownFields.length) throw new AppError(422, 'VALIDATION_ERROR', 'La solicitud contiene campos que no se pueden modificar.', { fields: unknownFields.join(',') })
     return studentAuthService.updateStatus(params.id, body, actor.user.id)
   }, {
     params: userIdParams,
     body: studentStatusBody,
     response: { 200: studentUserResponse, 401: studentAuthErrorResponse, 403: studentAuthErrorResponse, 404: studentAuthErrorResponse, 422: studentAuthErrorResponse },
-    detail: { tags: ['Administración'], summary: 'Cambia el estado, registra actor y motivo y revoca sesiones al bloquear' }
+    detail: {
+      tags: ['Administración'], summary: 'Bloquea, desbloquea y registra la auditoría de una cuenta normal',
+      security: [{ cookieAuth: [], csrfToken: [] }],
+      description: 'Requiere sesión administrativa con USERS_MANAGE y X-CSRF-Token. reason es obligatorio (5–1000 caracteres). BLOQUEADO_TEMPORAL requiere blockedUntil futuro; al vencimiento, el siguiente intento de acceso reactiva la cuenta. BLOQUEADO_PERMANENTE requiere reviewChannel y no vence automáticamente. ACTIVO es el desbloqueo manual, por ejemplo para corregir un falso positivo. Los bloqueos revocan sesiones activas inmediatamente. Se registra actor, fecha, motivo y transición; repetir el mismo estado efectivo no duplica el historial. No hay escalamiento automático por reincidencia: cada nueva medida requiere decisión administrativa documentada.'
+    }
   })
   .delete('/student-users/:id', async ({ request, params, body }) => {
     const actor = await requireAdmin(request, 'USERS_MANAGE')
@@ -102,5 +121,9 @@ export const usersRoutes = new Elysia({ prefix: '/api/v1/admin' })
     params: userIdParams,
     body: managedStudentDeleteBody,
     response: { 200: t.Object({ id: t.Integer(), status: t.Literal('ELIMINADO'), deletedAt: t.Date() }), 401: studentAuthErrorResponse, 403: studentAuthErrorResponse, 404: studentAuthErrorResponse, 409: studentAuthErrorResponse, 422: studentAuthErrorResponse },
-    detail: { tags: ['Administración'], summary: 'Da de baja una cuenta normal mediante el servicio único de BAJA' }
+    detail: {
+      tags: ['Administración'], summary: 'Elimina administrativamente una cuenta normal mediante BAJA',
+      security: [{ cookieAuth: [], csrfToken: [] }],
+      description: 'Requiere sesión administrativa con USERS_MANAGE y X-CSRF-Token; reason es obligatorio (5–1000 caracteres). Es una baja lógica irreversible para la cuenta: usa el servicio común BAJA, anonimiza identidad y datos personales, revoca sesiones y conserva comentarios e inscripciones anonimizados. No equivale a desbloquear: el desbloqueo establece ACTIVO y permite volver a acceder; eliminar establece ELIMINADO, no permite reactivación y las solicitudes repetidas responden 409. Las cuentas administrativas están excluidas.'
+    }
   })

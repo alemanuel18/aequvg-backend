@@ -44,6 +44,22 @@ enum StudentAccountStatus {
   @@map("estado_cuenta_estudiante")
 }
 
+enum ModerationIncidentSource {
+  COMMENT_CREATE
+  COMMENT_EDIT
+  PROFILE_NAME_UPDATE
+
+  @@map("origen_infraccion_moderacion")
+}
+
+enum ModerationSanctionAction {
+  NONE
+  TEMPORARY
+  PERMANENT
+
+  @@map("accion_sancion_moderacion")
+}
+
 enum AuthenticationProvider {
   PASSWORD
   MICROSOFT
@@ -374,6 +390,8 @@ model StudentUser {
   status        StudentAccountStatus @default(ACTIVO) @map("estado")
   blockedUntil  DateTime?            @map("bloqueado_hasta") @db.Timestamptz(3)
   reviewChannel String?              @map("canal_revision") @db.VarChar(255)
+  moderationViolationCount Int        @default(0) @map("contador_infracciones_moderacion")
+  moderationWindowStartedAt DateTime? @map("inicio_ventana_moderacion") @db.Timestamptz(3)
   deletedAt     DateTime?            @map("eliminado_en") @db.Timestamptz(3)
   createdAt     DateTime             @default(now()) @map("creado_en") @db.Timestamptz(3)
   updatedAt     DateTime             @updatedAt @map("actualizado_en") @db.Timestamptz(3)
@@ -384,6 +402,7 @@ model StudentUser {
   eventRegistrations EventRegistration[]
   comments           PublicationComment[]
   commentRevisions   PublicationCommentRevision[]
+  moderationIncidents ModerationIncident[]
 
   @@index([status, blockedUntil])
   @@map("usuario_estudiante")
@@ -436,6 +455,30 @@ model StudentAccountStatusHistory {
   @@index([studentId, createdAt])
   @@index([actorId, createdAt])
   @@map("historial_estado_cuenta_estudiante")
+}
+
+/// Evidencia mínima de una infracción detectada bajo una política aprobada.
+/// No almacena el texto ofensivo; studentId se conserva como null al anonimizar.
+model ModerationIncident {
+  id                Int                       @id @default(autoincrement()) @map("id_infraccion")
+  studentId         Int?                      @map("id_estudiante")
+  operationKey      String                    @unique @map("clave_operacion") @db.Char(64)
+  source            ModerationIncidentSource  @map("origen")
+  policyVersion     String                    @map("version_politica") @db.VarChar(80)
+  ruleId            String                    @map("id_regla") @db.VarChar(120)
+  evidenceHash      String                    @map("hash_evidencia") @db.Char(64)
+  occurrenceNumber  Int                       @map("numero_infraccion")
+  sanction          ModerationSanctionAction  @map("sancion")
+  blockedUntil      DateTime?                 @map("bloqueado_hasta") @db.Timestamptz(3)
+  reviewChannel     String?                   @map("canal_revision") @db.VarChar(255)
+  countsTowardReincidence Boolean             @default(true) @map("cuenta_reincidencia")
+  createdAt         DateTime                  @default(now()) @map("registrada_en") @db.Timestamptz(3)
+
+  student StudentUser? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, createdAt])
+  @@index([policyVersion, createdAt])
+  @@map("infraccion_moderacion")
 }
 
 model MicrosoftLoginChallenge {
