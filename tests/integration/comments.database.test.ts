@@ -1,5 +1,6 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app'
+import { clearRateLimitsForTests } from '../../src/middleware/rate-limit'
 import { commentsRepository } from '../../src/modules/comments/repositories/comments.repository'
 import { commentsService } from '../../src/modules/comments/services/comments.service'
 import { studentAuthRepository } from '../../src/modules/users/repositories/student-auth.repository'
@@ -14,6 +15,9 @@ let authorId = 0
 let studentId = 0
 let otherStudentId = 0
 let eventId = 0
+let newsCategoryId = 0
+let newsId = 0
+let projectId = 0
 let studentHeaders: Record<string, string>
 let otherStudentHeaders: Record<string, string>
 const app = createApp()
@@ -21,6 +25,8 @@ const app = createApp()
 const request = (path: string, options: RequestInit = {}) => new Request(`http://localhost${path}`, options)
 
 describeDatabase('comentarios de publicaciones con PostgreSQL', () => {
+  beforeEach(() => clearRateLimitsForTests())
+
   beforeAll(async () => {
     const role = await prisma.role.create({ data: { name: `${runId}-role`, description: 'Rol temporal para comentarios.' } })
     roleId = role.id
@@ -45,12 +51,36 @@ describeDatabase('comentarios de publicaciones con PostgreSQL', () => {
       }
     })
     eventId = event.id
+    const category = await prisma.newsCategory.create({ data: { name: `${runId}-category` } })
+    newsCategoryId = category.id
+    const news = await prisma.news.create({
+      data: {
+        createdById: authorId, categoryId: newsCategoryId, title: `${runId} noticia`,
+        summary: 'Resumen para probar la publicación de comentarios.',
+        content: 'Contenido para probar comentarios en noticias.',
+        status: 'PUBLICADO', publishedAt: new Date()
+      }
+    })
+    newsId = news.id
+    const project = await prisma.project.create({
+      data: {
+        authorId, title: `${runId} proyecto`, slug: `${runId}-project`,
+        description: 'Descripción para probar la publicación de comentarios en proyectos.',
+        type: 'PROYECTO', status: 'APROBADO'
+      }
+    })
+    projectId = project.id
   })
 
   afterAll(async () => {
     try {
       if (eventId) await prisma.publicationComment.deleteMany({ where: { eventId } })
+      if (newsId) await prisma.publicationComment.deleteMany({ where: { newsId } })
+      if (projectId) await prisma.publicationComment.deleteMany({ where: { projectId } })
       if (eventId) await prisma.event.delete({ where: { id: eventId } })
+      if (newsId) await prisma.news.delete({ where: { id: newsId } })
+      if (projectId) await prisma.project.delete({ where: { id: projectId } })
+      if (newsCategoryId) await prisma.newsCategory.delete({ where: { id: newsCategoryId } })
       if (otherStudentId) {
         await prisma.studentSession.deleteMany({ where: { userId: otherStudentId } })
         await prisma.studentUser.delete({ where: { id: otherStudentId } })
@@ -84,12 +114,56 @@ describeDatabase('comentarios de publicaciones con PostgreSQL', () => {
     expect(duplicate.status).toBe(409)
     expect((await duplicate.json()).error.code).toBe('DUPLICATE_COMMENT')
 
-    const history = await app.handle(request('/api/v1/student-auth/me/comments?page=1&pageSize=10', { headers: studentHeaders }))
-    expect(history.status).toBe(200)
-    expect(await history.json()).toMatchObject({ total: 1, items: [{ id: created.id, targetId: eventId }] })
+    const secondPost = await app.handle(request(`/api/v1/publications/EVENTO/${eventId}/comments`, {
+      method: 'POST', headers: studentHeaders, body: JSON.stringify({ content: 'Comentario para la segunda página' })
+    }))
+    expect(secondPost.status).toBe(201)
+    const secondCreated = await secondPost.json() as { id: number }
+
+    const firstHistoryPage = await app.handle(request('/api/v1/student-auth/me/comments?page=1&pageSize=1', { headers: studentHeaders }))
+    const secondHistoryPage = await app.handle(request('/api/v1/student-auth/me/comments?page=2&pageSize=1', { headers: studentHeaders }))
+    expect(firstHistoryPage.status).toBe(200)
+    expect(secondHistoryPage.status).toBe(200)
+    const firstHistory = await firstHistoryPage.json() as { items: Array<{ id: number }>; page: number; pageSize: number; total: number }
+    const secondHistory = await secondHistoryPage.json() as { items: Array<{ id: number }>; page: number; pageSize: number; total: number }
+    expect(firstHistory).toMatchObject({ page: 1, pageSize: 1, total: 2 })
+    expect(secondHistory).toMatchObject({ page: 2, pageSize: 1, total: 2 })
+    expect([firstHistory.items[0]?.id, secondHistory.items[0]?.id].sort()).toEqual([created.id, secondCreated.id].sort())
     const publicComments = await app.handle(request(`/api/v1/publications/EVENTO/${eventId}/comments`))
     expect(publicComments.status).toBe(200)
-    expect(await publicComments.json()).toMatchObject({ total: 1, items: [{ id: created.id }] })
+    expect(await publicComments.json()).toMatchObject({ total: 2, items: expect.arrayContaining([expect.objectContaining({ id: created.id }), expect.objectContaining({ id: secondCreated.id })]) })
+  })
+
+  it('conecta creación, publicación e historial con noticias, proyectos y eventos', async () => {
+    const targets = [
+      { type: 'NOTICIA', id: newsId },
+      { type: 'PROYECTO', id: projectId },
+      { type: 'EVENTO', id: eventId }
+    ] as const
+    const created: Array<{ id: number; targetType: string; targetId: number; content: string }> = []
+
+    for (const target of targets) {
+      const content = `Comentario de integración ${target.type.toLowerCase()}`
+      const response = await app.handle(request(`/api/v1/publications/${target.type}/${target.id}/comments`, {
+        method: 'POST', headers: studentHeaders, body: JSON.stringify({ content })
+      }))
+      expect(response.status).toBe(201)
+      created.push(await response.json() as typeof created[number])
+    }
+
+    for (const comment of created) {
+      const response = await app.handle(request(`/api/v1/publications/${comment.targetType}/${comment.targetId}/comments`))
+      expect(response.status).toBe(200)
+      const publication = await response.json() as { items: Array<{ id: number; content: string }> }
+      expect(publication.items).toContainEqual(expect.objectContaining({ id: comment.id, content: comment.content }))
+    }
+
+    const historyResponse = await app.handle(request('/api/v1/student-auth/me/comments?page=1&pageSize=100', { headers: studentHeaders }))
+    expect(historyResponse.status).toBe(200)
+    const history = await historyResponse.json() as { items: Array<{ id: number; targetType: string; targetId: number }> }
+    for (const comment of created) {
+      expect(history.items).toContainEqual(expect.objectContaining({ id: comment.id, targetType: comment.targetType, targetId: comment.targetId }))
+    }
   })
 
   it('mantiene el historial aislado por la identidad autenticada', async () => {
@@ -136,14 +210,20 @@ describeDatabase('comentarios de publicaciones con PostgreSQL', () => {
     const createdAt = comment.createdAt
     await studentAuthRepository.deleteAccountAndRevokeSessions(studentId, { actorId: null, reason: 'BAJA_SOLICITADA_POR_USUARIO' })
     const after = await prisma.publicationComment.findUniqueOrThrow({ where: { id: comment.id } })
-    expect(after).toMatchObject({ id: comment.id, eventId, studentId: null, createdAt })
+    expect(after).toMatchObject({ id: comment.id, targetType: 'EVENTO', eventId, content: 'Comentario integrado', studentId: null, createdAt })
     expect(after.dedupeHash).not.toBe(comment.dedupeHash)
     const publicComments = await app.handle(request(`/api/v1/publications/EVENTO/${eventId}/comments`))
-    const publicList = await publicComments.json() as { items: Array<{ id: number; authorName: string; createdAt: string }> }
+    const publicList = await publicComments.json() as { items: Array<Record<string, unknown> & { id: number; authorName: string; createdAt: string }> }
     expect(publicList.items.find(item => item.id === comment.id)).toEqual({
       id: comment.id, targetType: 'EVENTO', targetId: eventId, content: 'Comentario integrado',
       authorName: 'Anónimo', createdAt: createdAt.toISOString()
     })
+    const anonymizedResponse = publicList.items.find(item => item.id === comment.id)!
+    expect(anonymizedResponse).not.toHaveProperty('studentId')
+    expect(anonymizedResponse).not.toHaveProperty('authorId')
+    expect(anonymizedResponse).not.toHaveProperty('avatarUrl')
+    expect(anonymizedResponse).not.toHaveProperty('profileUrl')
+    expect(JSON.stringify(anonymizedResponse)).not.toContain('Estudiante Comentarios')
 
     const commentsBefore = await prisma.publicationComment.count({ where: { eventId } })
     const afterDeletion = await app.handle(request(`/api/v1/publications/EVENTO/${eventId}/comments`, {
