@@ -734,6 +734,54 @@
         },
         {
           "v": "1",
+          "name": "Historial propio de eventos",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/student/events/registrations?page=1&pageSize=20",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Historial propio confirmadas",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/student/events/registrations?page=1&pageSize=20&status=CONFIRMADA",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Historial propio canceladas",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/student/events/registrations?page=1&pageSize=20&status=CANCELADA",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
           "name": "Baja propia con verificación de identidad",
           "method": "DELETE",
           "endpoint": "<<baseUrl>>/student-auth/account",
@@ -742,6 +790,11 @@
             {
               "key": "Content-Type",
               "value": "application/json",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<studentCsrfToken>>",
               "active": true
             }
           ],
