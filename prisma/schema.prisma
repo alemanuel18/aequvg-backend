@@ -666,6 +666,8 @@ model EventRegistration {
   id             Int                     @id @default(autoincrement()) @map("id_inscripcion")
   eventId        Int                     @map("id_evento")
   fullName       String                  @map("nombre_completo") @db.VarChar(160)
+  firstNames     String                  @default("") @map("nombres") @db.VarChar(80)
+  lastNames      String                  @default("") @map("apellidos") @db.VarChar(80)
   email          String                  @map("correo") @db.Citext
   phone          String                  @map("telefono") @db.VarChar(40)
   status         EventRegistrationStatus @default(CONFIRMADA) @map("estado")
@@ -735,6 +737,8 @@ model BoardMember {
   id                 Int               @id @default(autoincrement()) @map("id_miembro")
   photoId            Int?              @map("id_fotografia")
   name               String            @map("nombre") @db.VarChar(160)
+  firstNames         String            @default("") @map("nombres") @db.VarChar(80)
+  lastNames          String            @default("") @map("apellidos") @db.VarChar(80)
   position           String            @map("cargo") @db.VarChar(120)
   description        String?           @map("descripcion") @db.Text
   institutionalEmail String            @map("correo_institucional") @db.Citext
@@ -756,6 +760,8 @@ model ContactRequest {
   id             Int                  @id @default(autoincrement()) @map("id_solicitud")
   assignedToId   Int?                 @map("atendido_por")
   name           String               @map("nombre") @db.VarChar(160)
+  firstNames     String               @default("") @map("nombres") @db.VarChar(80)
+  lastNames      String               @default("") @map("apellidos") @db.VarChar(80)
   email          String               @map("correo") @db.Citext
   phone          String               @map("telefono") @db.VarChar(40)
   type           ContactRequestType   @default(CONSULTA) @map("tipo")

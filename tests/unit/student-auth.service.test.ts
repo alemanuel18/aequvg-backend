@@ -106,10 +106,14 @@ describe('servicio de acceso estudiantil', () => {
     expect(repositoryMocks.createSession).not.toHaveBeenCalled()
   })
 
-  it('informa el canal de revisión del bloqueo permanente', async () => {
-    repositoryMocks.findUserByEmail.mockResolvedValue({ ...(await activeStudent()), status: 'BLOQUEADO_PERMANENTE', reviewChannel: 'revision@uvg.edu.gt' })
+  it('mantiene un bloqueo permanente aunque tenga una fecha vencida y nunca lo activa automáticamente', async () => {
+    repositoryMocks.findUserByEmail.mockResolvedValue({
+      ...(await activeStudent()), status: 'BLOQUEADO_PERMANENTE', reviewChannel: 'revision@uvg.edu.gt', blockedUntil: new Date('2020-01-01T00:00:00.000Z')
+    })
     await expect(studentAuthService.login('estudiante@uvg.edu.gt', 'Clave-estudiante-123!', new Headers()))
       .rejects.toMatchObject({ code: 'ACCOUNT_PERMANENTLY_BLOCKED', details: { reviewChannel: 'revision@uvg.edu.gt' } })
+    expect(repositoryMocks.activateExpiredTemporaryBlock).not.toHaveBeenCalled()
+    expect(repositoryMocks.createSession).not.toHaveBeenCalled()
   })
 
   it('permite la baja propia bloqueada tras volver a verificar la contraseña', async () => {

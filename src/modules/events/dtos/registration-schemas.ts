@@ -1,7 +1,8 @@
 import { type Static, t } from 'elysia'
 
 export const eventRegistrationBody = t.Object({
-  fullName: t.String({ minLength: 2, maxLength: 160 }),
+  firstNames: t.String({ minLength: 2, maxLength: 80 }),
+  lastNames: t.String({ minLength: 2, maxLength: 80 }),
   email: t.String({ format: 'email', maxLength: 320 }),
   phone: t.String({ minLength: 7, maxLength: 40 }),
   consent: t.Literal(true),

@@ -88,6 +88,13 @@ export const usersRoutes = new Elysia({ prefix: '/api/v1/admin' })
   })
   .patch('/student-users/:id/status', async ({ request, params, body }) => {
     const actor = await requireAdmin(request, 'USERS_MANAGE')
+    const allowedFields = body.status === 'ACTIVO'
+      ? new Set(['status', 'reason'])
+      : body.status === 'BLOQUEADO_TEMPORAL'
+        ? new Set(['status', 'blockedUntil', 'reason'])
+        : new Set(['status', 'reviewChannel', 'reason'])
+    const unknownFields = Object.keys(body as Record<string, unknown>).filter(field => !allowedFields.has(field))
+    if (unknownFields.length) throw new AppError(422, 'VALIDATION_ERROR', 'La solicitud contiene campos que no se pueden modificar.', { fields: unknownFields.join(',') })
     return studentAuthService.updateStatus(params.id, body, actor.user.id)
   }, {
     params: userIdParams,

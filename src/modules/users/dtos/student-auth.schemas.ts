@@ -47,17 +47,17 @@ export const studentAuthErrorResponse = t.Object({
 })
 
 export const studentStatusBody = t.Union([
-  t.Object({ status: t.Literal('ACTIVO'), reason: t.String({ minLength: 5, maxLength: 1000 }) }, { additionalProperties: false }),
+  t.Object({ status: t.Literal('ACTIVO'), reason: t.String({ minLength: 5, maxLength: 1000 }) }, { additionalProperties: true }),
   t.Object({
     status: t.Literal('BLOQUEADO_TEMPORAL'),
     blockedUntil: t.String({ format: 'date-time' }),
     reason: t.String({ minLength: 5, maxLength: 1000 })
-  }, { additionalProperties: false }),
+  }, { additionalProperties: true }),
   t.Object({
     status: t.Literal('BLOQUEADO_PERMANENTE'),
     reviewChannel: t.String({ minLength: 2, maxLength: 255 }),
     reason: t.String({ minLength: 5, maxLength: 1000 })
-  }, { additionalProperties: false })
+  }, { additionalProperties: true })
 ])
 
 export const managedStudentListQuery = t.Object({

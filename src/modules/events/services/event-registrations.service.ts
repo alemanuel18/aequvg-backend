@@ -16,7 +16,9 @@ export const eventRegistrationsService = {
       throw new AppError(422, 'CONSENT_REQUIRED', 'Debes aceptar la política de privacidad.')
     }
 
-    const fullName = cleanText(input.fullName)
+    const firstNames = cleanText(input.firstNames)
+    const lastNames = cleanText(input.lastNames)
+    const fullName = `${firstNames} ${lastNames}`
     const email = input.email.trim().toLowerCase()
     const phone = cleanText(input.phone)
     const privacyVersion = cleanText(input.privacyVersion)
@@ -25,8 +27,8 @@ export const eventRegistrationsService = {
       throw new AppError(422, 'INVALID_PRIVACY_VERSION', 'La versión de privacidad no es válida.')
     }
 
-    if (fullName.length < 2) {
-      throw new AppError(422, 'VALIDATION_ERROR', 'El nombre completo debe tener al menos 2 caracteres.')
+    if (firstNames.length < 2 || lastNames.length < 2 || firstNames.length > 80 || lastNames.length > 80 || fullName.length > 160) {
+      throw new AppError(422, 'VALIDATION_ERROR', 'Escribe nombres y apellidos válidos.')
     }
 
     if (phone.length < 7) {
@@ -69,6 +71,8 @@ export const eventRegistrationsService = {
         const registration = await eventRegistrationsRepository.create(tx, {
           eventId,
           fullName,
+          firstNames,
+          lastNames,
           email,
           phone,
           status: 'CONFIRMADA',
