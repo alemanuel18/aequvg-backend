@@ -8,6 +8,11 @@ export type BoardInput = { name: string; position: string; description?: string 
 const notFound = () => new AppError(404, 'BOARD_MEMBER_NOT_FOUND', 'El integrante de junta solicitado no existe.')
 
 export const normalizeBoardInput = async (input: BoardInput, currentDisplayOrder = 0): Promise<Prisma.BoardMemberUncheckedCreateInput> => {
+  if (!input || typeof input !== 'object') throw new AppError(422, 'INVALID_BOARD_CONTENT', 'Completa los campos obligatorios del integrante.')
+  const requiredFields = ['name', 'position', 'institutionalEmail', 'termStartsAt', 'termEndsAt'] as const
+  if (requiredFields.some(field => typeof input[field] !== 'string' || !input[field].trim())) {
+    throw new AppError(422, 'INVALID_BOARD_CONTENT', 'Completa los campos obligatorios del integrante.')
+  }
   const email = input.institutionalEmail.trim().toLowerCase()
   const name = cleanText(input.name)
   const position = cleanText(input.position)

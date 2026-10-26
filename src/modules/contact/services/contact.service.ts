@@ -12,7 +12,23 @@ export const normalizeContactRequest = (input: RequestInput) => {
   if (!input.consent) throw new AppError(422, 'CONSENT_REQUIRED', 'Debes aceptar el aviso de privacidad.')
   if (input.website) throw new AppError(400, 'INVALID_REQUEST', 'La solicitud no es válida.')
   if (input.type === 'REUNION' && !input.preferredAt) throw new AppError(422, 'PREFERRED_DATE_REQUIRED', 'Indica una fecha tentativa para la reunión.', { preferredAt: 'Campo obligatorio para reuniones.' })
-  return { name: cleanText(input.name), email: input.email.trim().toLowerCase(), phone: cleanText(input.phone), type: input.type, subject: cleanText(input.subject), message: cleanText(input.message), preferredAt: input.preferredAt ? new Date(input.preferredAt) : null, consentedAt: new Date(), privacyVersion: cleanText(input.privacyVersion) }
+  const normalized = {
+    name: cleanText(input.name),
+    email: input.email.trim().toLowerCase(),
+    phone: cleanText(input.phone),
+    type: input.type,
+    subject: cleanText(input.subject),
+    message: cleanText(input.message),
+    preferredAt: input.preferredAt ? new Date(input.preferredAt) : null,
+    consentedAt: new Date(),
+    privacyVersion: cleanText(input.privacyVersion)
+  }
+  const missingField = (['name', 'phone', 'subject', 'message', 'privacyVersion'] as const).find(field => !normalized[field])
+  if (missingField || !normalized.email) {
+    const field = missingField ?? 'email'
+    throw new AppError(422, 'VALIDATION_ERROR', 'Completa los campos obligatorios.', { [field]: 'Campo obligatorio.' })
+  }
+  return normalized
 }
 
 const normalizeMethod = (input: MethodInput) => {
