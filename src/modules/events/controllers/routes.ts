@@ -13,6 +13,8 @@ import {
   eventRegistrationAdminQuery,
   eventRegistrationBody,
   eventRegistrationResponse,
+  eventRegistrationOwnListResponse,
+  eventRegistrationOwnQuery,
   eventResponse,
   eventUpdateBody,
   idParams
@@ -33,10 +35,10 @@ export const eventsRoutes = new Elysia({ prefix: '/api/v1' })
     detail: { tags: ['Eventos'], summary: 'Consulta un evento público activo', description: 'Devuelve información pública de eventos con estado PUBLICADO. Eventos no publicados o inexistentes devuelven 404.' }
   })
   .post('/events/:id/registrations', async ({ headers, params, body, request, set }) => {
-    await studentAuthService.authenticate(request)
+    const authenticated = await studentAuthService.authenticate(request)
     enforceRateLimit(headers['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown')
     set.status = 201
-    return eventRegistrationsService.register(params.id, body)
+    return eventRegistrationsService.register(params.id, authenticated.user.id, body)
   }, {
     params: idParams,
     body: eventRegistrationBody,
@@ -55,6 +57,18 @@ export const eventsRoutes = new Elysia({ prefix: '/api/v1' })
       tags: ['Eventos'],
       summary: 'Inscribe un estudiante autenticado a un evento público',
       description: 'Requiere sesión estudiantil y CSRF; conserva control atómico de cupos y aceptación de política de privacidad.'
+    }
+  })
+  .get('/student/events/registrations', async ({ request, query }) => {
+    const authenticated = await studentAuthService.authenticate(request)
+    return eventRegistrationsService.ownList(authenticated.user.id, query)
+  }, {
+    query: eventRegistrationOwnQuery,
+    response: { 200: eventRegistrationOwnListResponse, 401: eventErrorResponse, 403: eventErrorResponse, 503: eventErrorResponse },
+    detail: {
+      tags: ['Acceso estudiantil'],
+      summary: 'Consulta las inscripciones propias',
+      description: 'Lista únicamente las inscripciones asociadas a la sesión estudiantil autenticada.'
     }
   })
   .get('/admin/events', async ({ request, query }) => {
