@@ -105,6 +105,15 @@ describe('contrato HTTP base', () => {
     expect(await response.json()).toMatchObject({ error: { code: 'UNAUTHORIZED' } })
   })
 
+  it('rechaza que un visitante publique comentarios aunque envíe un autor', async () => {
+    const response = await app.handle(new Request('http://localhost/api/v1/publications/EVENTO/1/comments', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ content: 'Intento anónimo', studentId: 1, authorId: 1 })
+    }))
+    expect(response.status).toBe(401)
+    expect(await response.json()).toMatchObject({ error: { code: 'UNAUTHORIZED' } })
+  })
+
   it('devuelve un error público estable cuando el cuerpo no es válido', async () => {
     const response = await app.handle(new Request('http://localhost/api/v1/contact-requests', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }))
     expect(response.status).toBe(422)
