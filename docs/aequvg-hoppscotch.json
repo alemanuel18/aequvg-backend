@@ -430,13 +430,51 @@
         },
         {
           "v": "1",
+          "name": "Comentarios de una noticia publicada",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/publications/NOTICIA/<<newsId>>/comments?page=1&pageSize=20",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Comentarios de un proyecto aprobado",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/publications/PROYECTO/<<projectId>>/comments?page=1&pageSize=20",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
           "name": "Comentarios de un evento publicado",
           "method": "GET",
           "endpoint": "<<baseUrl>>/publications/EVENTO/<<eventId>>/comments?page=1&pageSize=20",
           "params": [],
           "headers": [],
-          "auth": { "authType": "none", "authActive": true },
-          "body": { "contentType": null, "body": null }
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
         }
       ]
     },
@@ -452,12 +490,94 @@
           "endpoint": "<<baseUrl>>/publications/EVENTO/<<eventId>>/comments",
           "params": [],
           "headers": [
-            { "key": "Content-Type", "value": "application/json", "active": true },
-            { "key": "Cookie", "value": "<<studentSessionCookie>>", "active": true },
-            { "key": "X-CSRF-Token", "value": "<<studentCsrfToken>>", "active": true }
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            },
+            {
+              "key": "Cookie",
+              "value": "<<studentSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<studentCsrfToken>>",
+              "active": true
+            }
           ],
-          "auth": { "authType": "none", "authActive": true },
-          "body": { "contentType": "application/json", "body": "{\n  \"content\": \"Comentario de prueba\"\n}" }
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"content\": \"Comentario de prueba\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Crear comentario en noticia",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/publications/NOTICIA/<<newsId>>/comments",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            },
+            {
+              "key": "Cookie",
+              "value": "<<studentSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<studentCsrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"content\": \"Comentario de prueba\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Crear comentario en proyecto aprobado",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/publications/PROYECTO/<<projectId>>/comments",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            },
+            {
+              "key": "Cookie",
+              "value": "<<studentSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<studentCsrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"content\": \"Comentario de prueba\"\n}"
+          }
         },
         {
           "v": "1",
@@ -465,9 +585,21 @@
           "method": "GET",
           "endpoint": "<<baseUrl>>/student-auth/me/comments?page=1&pageSize=20",
           "params": [],
-          "headers": [{ "key": "Cookie", "value": "<<studentSessionCookie>>", "active": true }],
-          "auth": { "authType": "none", "authActive": true },
-          "body": { "contentType": null, "body": null }
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<studentSessionCookie>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
         },
         {
           "v": "1",
@@ -718,6 +850,65 @@
           "body": {
             "contentType": "application/json",
             "body": "{\n  \"status\": \"BLOQUEADO_PERMANENTE\",\n  \"reviewChannel\": \"revision@uvg.edu.gt\",\n  \"reason\": \"Revisión administrativa pendiente\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Editar mi comentario (pasa nuevamente por MOD)",
+          "method": "PUT",
+          "endpoint": "<<baseUrl>>/student-auth/me/comments/<<commentId>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            },
+            {
+              "key": "Cookie",
+              "value": "<<studentSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<studentCsrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"content\": \"Texto actualizado y moderado\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Retirar mi comentario",
+          "method": "DELETE",
+          "endpoint": "<<baseUrl>>/student-auth/me/comments/<<commentId>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<studentSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<studentCsrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
           }
         }
       ]
@@ -2267,6 +2458,35 @@
           }
         }
       ]
+    },
+    {
+      "v": 3,
+      "name": "Administración - Comentarios",
+      "folders": [],
+      "requests": [
+        {
+          "v": "1",
+          "name": "Historial de edición y retiro (ADMIN_ACCESS)",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/comments/history?page=1&pageSize=20",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        }
+      ]
     }
   ],
   "requests": [],
@@ -2329,6 +2549,18 @@
         {
           "key": "contactMethodId",
           "value": "1"
+        },
+        {
+          "key": "newsId",
+          "value": "1"
+        },
+        {
+          "key": "commentId",
+          "value": "1"
+        },
+        {
+          "key": "adminSessionCookie",
+          "value": "aequvg_session=copy-from-admin-login; aequvg_device=copy-from-admin-login"
         }
       ]
     }

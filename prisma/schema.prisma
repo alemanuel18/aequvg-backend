@@ -68,6 +68,7 @@ enum PublicationStatus {
   @@map("estado_publicacion_cientifica")
 }
 
+/// Destinos de comentarios habilitados en S4-COM. No incluye tesis, reacciones ni chat.
 enum CommentTargetType {
   NOTICIA
   PROYECTO
@@ -786,6 +787,9 @@ model ContactMethod {
   @@map("medio_contacto")
 }
 
+/// Comentario de texto plano vinculado a exactamente una noticia, proyecto o evento.
+/// La migración aplica CHECK para que el FK no nulo coincida con targetType.
+/// studentId se vuelve null al anonimizar una cuenta; deletedAt representa retiro lógico.
 model PublicationComment {
   id          Int               @id @default(autoincrement()) @map("id_comentario")
   studentId   Int?              @map("id_estudiante")
@@ -811,6 +815,7 @@ model PublicationComment {
   @@map("comentario_publicacion")
 }
 
+/// Auditoría privada de edición y retiro; actorStudentId puede quedar null al anonimizar.
 model PublicationCommentRevision {
   id                Int                   @id @default(autoincrement()) @map("id_historial_comentario")
   commentId         Int                   @map("id_comentario")
