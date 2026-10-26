@@ -4,6 +4,8 @@ const repoMocks = vi.hoisted(() => ({
   listPublished: vi.fn(),
   listAll: vi.fn(),
   listFeatured: vi.fn(),
+  featuredNewsCandidates: vi.fn(),
+  featuredEventCandidates: vi.fn(),
   findById: vi.fn(),
   findExistingNews: vi.fn(),
   findExistingEvents: vi.fn(),
@@ -44,6 +46,23 @@ describe('servicio de contenido institucional', () => {
       body: 'Descripción de laboratorio',
       actionUrl: 'ftp://invalido.com'
     })).rejects.toThrowError(AppError)
+  })
+
+  it('exige texto y destino para el botón principal del Hero', async () => {
+    const hero = { type: 'HERO' as const, title: 'Inicio', body: 'Descripción principal' }
+    await expect(institutionalService.create(hero)).rejects.toMatchObject({ code: 'HERO_ACTION_REQUIRED' })
+    await expect(institutionalService.create({ ...hero, actionLabel: 'Conocer la carrera' })).rejects.toMatchObject({ code: 'HERO_ACTION_REQUIRED' })
+    await expect(institutionalService.create({ ...hero, actionLabel: 'Conocer la carrera', actionUrl: '  ' })).rejects.toMatchObject({ code: 'HERO_ACTION_REQUIRED' })
+    repoMocks.create.mockResolvedValue({ id: 1 })
+    await expect(institutionalService.create({ ...hero, actionLabel: 'Conocer la carrera', actionUrl: '/contacto' })).resolves.toEqual({ id: 1 })
+  })
+
+  it('exige texto y destino juntos para los enlaces opcionales de anuncios', async () => {
+    const announcement = { type: 'LABORATORIO' as const, title: 'Laboratorios', body: 'Descripción del laboratorio' }
+    await expect(institutionalService.create({ ...announcement, actionLabel: 'Ver más' })).rejects.toMatchObject({ code: 'INCOMPLETE_ACTION' })
+    await expect(institutionalService.create({ ...announcement, actionUrl: '/contacto' })).rejects.toMatchObject({ code: 'INCOMPLETE_ACTION' })
+    repoMocks.create.mockResolvedValue({ id: 2 })
+    await expect(institutionalService.create(announcement)).resolves.toEqual({ id: 2 })
   })
 
   it('impide superar el límite de 3 anuncios activos en Conocer la Licenciatura de Química', async () => {
@@ -108,6 +127,25 @@ describe('servicio de contenido institucional', () => {
       newsIds: [1],
       eventIds: [1, 2, 3, 4]
     })).rejects.toThrowError(AppError)
+  })
+
+  it('busca candidatos por tipo y conserva los seleccionados fuera de los cuatro recientes', async () => {
+    repoMocks.listFeatured.mockResolvedValue([
+      { news: { id: 1, title: 'Noticia anterior', status: 'PUBLICADO', category: { name: 'Noticias' } }, event: null },
+      { news: null, event: { id: 2, name: 'Evento anterior', location: 'Campus', status: 'PUBLICADO' } }
+    ])
+    repoMocks.featuredNewsCandidates.mockResolvedValue([{ id: 3, title: 'Noticia reciente' }])
+    repoMocks.featuredEventCandidates.mockResolvedValue([{ id: 4, name: 'Evento reciente' }])
+
+    await expect(institutionalService.featuredCandidates('news', '  química  ')).resolves.toMatchObject({
+      items: [{ id: 3 }], selected: [{ id: 1 }]
+    })
+    expect(repoMocks.featuredNewsCandidates).toHaveBeenCalledWith('química')
+
+    await expect(institutionalService.featuredCandidates('events')).resolves.toMatchObject({
+      items: [{ id: 4 }], selected: [{ id: 2 }]
+    })
+    expect(repoMocks.featuredEventCandidates).toHaveBeenCalledWith('')
   })
 
   it('rechaza IDs duplicados en destacados', async () => {

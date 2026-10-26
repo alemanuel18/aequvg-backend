@@ -46,7 +46,8 @@ Todas las escrituras requieren sesión administrativa, `RESOURCES_MANAGE` y `X-C
 
 ## Validaciones y errores
 
-- `PUBLICADO` requiere un archivo válido o al menos un enlace.
+- Al crear, `categoryId`, `title` y `description` son obligatorios. El panel pide seleccionar `status`; la API puede omitirlo y usa `BORRADOR`.
+- `fileId` y `links` son opcionales por separado: un recurso `PUBLICADO` requiere un archivo válido o al menos un enlace; los borradores pueden guardarse sin destino. `publishedAt` se asigna automáticamente al publicar y el autor se deriva de la sesión.
 - Título: mínimo 3 caracteres; descripción: mínimo 10; ambos se limpian antes de validar.
 - Los enlaces deben ser URLs HTTP/HTTPS válidas, tener etiqueta de al menos 2 caracteres y no repetirse.
 - El archivo debe existir y conservar MIME, almacenamiento y tamaño utilizables. Las cargas aceptan PDF, DOC, DOCX y ZIP de hasta 25 MB.

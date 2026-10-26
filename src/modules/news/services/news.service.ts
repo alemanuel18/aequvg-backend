@@ -1,4 +1,4 @@
-import type { ContentStatus, Prisma } from '@prisma/client'
+import { Prisma, type ContentStatus } from '@prisma/client'
 import { AppError } from '../../../shared/errors/app-error'
 import { cleanText } from '../../../shared/utils/text'
 import { newsRepository } from '../repositories/news.repository'
@@ -15,6 +15,12 @@ export const normalizeNewsText = (value: string, field: string, minimum: number)
     throw new AppError(422, 'INVALID_NEWS_CONTENT', `El campo ${field} debe contener texto válido.`)
   }
   return normalized
+}
+
+export const normalizeNewsCategoryName = (value: string) => {
+  const name = cleanText(value)
+  if (name.length < 2 || name.length > 80) throw new AppError(422, 'INVALID_NEWS_CATEGORY_NAME', 'El nombre de la categoría debe tener entre 2 y 80 caracteres.')
+  return name
 }
 
 export const publicationDate = (status: ContentStatus, requested: string | null | undefined, current: Date | null = null) => {
@@ -77,6 +83,16 @@ export const newsService = {
   publicList: (query: NewsQuery) => paginated(query, true),
   adminList: (query: NewsQuery) => paginated(query, false),
   activeCategories: newsRepository.activeCategories,
+  async createCategory(name: string) {
+    try {
+      return await newsRepository.createCategory(normalizeNewsCategoryName(name))
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new AppError(409, 'NEWS_CATEGORY_EXISTS', 'Ya existe una categoría de noticias con ese nombre.')
+      }
+      throw error
+    }
+  },
   async publicById(id: number) { return await newsRepository.findPublicById(id) ?? Promise.reject(notFound()) },
   async adminById(id: number) { return await newsRepository.findById(id) ?? Promise.reject(notFound()) },
   async create(input: NewsCreateInput) { return newsRepository.create(await createData(input)) },

@@ -114,27 +114,28 @@ describe('servicio de acceso estudiantil', () => {
 
   it('permite la baja propia bloqueada tras volver a verificar la contraseña', async () => {
     repositoryMocks.findUserByEmail.mockResolvedValue({ ...(await activeStudent()), status: 'BLOQUEADO_PERMANENTE', reviewChannel: 'revision@uvg.edu.gt' })
+    repositoryMocks.deleteAccountAndRevokeSessions.mockResolvedValue({ alreadyDeleted: false, user: { id: 41, status: 'ELIMINADO', deletedAt: new Date(), email: 'estudiante@uvg.edu.gt' } })
     await expect(studentAuthService.deleteOwnAccount({
       email: 'estudiante@uvg.edu.gt', password: 'Clave-estudiante-123!', confirm: true
     })).resolves.toBeUndefined()
-    expect(repositoryMocks.deleteAccountAndRevokeSessions).toHaveBeenCalledWith(41)
+    expect(repositoryMocks.deleteAccountAndRevokeSessions).toHaveBeenCalledWith(41, { actorId: null, reason: 'BAJA_SOLICITADA_POR_USUARIO' })
   })
 
   it('exige una fecha futura para el bloqueo temporal', async () => {
     await expect(studentAuthService.updateStatus(41, {
-      status: 'BLOQUEADO_TEMPORAL', blockedUntil: '2020-01-01T00:00:00.000Z'
-    })).rejects.toMatchObject({ status: 422, code: 'INVALID_BLOCK_END' })
+      status: 'BLOQUEADO_TEMPORAL', blockedUntil: '2020-01-01T00:00:00.000Z', reason: 'Política interna'
+    }, 8)).rejects.toMatchObject({ status: 422, code: 'INVALID_BLOCK_END' })
     expect(repositoryMocks.updateStatusAndRevokeSessions).not.toHaveBeenCalled()
   })
 
   it('delega el cambio permanente con canal de revisión y revocación transaccional', async () => {
     const user = { ...(await activeStudent()), status: 'BLOQUEADO_PERMANENTE' as const, reviewChannel: 'revision@uvg.edu.gt' }
-    repositoryMocks.updateStatusAndRevokeSessions.mockResolvedValue(user)
+    repositoryMocks.updateStatusAndRevokeSessions.mockResolvedValue({ user, changed: true })
     await expect(studentAuthService.updateStatus(41, {
-      status: 'BLOQUEADO_PERMANENTE', reviewChannel: ' revision@uvg.edu.gt '
-    })).resolves.toMatchObject({ status: 'BLOQUEADO_PERMANENTE' })
+      status: 'BLOQUEADO_PERMANENTE', reviewChannel: ' revision@uvg.edu.gt ', reason: 'Incumplimiento documentado'
+    }, 8)).resolves.toMatchObject({ status: 'BLOQUEADO_PERMANENTE' })
     expect(repositoryMocks.updateStatusAndRevokeSessions).toHaveBeenCalledWith(41, {
-      status: 'BLOQUEADO_PERMANENTE', blockedUntil: null, reviewChannel: 'revision@uvg.edu.gt'
+      status: 'BLOQUEADO_PERMANENTE', blockedUntil: null, reviewChannel: 'revision@uvg.edu.gt', actorId: 8, reason: 'Incumplimiento documentado'
     })
   })
 })

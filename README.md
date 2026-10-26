@@ -60,7 +60,7 @@ La API usa el prefijo `/api/v1`. OpenAPI se publica en `http://localhost:3000/op
 
 El portal estudiantil usa `/api/v1/student-auth/register`, `/login`, `/me`, `/logout` y `/account`. Solo admite estudiantes actuales con correo `@uvg.edu.gt`; no incluye aspirantes. El registro recibe `firstNames` y `lastNames`, que se almacenan en columnas separadas. La lectura y actualización del perfil propio usan `/me`; `PATCH /me` solo permite cambiar nombres y apellidos mediante la sesión y el token CSRF. Las cuentas, credenciales, sesiones, cookies y audiencia JWT estudiantiles están separadas por completo de las administrativas. El servidor asigna siempre `STUDENT`, rechaza campos adicionales como `role`, modera nombres antes del alta y cada edición, y revoca sesiones al cerrar o dar de baja la cuenta.
 
-Los estados son `ACTIVO`, `BLOQUEADO_TEMPORAL`, `BLOQUEADO_PERMANENTE` y `ELIMINADO`. Las respuestas de bloqueo incluyen respectivamente la fecha de fin o el canal de revisión. `PATCH /api/v1/admin/student-users/:id/status`, protegido por `USERS_MANAGE`, coordina MOD y revoca sesiones de forma transaccional. Consulta contratos, matriz de acceso, coordinación con MOD/BAJA y evidencia en [`docs/student-access-flow.md`](docs/student-access-flow.md). La colección Hoppscotch incluye el flujo manual y OpenAPI publica el tag `Acceso estudiantil`.
+Los estados son `ACTIVO`, `BLOQUEADO_TEMPORAL`, `BLOQUEADO_PERMANENTE` y `ELIMINADO`. Administración exclusiva (`USERS_MANAGE`) permite filtrar/listar, consultar detalle e historial, cambiar estado con motivo obligatorio y dar de baja cuentas normales. MOD registra actor, fecha, motivo y transición; al bloquear revoca sesiones y al cambiar estado limpia el contador de intentos fallidos por correo. BAJA propia y administrativa comparten el servicio de baja lógica, que no borra en cascada. Todos estos endpoints operan solo sobre cuentas estudiantiles y excluyen cuentas administrativas. Consulta contratos, matriz de acceso, coordinación con MOD/BAJA y evidencia en [`docs/student-access-flow.md`](docs/student-access-flow.md). La colección Hoppscotch incluye el flujo manual y OpenAPI publica el tag `Acceso estudiantil`.
 
 ### Estudiante local de pruebas
 
@@ -148,6 +148,8 @@ La API pública expone `GET /api/v1/news`, `GET /api/v1/news/:id` y `GET /api/v1
 
 Las rutas administrativas bajo `/api/v1/admin/news` requieren una sesión con `NEWS_MANAGE` y permiten listar, consultar, crear, actualizar, archivar y eliminar noticias. Los contratos de entrada, respuesta y errores están disponibles en [OpenAPI](http://localhost:3000/openapi) y en `docs/aequvg-hoppscotch.json`. El flujo completo de pantallas, permisos, validaciones, ejemplos y evidencia está en [`docs/admin-news-institutional-flow.md`](docs/admin-news-institutional-flow.md).
 
+Al crear una noticia son obligatorios la categoría, el título, el resumen y el contenido. La imagen es opcional; el estado se puede omitir en la API y queda como `BORRADOR`, mientras que el panel requiere elegirlo. La fecha de publicación se asigna automáticamente cuando corresponde y el autor se toma de la sesión.
+
 La integración real del módulo se ejecuta únicamente contra una PostgreSQL aislada para no modificar datos locales:
 
 ```bash
@@ -160,7 +162,7 @@ GitHub Actions ejecuta esa misma prueba contra PostgreSQL 16 en cada pull reques
 
 La API pública expone `GET /api/v1/resources/categories`, `GET /api/v1/resources`, `GET /api/v1/resources/:id` y `GET /api/v1/resources/:id/download`; solo devuelve recursos `PUBLICADO`, vigentes y asociados a categorías activas. La descarga exige que el recurso siga publicado y vigente. La administración usa `/api/v1/admin/resources` y requiere `RESOURCES_MANAGE` para listar, consultar, crear, actualizar, archivar o eliminar.
 
-Un recurso publicado necesita un archivo existente (`fileId`) o al menos un enlace HTTP/HTTPS. La administración expone `POST /api/v1/admin/files` para cargar multipart en el campo `file` y `DELETE /api/v1/admin/files/:id` para eliminar un archivo no asociado; ambas rutas requieren `RESOURCES_MANAGE` y CSRF. Se aceptan PDF, DOC, DOCX y ZIP de hasta 25 MB. `PUT` permite sustituir el archivo con otro `fileId`, reemplazar todos los enlaces enviando `links` y cambiar el estado. Un archivo asociado a recursos, noticias, eventos, publicaciones, proyectos o fotografías no puede eliminarse y devuelve `409 FILE_IN_USE`.
+Al crear un recurso son obligatorios la categoría, el título y la descripción. El estado puede omitirse en la API y queda en `BORRADOR`; el panel requiere seleccionar uno. Los borradores no necesitan un destino, pero un recurso `PUBLICADO` necesita un archivo existente (`fileId`) o al menos un enlace HTTP/HTTPS. La fecha se asigna al publicar y el autor se deriva de la sesión. La administración expone `POST /api/v1/admin/files` para cargar multipart en el campo `file` y `DELETE /api/v1/admin/files/:id` para eliminar un archivo no asociado; ambas rutas requieren `RESOURCES_MANAGE` y CSRF. Se aceptan PDF, DOC, DOCX y ZIP de hasta 25 MB. `PUT` permite sustituir el archivo con otro `fileId`, reemplazar todos los enlaces enviando `links` y cambiar el estado. Un archivo asociado a recursos, noticias, eventos, publicaciones, proyectos o fotografías no puede eliminarse y devuelve `409 FILE_IN_USE`.
 
 El servicio limpia título, descripción y etiquetas antes de validar sus mínimos; contenido vacío después de limpiar HTML devuelve `422 INVALID_RESOURCE_CONTENT`. Categorías inactivas, archivos inexistentes o con metadatos inválidos y enlaces repetidos también se rechazan sin persistir cambios. La integración verifica además `401` sin sesión, `403 FORBIDDEN` sin `RESOURCES_MANAGE`, `403 ACCOUNT_DISABLED` para cuenta inactiva y `401 INVALID_SESSION` para sesión expirada.
 
@@ -492,6 +494,8 @@ PostgreSQL no almacena el contenido de PDFs ni de ningún archivo. La tabla `arc
 
 ### Agregar un integrante
 
+La API administrativa exige `name`, `position`, `institutionalEmail` (`@uvg.edu.gt`), `termStartsAt`, `termEndsAt` y `status` (`ACTIVO` o `INACTIVO`). `description` es opcional y `displayOrder` se calcula cuando no se envía.
+
 Añade una tupla al arreglo `board` de `prisma/seed.ts`:
 
 ```ts
@@ -522,6 +526,8 @@ Añade un objeto al arreglo `methods`:
 Tipos permitidos: `EMAIL`, `TELEFONO`, `UBICACION`, `INSTAGRAM`, `FACEBOOK` y `OTRO`. Para cambiar el valor de un medio existente sin crear otro, usa el CRUD administrativo o adapta la búsqueda del seed para emplear una clave estable.
 
 ### Agregar otra entidad
+
+En contenido institucional, todos los bloques requieren `type`, `title` y `body`. El bloque `HERO` requiere además `actionLabel` y `actionUrl` para su botón principal. En anuncios, estos dos campos son opcionales, pero deben enviarse juntos si se agrega un enlace. `subtitle` e `imageUrl` siguen siendo opcionales.
 
 Usa el mismo patrón repetible: busca una clave estable y luego actualiza o crea.
 

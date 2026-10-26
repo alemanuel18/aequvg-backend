@@ -9,5 +9,5 @@ export const boardMemberBody = t.Object({
   termStartsAt: t.String({ format: 'date' }),
   termEndsAt: t.String({ format: 'date' }),
   displayOrder: t.Optional(t.Integer({ minimum: 0 })),
-  status: t.Optional(t.Union([t.Literal('ACTIVO'), t.Literal('INACTIVO')]))
+  status: t.Union([t.Literal('ACTIVO'), t.Literal('INACTIVO')])
 })

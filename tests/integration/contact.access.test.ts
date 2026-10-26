@@ -148,6 +148,27 @@ describe('Acceso administrativo y entrega pública de contacto', () => {
     expect(emailMocks.send).toHaveBeenCalledOnce()
   })
 
+  it('rechaza campos obligatorios y la fecha ausente de una reunión desde la API', async () => {
+    const body = { name: 'Ana Pérez', email: 'ana@example.com', phone: '+502 5555 5555', type: 'CONSULTA', subject: 'Información', message: 'Quisiera recibir más información.', consent: true, privacyVersion: '2026-10' }
+    for (const field of ['name', 'email', 'phone', 'type', 'subject', 'message', 'consent', 'privacyVersion'] as const) {
+      const response = await request('POST', '/api/v1/contact-requests', undefined, { ...body, [field]: undefined })
+      expect(response.status).toBe(422)
+    }
+    expect((await request('POST', '/api/v1/contact-requests', undefined, { ...body, type: 'REUNION' })).status).toBe(422)
+    expect(emailMocks.send).not.toHaveBeenCalled()
+  })
+
+  it('rechaza medios sin nombre, valor o enlace requerido desde la API', async () => {
+    for (const body of [
+      { ...validMethod, label: undefined },
+      { ...validMethod, value: undefined },
+      { ...validMethod, url: undefined }
+    ]) {
+      expect((await request('POST', '/api/v1/admin/contact-methods', session(), body)).status).toBe(422)
+    }
+    expect(contactRepoMocks.createMethod).not.toHaveBeenCalled()
+  })
+
   it('no expone la bandeja descartada ni sus detalles', async () => {
     expect((await request('GET', '/api/v1/admin/contact-requests', session())).status).toBe(404)
     expect((await request('GET', '/api/v1/admin/contact-requests/1', session())).status).toBe(404)

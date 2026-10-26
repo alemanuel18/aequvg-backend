@@ -22,6 +22,16 @@ export const institutionalRoutes = new Elysia({ prefix: '/api/v1' })
   }, {
     detail: { tags: ['Administración'], summary: 'Consulta IDs de noticias y eventos destacados' }
   })
+  .get('/admin/institutional-content/featured/candidates', async ({ request, query }) => {
+    await requireAdmin(request, 'INSTITUTIONAL_MANAGE')
+    return institutionalService.featuredCandidates(query.kind, query.q)
+  }, {
+    query: t.Object({
+      kind: t.Union([t.Literal('news'), t.Literal('events')]),
+      q: t.Optional(t.String({ maxLength: 100 }))
+    }),
+    detail: { tags: ['Administración'], summary: 'Busca candidatos para destacados de inicio' }
+  })
   .put('/admin/institutional-content/featured', async ({ request, body }) => {
     await requireAdmin(request, 'INSTITUTIONAL_MANAGE')
     return institutionalService.saveFeatured(body)

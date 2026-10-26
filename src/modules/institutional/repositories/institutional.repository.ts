@@ -53,6 +53,28 @@ export const institutionalRepository = {
     }
   }),
 
+  featuredNewsCandidates: (q: string) => prisma.news.findMany({
+    where: {
+      status: 'PUBLICADO',
+      publishedAt: { lte: new Date() },
+      category: { active: true },
+      ...(q ? { title: { contains: q, mode: 'insensitive' } } : {})
+    },
+    select: { id: true, title: true, status: true, category: { select: { name: true } } },
+    orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+    take: q ? 10 : 4
+  }),
+
+  featuredEventCandidates: (q: string) => prisma.event.findMany({
+    where: {
+      status: 'PUBLICADO',
+      ...(q ? { name: { contains: q, mode: 'insensitive' } } : {})
+    },
+    select: { id: true, name: true, location: true, status: true },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: q ? 10 : 4
+  }),
+
   findExistingNews: (ids: number[]) => prisma.news.findMany({
     where: { id: { in: ids } },
     select: { id: true, status: true }
