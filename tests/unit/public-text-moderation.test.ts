@@ -2,27 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { commentModerationService } from '../../src/modules/comments/services/comment-moderation.service'
 import { moderationService } from '../../src/modules/moderation/services/moderation.service'
 import { publicTextModerationService } from '../../src/modules/moderation/services/public-text-moderation.service'
+import { innocuousCommentCorpus, offensiveCommentCorpus } from '../fixtures/moderation-corpus'
 
 describe('moderación de texto público', () => {
-  it('permite comentarios sin términos bloqueados', () => {
-    expect(publicTextModerationService.isCommentAllowed('Gracias por compartir la información.')).toBe(true)
-  })
-
-  it.each([
-    ['mayúsculas y tildes', 'Eres un IDIÓTA'],
-    ['mayúsculas', 'Qué MIERDA'],
-    ['separadores', 'i.d.i.o.t.a'],
-    ['caracteres invisibles', 'i\u200Bd\u200Biota'],
-    ['sustituciones simples', '1d10ta']
-  ])('rechaza el corpus ofensivo con %s', (_label, candidate) => {
+  it.each(offensiveCommentCorpus)('rechaza el corpus ofensivo (%s): %s', (_label, candidate) => {
     expect(publicTextModerationService.isCommentAllowed(candidate)).toBe(false)
   })
 
-  it.each([
-    ['frase académica', 'La química analítica estudia las sustancias.'],
-    ['coincidencia parcial de topónimo', 'Putomayo es un topónimo'],
-    ['palabra académica inocua', 'El análisis cuantitativo usa métodos cuidadosos.']
-  ])('permite el texto inocuo: %s', (_label, candidate) => {
+  it.each(innocuousCommentCorpus)('permite el texto inocuo (%s): %s', (_label, candidate) => {
     expect(publicTextModerationService.isCommentAllowed(candidate)).toBe(true)
   })
 
