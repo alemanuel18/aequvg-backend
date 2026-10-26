@@ -166,11 +166,18 @@ export const studentAuthService = {
     }
   },
 
-  async deleteOwnAccount(input: { email: string; password: string; confirm: true }) {
+  async deleteOwnAccount(userId: number, input: { email: string; password: string; confirm: true }) {
     if (!input.confirm) throw new AppError(422, 'ACCOUNT_DELETION_CONFIRMATION_REQUIRED', 'Debes confirmar la baja de la cuenta.')
-    const user = await verifyCredentials(input.email, input.password)
+    const user = await studentAuthRepository.findUserById(userId)
+    if (!user || normalizeEmail(input.email) !== normalizeEmail(user.email) || !user.credential || !await verifyPassword(input.password, user.credential.passwordHash).catch(() => false)) {
+      throw new AppError(401, 'INVALID_CREDENTIALS', 'El correo o la contraseña no son válidos.')
+    }
     if (user.status === 'ELIMINADO') throw new AppError(403, 'ACCOUNT_DELETED', 'La cuenta ya fue eliminada.')
-    await studentAccountDeletionService.delete(user.id, { actorId: null, reason: 'BAJA_SOLICITADA_POR_USUARIO' })
+    await studentAccountDeletionService.delete(user.id, {
+      actorId: null,
+      reason: 'BAJA_SOLICITADA_POR_USUARIO',
+      revalidation: { email: input.email, password: input.password }
+    })
   },
 
   async listManagedAccounts(input: { q?: string; status?: string; type?: 'ESTUDIANTE' | 'INTERESADO'; page?: number; pageSize?: number }) {
