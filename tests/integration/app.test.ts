@@ -112,13 +112,14 @@ describe('contrato HTTP base', () => {
     const publicationPath = document.paths['/api/v1/publications/{targetType}/{targetId}/comments']
     const targetType = publicationPath?.get?.parameters?.find(parameter => parameter.name === 'targetType')
     expect(targetType?.schema?.enum).toEqual(['NOTICIA', 'PROYECTO', 'EVENTO'])
-    expect(publicationPath?.get?.description).toContain('NOTICIA publicada, PROYECTO aprobado y EVENTO publicado')
+    expect(publicationPath?.get?.description).toContain('registro PROYECTO de tipo PROYECTO aprobado (TESIS excluida)')
     expect(publicationPath?.post?.requestBody?.content?.['application/json']?.schema?.properties).toEqual({
       content: expect.objectContaining({ minLength: 1, maxLength: 2000 })
     })
     expect(publicationPath?.post?.description).toContain('el autor siempre se deriva de la sesión')
     expect(publicationPath?.post?.security).toEqual([{ studentCookieAuth: [], csrfToken: [] }])
-    expect(publicationPath?.post?.description).not.toMatch(/tesis|reacciones|chat/i)
+    expect(publicationPath?.post?.description).toContain('TESIS excluida')
+    expect(publicationPath?.post?.description).not.toMatch(/reacciones|chat/i)
 
     const history = document.paths['/api/v1/student-auth/me/comments']?.get
     expect(history?.description).toContain('no hay parámetro para consultar el historial de otra cuenta')

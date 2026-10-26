@@ -21,7 +21,7 @@ const targetWhere = (targetType: CommentTargetType, targetId: number) => targetT
 export const commentsRepository = {
   findVisibleTarget: async (targetType: CommentTargetType, targetId: number) => {
     if (targetType === 'NOTICIA') return prisma.news.findFirst({ where: { id: targetId, status: 'PUBLICADO', publishedAt: { lte: new Date() }, category: { active: true } }, select: { id: true } })
-    if (targetType === 'PROYECTO') return prisma.project.findFirst({ where: { id: targetId, status: 'APROBADO' }, select: { id: true } })
+    if (targetType === 'PROYECTO') return prisma.project.findFirst({ where: { id: targetId, type: 'PROYECTO', status: 'APROBADO' }, select: { id: true } })
     return prisma.event.findFirst({ where: { id: targetId, status: 'PUBLICADO' }, select: { id: true } })
   },
   create: (data: {

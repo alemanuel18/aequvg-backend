@@ -2,7 +2,7 @@ import { t } from 'elysia'
 
 export const commentTargetType = t.Union([
   t.Literal('NOTICIA'), t.Literal('PROYECTO'), t.Literal('EVENTO')
-], { description: 'Tipo de publicación con comentarios habilitados en S4: NOTICIA, PROYECTO o EVENTO.' })
+], { description: 'Tipo de publicación con comentarios habilitados en S4: NOTICIA, proyecto de tipo PROYECTO (no TESIS) o EVENTO.' })
 export const commentTargetParams = t.Object({
   targetType: commentTargetType,
   targetId: t.Integer({ minimum: 1, description: 'ID de la noticia, proyecto o evento existente.' })

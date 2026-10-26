@@ -2,7 +2,7 @@
 
 ## Contrato
 
-Los únicos destinos habilitados en S4 son una noticia publicada (`NOTICIA`), un proyecto aprobado (`PROYECTO`) o un evento publicado (`EVENTO`). El backend confirma la visibilidad actual del destino antes de aceptar o listar sus comentarios; destinos inexistentes, no aprobados o no publicados responden `404 PUBLICATION_NOT_FOUND`. Tesis, reacciones y chat quedan fuera de este sprint.
+Los únicos destinos habilitados en S4 son una noticia publicada (`NOTICIA`), un registro de tipo `PROYECTO` aprobado o un evento publicado (`EVENTO`). El backend confirma la visibilidad y el tipo del destino antes de aceptar o listar sus comentarios; destinos inexistentes, tesis, registros no aprobados o no publicados responden `404 PUBLICATION_NOT_FOUND`. Tesis, reacciones y chat quedan fuera de este sprint.
 
 | Método | Ruta | Acceso |
 | --- | --- | --- |
@@ -34,10 +34,10 @@ OpenAPI se sirve en `/openapi` y `/openapi/json`. El esquema enumera los tres va
 | `targetType` | Regla de visibilidad para comentar/listar | Ruta de detalle existente |
 | --- | --- | --- |
 | `NOTICIA` | Estado `PUBLICADO`, fecha de publicación alcanzada y categoría activa | `/noticias/:id` |
-| `PROYECTO` | Estado `APROBADO` | `/investigacion/:id` |
+| `PROYECTO` | Tipo `PROYECTO` y estado `APROBADO` (los registros `TESIS` se excluyen) | `/investigacion/:id` |
 | `EVENTO` | Estado `PUBLICADO` | `/eventos/:id` |
 
-`<PublicationComments targetType="NOTICIA|PROYECTO|EVENTO" :target-id="id" />` se monta en los tres detalles. Lee comentarios sin iniciar sesión y muestra formulario solo con una sesión estudiantil activa; administra carga, paginación pública, estado de envío, rechazo MOD y sanciones. La publicación de comentarios envía `content` y el token CSRF; no recibe autor como prop.
+`<PublicationComments targetType="NOTICIA|PROYECTO|EVENTO" :target-id="id" />` se monta en noticias, proyectos de tipo `PROYECTO` y eventos; no se monta en tesis. Lee comentarios sin iniciar sesión y muestra formulario solo con una sesión estudiantil activa; administra carga, paginación pública, estado de envío, rechazo MOD y sanciones. La publicación de comentarios envía `content` y el token CSRF; no recibe autor como prop.
 
 `<StudentCommentsPanel :comments="items" :loading="loading" :error="error" :on-update="updateComment" :on-delete="deleteComment" @retry="loadComments" />` presenta el historial propio. `comments` usa `StudentComment[]`; las propiedades de estado son boolean/string y los callbacks aceptan ID más texto para editar, ID para retirar y devuelven `Promise<void>`. La vista de cuenta controla la página solicitada. Cada item enlaza al destino vigente usando su tipo/ID. Un autor anonimizado se representa como `Anónimo`; el panel no muestra avatar ni enlace al perfil del autor.
 

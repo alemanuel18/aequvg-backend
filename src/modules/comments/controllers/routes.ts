@@ -15,7 +15,7 @@ export const commentsRoutes = new Elysia({ prefix: '/api/v1' })
     params: commentTargetParams,
     query: commentPagination,
     response: { 200: commentListResponse, 404: commentErrorResponse, 422: commentErrorResponse, 503: commentErrorResponse },
-    detail: { tags: ['Comentarios'], summary: 'Lista comentarios de una publicación visible', description: 'Tipos habilitados en S4: NOTICIA publicada, PROYECTO aprobado y EVENTO publicado. La respuesta pagina items con page, pageSize y total; content es texto plano y debe renderizarse escapado. Destinos retirados, inexistentes o no visibles responden 404 PUBLICATION_NOT_FOUND.' }
+    detail: { tags: ['Comentarios'], summary: 'Lista comentarios de una publicación visible', description: 'Tipos habilitados en S4: NOTICIA publicada, registro PROYECTO de tipo PROYECTO aprobado (TESIS excluida) y EVENTO publicado. La respuesta pagina items con page, pageSize y total; content es texto plano y debe renderizarse escapado. Destinos retirados, inexistentes o no visibles responden 404 PUBLICATION_NOT_FOUND.' }
   })
   .post('/publications/:targetType/:targetId/comments', async ({ params, body, request, set }) => {
     const authenticated = await studentAuthService.authenticate(request)
@@ -26,7 +26,7 @@ export const commentsRoutes = new Elysia({ prefix: '/api/v1' })
     params: commentTargetParams,
     body: commentBody,
     response: { 201: commentResponse, 401: commentErrorResponse, 403: commentErrorResponse, 404: commentErrorResponse, 409: commentErrorResponse, 422: commentErrorResponse, 429: commentErrorResponse, 503: commentErrorResponse },
-    detail: { tags: ['Comentarios'], summary: 'Publica un comentario con la identidad de sesión estudiantil', description: 'Admite NOTICIA publicada, PROYECTO aprobado o EVENTO publicado. Requiere cuenta estudiantil activa, cookie de sesión y X-CSRF-Token. El cuerpo documentado contiene content (texto plano, 1–2000 caracteres); cualquier identidad de autor enviada por el cliente se ignora y el autor siempre se deriva de la sesión. MOD evalúa el texto antes de persistir. Errores relevantes: 401 sin sesión, 403 cuenta bloqueada/CSRF inválido, 404 destino no visible, 409 duplicado, 422 validación o rechazo MOD, 429 límite de solicitudes y 503 MOD no disponible.', security: [{ studentCookieAuth: [], csrfToken: [] }] }
+    detail: { tags: ['Comentarios'], summary: 'Publica un comentario con la identidad de sesión estudiantil', description: 'Admite NOTICIA publicada, registro PROYECTO de tipo PROYECTO aprobado (TESIS excluida) o EVENTO publicado. Requiere cuenta estudiantil activa, cookie de sesión y X-CSRF-Token. El cuerpo documentado contiene content (texto plano, 1–2000 caracteres); cualquier identidad de autor enviada por el cliente se ignora y el autor siempre se deriva de la sesión. MOD evalúa el texto antes de persistir. Errores relevantes: 401 sin sesión, 403 cuenta bloqueada/CSRF inválido, 404 destino no visible, 409 duplicado, 422 validación o rechazo MOD, 429 límite de solicitudes y 503 MOD no disponible.', security: [{ studentCookieAuth: [], csrfToken: [] }] }
   })
   .put('/student-auth/me/comments/:id', async ({ params, body, request }) => {
     const authenticated = await studentAuthService.authenticate(request)
