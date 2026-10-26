@@ -79,7 +79,7 @@ describe('contrato HTTP base', () => {
     expect(response.status).toBe(200)
     const document = await response.json() as {
       tags: Array<{ name: string }>
-      paths: Record<string, Record<string, { responses: Record<string, unknown> }>>
+      paths: Record<string, Record<string, { parameters?: Array<{ name: string }>; responses: Record<string, unknown>; security?: unknown[] }>>
     }
     expect(document.tags.some((tag) => tag.name === 'Eventos')).toBe(true)
     expect(document.paths['/api/v1/events']?.get?.responses['200']).toBeTruthy()
@@ -87,6 +87,16 @@ describe('contrato HTTP base', () => {
     expect(document.paths['/api/v1/events/{id}']?.get?.responses['404']).toBeTruthy()
     expect(document.paths['/api/v1/events/{id}/registrations']?.post?.responses['201']).toBeTruthy()
     expect(document.paths['/api/v1/events/{id}/registrations']?.post?.responses['409']).toBeTruthy()
+    const ownRegistrations = document.paths['/api/v1/student/events/registrations']?.get
+    expect(ownRegistrations?.responses['200']).toBeTruthy()
+    expect(ownRegistrations?.responses['401']).toBeTruthy()
+    expect(ownRegistrations?.responses['403']).toBeTruthy()
+    expect(ownRegistrations?.parameters?.map((parameter) => parameter.name)).toEqual(expect.arrayContaining(['page', 'pageSize', 'status']))
+    const responseSchema = JSON.stringify(ownRegistrations?.responses['200'])
+    expect(responseSchema).not.toContain('studentId')
+    expect(responseSchema).not.toContain('fullName')
+    expect(responseSchema).not.toContain('email')
+    expect(responseSchema).not.toContain('phone')
     expect(document.paths['/api/v1/admin/events']?.get?.responses['200']).toBeTruthy()
     expect(document.paths['/api/v1/admin/events/{id}/registrations']?.get?.responses['200']).toBeTruthy()
   })

@@ -12,6 +12,8 @@ let roleId: number
 let authorId = 0
 let studentId = 0
 let studentHeaders: Record<string, string> = {}
+let secondStudentId = 0
+let secondStudentHeaders: Record<string, string> = {}
 
 const request = (path: string, options: RequestInit = {}) => {
   const needsStudentSession = options.method === 'POST' && /^\/api\/v1\/events\/\d+\/registrations$/.test(path)
@@ -50,6 +52,9 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
     const student = await prisma.studentUser.create({ data: { name: 'Estudiante autenticado', email: `${runId}-student@uvg.edu.gt` } })
     studentId = student.id
     studentHeaders = await createStudentSessionHeaders(prisma, student.id)
+    const secondStudent = await prisma.studentUser.create({ data: { name: 'Segundo estudiante', email: `${runId}-student-2@uvg.edu.gt` } })
+    secondStudentId = secondStudent.id
+    secondStudentHeaders = await createStudentSessionHeaders(prisma, secondStudent.id)
   })
 
   afterAll(async () => {
@@ -64,6 +69,10 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
       if (studentId) {
         await prisma.studentSession.deleteMany({ where: { userId: studentId } })
         await prisma.studentUser.delete({ where: { id: studentId } })
+      }
+      if (secondStudentId) {
+        await prisma.studentSession.deleteMany({ where: { userId: secondStudentId } })
+        await prisma.studentUser.delete({ where: { id: secondStudentId } })
       }
     } finally {
       await prisma.$disconnect()
@@ -88,6 +97,146 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
       }
     })
   }
+
+  const ownRequest = (headers: Record<string, string>, query = '') =>
+    new Request(`http://localhost/api/v1/student/events/registrations${query}`, { headers })
+
+  describe('propiedad e historial estudiantil', () => {
+    it('persiste la identidad autenticada y nunca acepta studentId del body', async () => {
+      const event = await createEvent({ maximumCapacity: 10 })
+      const response = await app.handle(request(`/api/v1/events/${event.id}/registrations`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(baseRegistrationPayload({ email: `${runId}-owned@uvg.edu.gt`, studentId: secondStudentId }))
+      }))
+      expect(response.status).toBe(201)
+      const registration = await prisma.eventRegistration.findUnique({ where: { id: (await response.json()).id } })
+      expect(registration?.studentId).toBe(studentId)
+    })
+
+    it('lista únicamente las inscripciones propias y excluye registros sin propietario', async () => {
+      const event = await createEvent({ maximumCapacity: 10 })
+      const owned = await prisma.eventRegistration.create({ data: {
+        eventId: event.id, studentId, fullName: 'Propio', email: `${runId}-owned-history@uvg.edu.gt`, phone: '55555555', status: 'CONFIRMADA', consentedAt: new Date(), privacyVersion: '1.0'
+      } })
+      await prisma.eventRegistration.create({ data: {
+        eventId: event.id, studentId: secondStudentId, fullName: 'Otro', email: `${runId}-other-history@uvg.edu.gt`, phone: '55555556', status: 'CONFIRMADA', consentedAt: new Date(), privacyVersion: '1.0'
+      } })
+      await prisma.eventRegistration.create({ data: {
+        eventId: event.id, fullName: 'Histórico', email: `${runId}-legacy-history@uvg.edu.gt`, phone: '55555557', status: 'CANCELADA', consentedAt: new Date(), privacyVersion: '1.0'
+      } })
+
+      const response = await app.handle(ownRequest(studentHeaders, '?page=1&pageSize=1&status=CONFIRMADA'))
+      expect(response.status).toBe(200)
+      const body = await response.json()
+      expect(body.pagination).toEqual({ page: 1, pageSize: 1, total: 1 })
+      expect(body.items[0]).toMatchObject({ id: owned.id, status: 'CONFIRMADA' })
+      expect(body.items[0].event).toMatchObject({ id: event.id, name: event.name, location: event.location, status: event.status })
+      expect(body.items[0]).not.toHaveProperty('studentId')
+      expect(body.items[0]).not.toHaveProperty('email')
+      expect(body.items[0]).not.toHaveProperty('phone')
+      expect(body.items[0]).not.toHaveProperty('fullName')
+    })
+
+    it('no permite seleccionar otro propietario desde la request', async () => {
+      const response = await app.handle(ownRequest(studentHeaders, `?studentId=${secondStudentId}`))
+      expect(response.status).toBe(422)
+    })
+
+    it('aplica status, paginación y orden determinista sin exponer PII', async () => {
+      const event = await createEvent({ maximumCapacity: 20 })
+      const registeredAt = new Date('2026-10-25T18:00:00.000Z')
+      const first = await prisma.eventRegistration.create({ data: {
+        eventId: event.id, studentId, fullName: 'Primero', email: `${runId}-first@uvg.edu.gt`, phone: '55555551', status: 'CONFIRMADA', consentedAt: new Date(), privacyVersion: '1.0', registeredAt
+      } })
+      const second = await prisma.eventRegistration.create({ data: {
+        eventId: event.id, studentId, fullName: 'Segundo', email: `${runId}-second@uvg.edu.gt`, phone: '55555552', status: 'CANCELADA', consentedAt: new Date(), privacyVersion: '1.0', registeredAt
+      } })
+      const third = await prisma.eventRegistration.create({ data: {
+        eventId: event.id, studentId, fullName: 'Tercero', email: `${runId}-third@uvg.edu.gt`, phone: '55555553', status: 'CONFIRMADA', consentedAt: new Date(), privacyVersion: '1.0', registeredAt: new Date('2026-10-26T18:00:00.000Z')
+      } })
+
+      const page = await app.handle(ownRequest(studentHeaders, '?page=1&pageSize=2'))
+      expect(page.status).toBe(200)
+      const pageBody = await page.json()
+      expect(pageBody.pagination).toEqual({ page: 1, pageSize: 2, total: 3 })
+      expect(pageBody.items.map((item: { id: number }) => item.id)).toEqual([third.id, second.id])
+      expect(pageBody.items[0]).not.toHaveProperty('email')
+      expect(pageBody.items[0]).not.toHaveProperty('phone')
+      expect(pageBody.items[0]).not.toHaveProperty('fullName')
+      expect(pageBody.items[0]).not.toHaveProperty('studentId')
+
+      const confirmed = await app.handle(ownRequest(studentHeaders, '?status=CONFIRMADA'))
+      expect((await confirmed.json()).items.map((item: { id: number }) => item.id)).toEqual([third.id, first.id])
+      const cancelled = await app.handle(ownRequest(studentHeaders, '?status=CANCELADA'))
+      expect((await cancelled.json()).items.map((item: { id: number }) => item.id)).toEqual([second.id])
+    })
+
+    it('rechaza duplicados del mismo propietario aunque cambie el email snapshot', async () => {
+      const event = await createEvent({ maximumCapacity: 10 })
+      const first = await app.handle(request(`/api/v1/events/${event.id}/registrations`, {
+        method: 'POST', body: JSON.stringify(baseRegistrationPayload({ email: `${runId}-duplicate-a@uvg.edu.gt` }))
+      }))
+      expect(first.status).toBe(201)
+      const second = await app.handle(request(`/api/v1/events/${event.id}/registrations`, {
+        method: 'POST', body: JSON.stringify(baseRegistrationPayload({ email: `${runId}-duplicate-b@uvg.edu.gt` }))
+      }))
+      expect(second.status).toBe(409)
+      expect((await second.json()).error.code).toBe('ALREADY_REGISTERED')
+      expect(await prisma.eventRegistration.count({ where: { eventId: event.id, studentId } })).toBe(1)
+    })
+
+    it('permite estudiantes distintos con emails distintos en el mismo evento', async () => {
+      const event = await createEvent({ maximumCapacity: 10 })
+      const first = await app.handle(request(`/api/v1/events/${event.id}/registrations`, {
+        method: 'POST', body: JSON.stringify(baseRegistrationPayload({ email: `${runId}-student-a@uvg.edu.gt` }))
+      }))
+      expect(first.status).toBe(201)
+      const second = await app.handle(new Request(`http://localhost/api/v1/events/${event.id}/registrations`, {
+        method: 'POST', headers: secondStudentHeaders, body: JSON.stringify(baseRegistrationPayload({ email: `${runId}-student-b@uvg.edu.gt` }))
+      }))
+      expect(second.status).toBe(201)
+      expect(await prisma.eventRegistration.count({ where: { eventId: event.id } })).toBe(2)
+    })
+
+    it('conserva sin propietario un histórico que bloquea por email', async () => {
+      const event = await createEvent({ maximumCapacity: 10 })
+      const email = `${runId}-legacy-duplicate@uvg.edu.gt`
+      const legacy = await prisma.eventRegistration.create({ data: {
+        eventId: event.id, fullName: 'Histórico', email, phone: '55555559', status: 'CONFIRMADA', consentedAt: new Date(), privacyVersion: '1.0'
+      } })
+      const response = await app.handle(request(`/api/v1/events/${event.id}/registrations`, {
+        method: 'POST', body: JSON.stringify(baseRegistrationPayload({ email }))
+      }))
+      expect(response.status).toBe(409)
+      expect((await response.json()).error.code).toBe('ALREADY_REGISTERED')
+      await expect(prisma.eventRegistration.findUnique({ where: { id: legacy.id } })).resolves.toMatchObject({ studentId: null })
+    })
+
+    it('conserva el propietario existente cuando otro estudiante usa el mismo email', async () => {
+      const event = await createEvent({ maximumCapacity: 10 })
+      const email = `${runId}-owned-by-other@uvg.edu.gt`
+      const existing = await prisma.eventRegistration.create({ data: {
+        eventId: event.id, studentId: secondStudentId, fullName: 'Otro', email, phone: '55555560', status: 'CONFIRMADA', consentedAt: new Date(), privacyVersion: '1.0'
+      } })
+      const response = await app.handle(request(`/api/v1/events/${event.id}/registrations`, {
+        method: 'POST', body: JSON.stringify(baseRegistrationPayload({ email }))
+      }))
+      expect(response.status).toBe(409)
+      expect((await response.json()).error.code).toBe('ALREADY_REGISTERED')
+      await expect(prisma.eventRegistration.findUnique({ where: { id: existing.id } })).resolves.toMatchObject({ studentId: secondStudentId })
+    })
+
+    it('serializa solicitudes concurrentes del mismo propietario por la constraint de base de datos', async () => {
+      const event = await createEvent({ maximumCapacity: 20 })
+      const responses = await Promise.all(Array.from({ length: 4 }, (_, index) => app.handle(request(`/api/v1/events/${event.id}/registrations`, {
+        method: 'POST', body: JSON.stringify(baseRegistrationPayload({ email: `${runId}-concurrent-${index}@uvg.edu.gt` }))
+      }))))
+      expect(responses.filter((response) => response.status === 201)).toHaveLength(1)
+      expect(responses.filter((response) => response.status === 409)).toHaveLength(3)
+      expect(await prisma.eventRegistration.count({ where: { eventId: event.id, studentId } })).toBe(1)
+    })
+  })
 
   describe('Happy path y contrato seguro sin PII', () => {
     it('rechaza la inscripción anónima y mantiene público el detalle del evento', async () => {
