@@ -15,7 +15,25 @@ export const normalizeContactRequest = (input: RequestInput) => {
   const firstNames = cleanText(input.firstNames)
   const lastNames = cleanText(input.lastNames)
   if (firstNames.length < 2 || lastNames.length < 2 || firstNames.length > 80 || lastNames.length > 80) throw new AppError(422, 'INVALID_NAME', 'Escribe nombres y apellidos válidos.')
-  return { name: `${firstNames} ${lastNames}`, firstNames, lastNames, email: input.email.trim().toLowerCase(), phone: cleanText(input.phone), type: input.type, subject: cleanText(input.subject), message: cleanText(input.message), preferredAt: input.preferredAt ? new Date(input.preferredAt) : null, consentedAt: new Date(), privacyVersion: cleanText(input.privacyVersion) }
+  const normalized = {
+    name: `${firstNames} ${lastNames}`,
+    firstNames,
+    lastNames,
+    email: input.email.trim().toLowerCase(),
+    phone: cleanText(input.phone),
+    type: input.type,
+    subject: cleanText(input.subject),
+    message: cleanText(input.message),
+    preferredAt: input.preferredAt ? new Date(input.preferredAt) : null,
+    consentedAt: new Date(),
+    privacyVersion: cleanText(input.privacyVersion)
+  }
+  const missingField = (['phone', 'subject', 'message', 'privacyVersion'] as const).find(field => !normalized[field])
+  if (missingField || !normalized.email) {
+    const field = missingField ?? 'email'
+    throw new AppError(422, 'VALIDATION_ERROR', 'Completa los campos obligatorios.', { [field]: 'Campo obligatorio.' })
+  }
+  return normalized
 }
 
 const normalizeMethod = (input: MethodInput) => {

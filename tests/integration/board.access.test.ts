@@ -68,7 +68,7 @@ describe('acceso administrativo de Junta Directiva', () => {
   })
 
   it('rechaza integrantes sin los campos obligatorios antes de escribir', async () => {
-    for (const field of ['name', 'position', 'institutionalEmail', 'termStartsAt', 'termEndsAt', 'status'] as const) {
+    for (const field of ['firstNames', 'lastNames', 'position', 'institutionalEmail', 'termStartsAt', 'termEndsAt', 'status'] as const) {
       const response = await request('POST', '/api/v1/admin/board-members', session(), { ...validMember, [field]: undefined })
       expect(response.status).toBe(422)
     }
