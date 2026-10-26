@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { prisma } from '../../../shared/database/prisma'
 import { verifyPassword } from '../../../shared/utils/auth-crypto'
+import type { ModerationCounterEffect } from '../../moderation/services/moderation-policy'
 
 // La tabla StudentUser contiene exclusivamente cuentas normales; el tipo esStudent
 // distingue estudiantes actuales de interesados. Las cuentas administrativas viven en otra tabla.
@@ -44,6 +45,14 @@ export const studentAuthRepository = {
         select: {
           id: true, fromStatus: true, toStatus: true, reason: true, blockedUntil: true, reviewChannel: true, createdAt: true,
           actor: { select: { id: true, name: true } }
+        }
+      },
+      moderationViolationCount: true,
+      moderationIncidents: {
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: {
+          id: true, source: true, policyVersion: true, ruleId: true, evidenceHash: true,
+          occurrenceNumber: true, sanction: true, blockedUntil: true, reviewChannel: true, createdAt: true
         }
       }
     }
@@ -99,17 +108,38 @@ export const studentAuthRepository = {
     reviewChannel: string | null
     actorId: number
     reason: string
+    counterEffect?: ModerationCounterEffect
   }) => prisma.$transaction(async tx => {
     const current = await tx.studentUser.findFirst({ where: { id: userId, ...studentAccountWhere } })
     if (!current) return null
     if (current.status === 'ELIMINADO') return { user: current, changed: false, deleted: true as const }
+    const manualUnlock = data.status === 'ACTIVO' && current.status !== 'ACTIVO' ? data.counterEffect : undefined
+    if (manualUnlock === 'RESET') await tx.moderationIncident.updateMany({
+      where: { studentId: userId, countsTowardReincidence: true }, data: { countsTowardReincidence: false }
+    })
+    if (manualUnlock === 'REDUCE') {
+      const latest = await tx.moderationIncident.findFirst({
+        where: { studentId: userId, countsTowardReincidence: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: { id: true }
+      })
+      if (latest) await tx.moderationIncident.update({ where: { id: latest.id }, data: { countsTowardReincidence: false } })
+    }
+    const unlockCount = data.status === 'ACTIVO' && current.status !== 'ACTIVO' && data.counterEffect
+      ? data.counterEffect === 'RESET' ? 0 : data.counterEffect === 'REDUCE' ? Math.max(0, current.moderationViolationCount - 1) : current.moderationViolationCount
+      : current.moderationViolationCount
     const user = await tx.studentUser.update({
-      where: { id: userId }, data: { status: data.status, blockedUntil: data.blockedUntil, reviewChannel: data.reviewChannel }, include: studentAuthenticationInclude
+      where: { id: userId }, data: {
+        status: data.status, blockedUntil: data.blockedUntil, reviewChannel: data.reviewChannel,
+        moderationViolationCount: unlockCount,
+        ...(unlockCount === 0 ? { moderationWindowStartedAt: null } : {})
+      }, include: studentAuthenticationInclude
     })
     const changed = current.status !== data.status || current.blockedUntil?.getTime() !== data.blockedUntil?.getTime() || current.reviewChannel !== data.reviewChannel
     if (changed) await tx.studentAccountStatusHistory.create({ data: {
       studentId: userId, actorId: data.actorId, fromStatus: current.status, toStatus: data.status,
-      reason: data.reason, blockedUntil: data.blockedUntil, reviewChannel: data.reviewChannel
+      reason: unlockCount !== current.moderationViolationCount
+        ? `${data.reason} Contador MOD: ${current.moderationViolationCount} -> ${unlockCount} (${manualUnlock}).`
+        : data.reason,
+      blockedUntil: data.blockedUntil, reviewChannel: data.reviewChannel
     } })
     if (data.status !== 'ACTIVO') await tx.studentSession.updateMany({
       where: { userId, revokedAt: null }, data: { revokedAt: new Date(), revocationReason: 'ACCOUNT_STATUS_CHANGED' }

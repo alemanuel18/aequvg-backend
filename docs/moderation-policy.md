@@ -1,6 +1,6 @@
 # Política de moderación y reincidencias (S4-MOD)
 
-> **Estado: borrador para acuerdo con la Asociación. No aprobado ni vigente como política.** Los valores pendientes de esta guía no deben convertirse en sanciones automáticas ni comunicarse como reglas aprobadas. Esta rama se basa en `origin/develop`; lo que no está en esa base se identifica por separado y no se presenta como integración vigente.
+> **Estado: borrador para acuerdo con la Asociación. No aprobado ni vigente como política.** Esta rama de implementación se basa en `fix/s4-comments-exclude-theses` e incorpora COM, MOD, AUTH y administración. No contiene valores sancionatorios aprobados; una política solo puede activarse mediante configuración ratificada fuera del repositorio.
 
 ## Propósito y alcance
 
@@ -8,20 +8,21 @@ Definir, antes de automatizar sanciones, qué contenido infringe las reglas de l
 
 La Asociación debe aprobar el catálogo, las excepciones, la ventana de reincidencia, cada umbral y duración de bloqueo, y el efecto de un desbloqueo sobre el contador. La persona responsable registra el acuerdo en la sección de aprobación antes de habilitar automatización.
 
-## Situación observada en `origin/develop`
+## Situación e implementación en esta rama
 
-Esta base contiene filtro de nombres y estados administrativos de cuentas, pero no contiene los módulos `src/modules/comments` ni `src/modules/moderation`. Los siguientes puntos describen solo lo verificable en esta rama y no ratifican la política:
+Esta rama integra el detector y el motor con nombres, comentarios, autenticación, perfil y administración. La implementación mantiene un catálogo local heredado solo para rechazar contenido mientras no exista configuración ratificada; ese catálogo tampoco se declara aprobado:
 
-- El alta y la edición de nombres llaman `containsOffensiveName`. Si encuentra un término, devuelven `OFFENSIVE_NAME`; el alta falla antes de crear la cuenta. El perfil también rechaza la edición.
-- El filtro de nombres es una lista léxica local; normaliza Unicode NFD, quita tildes, convierte a minúsculas, reemplaza separadores y compara términos completos. El catálogo no es configurable ni está identificado como aprobado por la Asociación.
-- Los estados actuales de cuenta son `ACTIVO`, `BLOQUEADO_TEMPORAL`, `BLOQUEADO_PERMANENTE` y `ELIMINADO`. Administración puede cambiar el estado, guardar actor, fecha, motivo y transición; al bloquear se revocan sesiones. El bloqueo temporal vence y se reactiva al procesar una autenticación; esa reactivación automática no agrega una fila al historial de estados.
-- No existe contador ni ventana de infracciones en el esquema de esta base. La prueba unitaria de nombres acredita el comportamiento del filtro; no acredita un catálogo acordado.
+- Alta de nombre detectado responde `OFFENSIVE_NAME` antes de crear la cuenta. El cambio de nombre de una cuenta existente y crear/editar comentario ejecutan MOD antes de persistir; el contenido detectado no se publica.
+- Nombres y comentarios comparten normalización Unicode NFKD, equivalencia de diacríticos, minúsculas, remoción de caracteres de formato, mapeo de algunas sustituciones visuales/leet y comparación de términos completos. También se comprimen separadores de puntuación dentro de un token para detectar evasiones simples sin buscar subcadenas en palabras ordinarias. El catálogo heredado de nombres y el de comentarios aún son distintos.
+- `MODERATION_POLICY_JSON` está vacío por defecto. En ese modo se conserva el rechazo léxico local y no se cuentan infracciones ni se sanciona automáticamente. Con una política que valide como aprobada, MOD aplica los términos y excepciones configurados para nombres y comentarios, y solo entonces registra infracciones de cuentas existentes.
+- El motor persiste una fila por operación idempotente, versión y regla, origen, número dentro de la ventana, acción, fecha, vencimiento/canal si aplica y hash del texto normalizado; no guarda el contenido ofensivo. La transacción bloquea la fila de cuenta, comprueba la clave de operación, cuenta eventos dentro de la ventana y actualiza el contador y estado atómicamente.
+- `Idempotency-Key` requerido en crear/editar comentario y cambiar perfil permite deduplicar reintentos de una operación. El frontend genera una clave para el contenido enviado y la conserva si reintenta sin cambiarlo; una edición genera clave nueva. La clave se transforma en hash ligado a cuenta y origen. Si se repite con otra evidencia responde `409`.
+- Al alcanzar un paso temporal o permanente, el motor registra la transición en historial de cuenta, aplica motivo de política y revoca sesiones en la misma transacción. El estado se verifica por AUTH en rutas privadas. Solo un administrador puede cambiar un bloqueo permanente; únicamente los temporales vencen automáticamente. Vencimiento y desbloqueo aplican el efecto de contador de la política y dejan la transición auditada.
+- ADMIN puede consultar en detalle de cuenta el contador, historial de estados e incidentes con evidencia hash. Los incidentes conservan fecha/regla/acción y su vínculo a la cuenta se anula al borrar físicamente la cuenta.
 
-## Integración de comentarios y MOD fuera de esta base
+## Dependencia de ratificación
 
-La implementación de comentarios y su moderador léxico están en la rama S4 `fix/s4-comments-exclude-theses`, no en `origin/develop` al momento de preparar este borrador. Esa rama no forma parte de este PR de documentación ni se declara integrada por esta guía. Sus resultados y pruebas deben revisarse al integrar dicha rama; hasta entonces, este documento no afirma como vigente el rechazo MOD de comentarios ni su conexión con AUTH/COM. Ninguna de las ramas observadas contiene contador de infracciones o sanción progresiva automatizada.
-
-La política propuesta sí contempla comentarios porque COM está en el alcance de S4-MOD, pero la validación de integración debe repetirse sobre el código que finalmente se integre.
+La implementación es configurable y comprobable con políticas de fixture, pero no contiene política productiva acordada. El modo sin configuración no activa progresión. La tarea no puede cerrarse como política hasta que la Asociación registre su versión, catálogo, excepciones, ventanas, pasos/duraciones, reversión y tratamiento de falsos positivos en la sección de aprobación.
 
 ## Decisiones para ratificar
 
@@ -35,30 +36,29 @@ Las propuestas son opciones para revisión. **Ninguna está aprobada por esta do
 | Excepciones | Revisar contexto de cita, análisis académico, denuncia, referencia a una infracción o uso no dirigido antes de sancionar. No crear excepciones amplias que desactiven el filtro por subcadena sin revisión. | Pendiente: excepciones válidas y quién puede resolverlas | No aprobado |
 | Primer rechazo de comentario | Rechazar el contenido que coincida con una regla aprobada; decidir por separado si el caso suma infracción. | Pendiente: relación rechazo/conteo | No aprobado |
 | Falsos positivos | Mantener el contenido sin publicar; proveer un canal de revisión, resultado auditable y corrección del catálogo/regla. No sancionar mientras el caso esté disputado, si la Asociación aprueba este criterio. | Pendiente: canal, plazo, revisor y efecto del reclamo | No aprobado |
-| Reincidencia | Ventana configurable y conteo de infracciones confirmadas, con una unidad por envío lógico; un reintento técnico no debe multiplicar eventos. | Pendiente: duración de ventana y deduplicación | No aprobado |
+| Reincidencia | Ventana configurable y conteo de infracciones confirmadas, con una unidad por envío lógico; el cliente reusa la clave al reintentar el mismo contenido. | Pendiente: duración de ventana y qué eventos confirmados cuentan | No aprobado |
 | Bloqueo temporal | Tabla configurable por ordinal/umbral de reincidencia, con duración explícita por paso. | Pendiente: número de pasos, umbrales y duración de cada uno | No aprobado |
 | Bloqueo permanente | Aplicarlo solo según un umbral o revisión explícitamente aprobados. | Pendiente: umbral, revisión y autoridad | No aprobado |
 | Desbloqueo antes del vencimiento | Elegir si conserva, reinicia o reduce el contador; registrar actor, motivo y valor antes/después. | Pendiente: efecto sobre el contador | No aprobado |
 | Vencimiento automático | Decidir si reactiva automáticamente, requiere revisión o aplica otra regla; dejar constancia de la transición automática. | Pendiente: resultado y evidencia de auditoría | No aprobado |
 | Alta/perfil con nombre rechazado | Rechazar sin crear/modificar la cuenta y mostrar un mensaje neutral, sin revelar la entrada del catálogo. Ofrecer revisión cuando haya posible falso positivo. | Pendiente: mensaje y canal de revisión | No aprobado |
 
-### Tabla configurable propuesta
+### Tabla configurable de `MODERATION_POLICY_JSON`
 
-Usar configuración versionada y validada; no fijar los campos pendientes como constantes en código. Cada sanción debe guardar una copia de la versión de política y del paso aplicado para que un cambio futuro no reescriba decisiones pasadas.
+La configuración se valida al usar MOD. El repositorio no incluye un JSON aprobado; con la variable vacía solo se aplica el filtro local y no hay progresión. Cada incidente guarda la versión de política y el paso aplicado para que un cambio futuro no reescriba decisiones pasadas.
 
-| Clave propuesta | Tipo | Valor inicial | Efecto | Aprobación |
+| Clave | Tipo | Valor productivo distribuido | Efecto | Aprobación |
 | --- | --- | --- | --- | --- |
-| `catalog.version` | identificador/lista | Sin versión aprobada | Identifica catálogo vigente | Pendiente |
-| `normalization.version` | identificador | Sin versión común aprobada | Identifica reglas de normalización | Pendiente |
-| `review.requiredFor` | reglas/categorías | Sin definir | Envía coincidencias ambiguas a revisión | Pendiente |
-| `reincidence.window` | duración | Sin definir | Limita qué infracciones confirmadas cuentan juntas | Pendiente |
-| `sanctions.steps[]` | umbral + estado + duración | Vacío | Mapea reincidencia a bloqueo temporal | Pendiente |
-| `sanctions.permanentThreshold` | umbral/revisión | Sin definir | Determina si se permite bloqueo permanente | Pendiente |
-| `counter.onManualUnlock` | `PRESERVE`, `RESET` o `REDUCE` | Sin definir | Define impacto de desbloqueo temprano | Pendiente |
-| `counter.onExpiry` | `PRESERVE`, `RESET` o `REDUCE` | Sin definir | Define efecto del vencimiento | Pendiente |
-| `rejectedSubmission.counts` | booleano/regla | Sin definir | Separa rechazo de infracción confirmada | Pendiente |
+| `approved`, `version`, `approvedBy`, `approvedAt` | aprobación/versionado | Vacío; política inactiva | Identifica la ratificación y versión usada | Pendiente |
+| `blockedTerms[]` | `{ id, scope: NAME\|COMMENT, term }` | Sin catálogo aprobado | Define detecciones aplicables a nombre/comentario | Pendiente |
+| `exceptions[]` | `{ scope, exactText }` | Vacío | Exime coincidencia solo si el texto normalizado completo coincide exactamente | Pendiente: falsos positivos/contexto |
+| `recurrenceWindowHours` | entero positivo | Sin definir | Ventana móvil para contar incidencias vigentes | Pendiente |
+| `sanctions[]` | `{ after, action: TEMPORARY, durationHours }` o `{ after, action: PERMANENT }` | Vacío | Umbral y duración por paso, en orden no decreciente de severidad | Pendiente |
+| `manualUnlockEffect` | `PRESERVE`, `RESET` o `REDUCE` | Sin definir | Aplica al contador y marca evidencia no contada, sin borrarla | Pendiente |
+| `expiryEffect` | `PRESERVE`, `RESET` o `REDUCE` | Sin definir | Efecto del vencimiento temporal | Pendiente |
+| `permanentReviewChannel` | texto | Sin definir | Canal devuelto al bloquear permanentemente; requerido si hay paso permanente | Pendiente |
 
-El despliegue debe fallar cerrado para sanciones progresivas si falta una configuración aprobada: puede rechazar contenido según el filtro vigente, pero no inventar umbrales ni imponer un bloqueo progresivo sin regla ratificada.
+Al aparecer una regla permanente, el parser exige `permanentReviewChannel`. Umbrales y duraciones deben ser enteros positivos, y cada bloqueo temporal posterior debe durar más que el anterior. Un JSON malformado/incompleto falla cerrado con `503 MODERATION_POLICY_INVALID`; una variable vacía mantiene el filtro local de rechazo, sin contador ni sanciones progresivas.
 
 ## Estados y transiciones
 
@@ -66,34 +66,37 @@ La tabla de hoy refleja las rutas/servicios revisados. La columna de política p
 
 | Estado actual | Evento | Estado resultante | Registro/efecto actual | Regla progresiva propuesta |
 | --- | --- | --- | --- | --- |
-| `ACTIVO` | Administración bloquea temporalmente | `BLOQUEADO_TEMPORAL` | Motivo, actor, fecha, vencimiento; revoca sesiones | Duración debe salir de `sanctions.steps[]` solo tras aprobación |
-| `ACTIVO` | Administración bloquea permanentemente | `BLOQUEADO_PERMANENTE` | Motivo, actor, fecha, canal de revisión; revoca sesiones | Umbral/autoridad pendientes |
-| `BLOQUEADO_TEMPORAL` | Vence `blockedUntil` y ocurre autenticación | `ACTIVO` | Reactivación perezosa; hoy no crea historial de transición | Debe decidirse contador y registro del vencimiento |
-| `BLOQUEADO_TEMPORAL` | Administración cambia estado | `ACTIVO`, temporal o permanente | Registra transición si hubo cambio; revoca sesiones si el destino no es activo | Efecto del desbloqueo sobre contador pendiente |
-| `BLOQUEADO_PERMANENTE` | Administración cambia estado | `ACTIVO`, temporal o permanente | Registra transición si hubo cambio; requiere motivo | Revisión, autoridad y contador pendientes |
+| `ACTIVO` | Incidencia alcanza un paso configurado | `BLOQUEADO_TEMPORAL` o `BLOQUEADO_PERMANENTE` | Guarda incidencia/hash, transición de sistema y revoca sesiones; cada petición privada vuelve a validar estado | Solo disponible con política ratificada |
+| `ACTIVO` | Administración bloquea | `BLOQUEADO_TEMPORAL` o `BLOQUEADO_PERMANENTE` | Registra actor, motivo, fecha/vencimiento/canal y revoca sesiones | Flujo ADMIN existente; sin conteo MOD implícito |
+| `BLOQUEADO_TEMPORAL` | Vence `blockedUntil` y ocurre autenticación | `ACTIVO` | Reactivación perezosa con transición de sistema y efecto de contador configurable | Efecto pendiente de ratificación |
+| `BLOQUEADO_TEMPORAL` | Administración desbloquea/cambia estado | `ACTIVO`, temporal o permanente | Registra actor/motivo/transición; aplica efecto configurado si pasa a activo | Efecto pendiente de ratificación |
+| `BLOQUEADO_PERMANENTE` | Administración revisa y cambia estado | `ACTIVO` o temporal | No vence automáticamente; el endpoint de administración registra la transición | Autoridad/canal de revisión pendientes |
 | Cualquier estado no eliminado | BAJA propia/administrativa | `ELIMINADO` | Servicio BAJA registra transición y revoca sesiones | Irreversible; fuera de la escalera de sanciones |
 | `ELIMINADO` | Cualquier solicitud de cambio | Sin transición | Cuenta excluida de cambios administrativos normales | No reactivar por política MOD |
 
-Para la política aprobada, conservar la separación entre **incidente MOD** y **estado de cuenta**. Un desbloqueo cambia el acceso; no borra auditoría. El contador solo cambia según la opción aprobada y debe guardar motivo, actor, instante y valores anteriores/nuevos. El vencimiento automático también debe tener auditoría si la Asociación lo adopta.
+El sistema conserva la separación entre **incidente MOD** y **estado de cuenta**. Un desbloqueo cambia el acceso; no borra auditoría. El contador solo cambia según la opción configurada y la transición registra el efecto aplicado. El actor de sanción automática queda como sistema; el desbloqueo administrativo conserva el actor de sesión.
 
 ## Casos de acuerdo y prueba
 
 Los resultados de política de esta matriz quedan pendientes hasta aprobación. Las pruebas técnicas deben distinguir el comportamiento actual del comportamiento que se autorice.
 
-| Caso | Entrada/situación | Evidencia técnica (base `develop` / rama S4 candidata) | Resultado de política por acordar |
+| Caso | Entrada/situación | Evidencia técnica en esta rama | Resultado de política por acordar |
 | --- | --- | --- | --- |
 | Nombre con término exacto del catálogo candidato | En nombres o apellidos | Rechaza con `OFFENSIVE_NAME`; alta no crea usuario | Confirmar término, excepción, mensaje y canal de revisión |
 | Perfil con nombre coincidente | Edición de nombres/apellidos | Rechaza la actualización | Confirmar revisión y si cuenta como infracción |
-| Coincidencia con mayúsculas o tildes | Texto con variación ortográfica | Los filtros actuales normalizan de forma distinta | Ratificar normalización común y pruebas de equivalencia |
+| Coincidencia con mayúsculas o tildes | Texto con variación ortográfica | Normalización común detecta la misma regla | Ratificar el perfil común y ejemplos |
 | Coincidencia dentro de otra palabra | Término candidato como parte de un nombre propio/topónimo | La comparación por token completo no bloquea el fragmento | Ratificar límites y falsos positivos |
-| Caracteres invisibles/separadores insertados | Variación ofuscada | Nombres: la normalización de `develop` no quita invisibles. Comentarios: esa lógica solo existe en la rama S4 candidata, pendiente de integración. | Decidir cobertura común y comportamiento esperado |
-| Cita o uso académico | Texto contiene término candidato sin insultar a una persona | La rama S4 candidata aplica filtro léxico a comentarios; esa conducta no está en `develop` y no hay revisión documentada aquí. | Definir excepción/revisión y si cuenta como infracción |
-| Comentario rechazado varias veces por reintento de red | Mismo envío lógico | No verificable en `develop`; la candidata de comentarios no persiste contador de sanción. | Deduplicar incidente para que reintentos no incrementen reincidencia |
-| Envíos diferentes rechazados | Varias infracciones potenciales | No verificable en `develop`; la candidata de comentarios no persiste historial MOD. | Definir confirmación, ventana y conteo |
-| Cuenta bloqueada comenta o inicia sesión | Estado no activo | AUTH en `develop` impide el acceso según estado; el rechazo de comentarios pertenece a la rama S4 candidata. | Verificar que duración y texto de UI correspondan a configuración aprobada |
-| Vence bloqueo temporal | Hora actual supera `blockedUntil` | Se activa al autenticar; sin transición en historial | Ratificar reactivación y si conserva/reinicia/reduce contador |
-| Desbloqueo manual | ADMIN cambia estado a `ACTIVO` | Se registra actor/motivo/transición; no hay contador MOD | Elegir efecto sobre el contador y requerir revisión/motivo |
-| Catálogo causa falso positivo | Persona disputa el rechazo | No se identificó flujo de apelación en la base ni en la rama S4 candidata revisada. | Definir responsable, plazo, evidencia y corrección |
+| Caracteres invisibles/separadores insertados | Variación ofuscada | Normalización elimina caracteres de formato y comprime puntuación dentro de un token | Ratificar cobertura y casos de colisión inocua |
+| Excepción inocua | Texto normalizado coincide en su totalidad con `exceptions[].exactText` | Se permite; excepciones de contexto parcial no se aplican | Ratificar canal para falsos positivos que no sean excepciones exactas |
+| Comentario detectado | Texto de comentario coincide con regla | No se publica; sin política aprobada solo rechaza. Con política aprobada registra incidente | Confirmar qué coincidencias cuentan como infracción |
+| Perfil detectado | Cuenta existente intenta guardar nombre | No actualiza el perfil; con política aprobada registra incidente y puede sancionar | Confirmar qué coincidencias cuentan como infracción |
+| Alta detectada | Nombre coincide antes de alta | Devuelve `OFFENSIVE_NAME`; `createUser` no se llama ni se crea cuenta | Confirmar catálogo/mensaje y canal de revisión |
+| Reintento con misma clave | Mismo usuario, origen, clave y evidencia | La API requiere la clave y reutiliza el incidente existente; evidencia distinta con la misma clave da 409 | Verificar que los clientes mantengan la clave por intento lógico |
+| Envíos distintos dentro/fuera de ventana | Diferentes claves para el usuario | Cuenta atómicamente solo incidencias con `createdAt` dentro de la ventana configurada | Ratificar ventana y umbrales |
+| Cuenta bloqueada comenta o inicia sesión | Estado no activo | AUTH impide ruta privada; comentario detectado aplica sanción antes de persistir y revoca sesiones | Ratificar duración y mensajes visibles |
+| Vence bloqueo temporal | Hora actual supera `blockedUntil` | Se reactiva en autenticación, registra transición y aplica `expiryEffect` | Ratificar efecto sobre contador |
+| Desbloqueo manual/permanente | ADMIN cambia estado a `ACTIVO` | Registra actor/transición; permanente no tiene vencimiento automático; aplica `manualUnlockEffect` | Ratificar efecto/autoridad |
+| Catálogo causa falso positivo | Persona disputa el rechazo | No hay flujo de apelación implementado; una excepción exacta configurada permite el texto | Definir responsable, plazo, evidencia y proceso de ajuste |
 
 ## Acuerdo de la Asociación
 
@@ -110,4 +113,4 @@ Completar en una revisión formal; el documento no sustituye ese acuerdo.
 | Tratamiento de falsos positivos y canal | Pendiente |
 | Responsable de actualizar configuración | Pendiente |
 
-Tras aprobar, actualizar casos de prueba, contrato de MOD, comportamiento de AUTH/PERFIL/COM/ADMIN, mensajes frontend y evidencia de auditoría. No agregar contador, modelo de incidentes ni automatización de sanciones hasta que estos campos tengan valores aprobados y responsables.
+Tras aprobar, registrar la configuración ratificada en el entorno, actualizar casos de prueba y mensajes frontend, y revisar el contrato de MOD y la evidencia de auditoría. El esquema y motor ya están implementados; con `MODERATION_POLICY_JSON` vacío no cuentan infracciones ni se aplican sanciones progresivas.
