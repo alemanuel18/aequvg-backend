@@ -2,12 +2,12 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../../shared/database/prisma'
 import { AppError } from '../../../shared/errors/app-error'
 import { cleanText } from '../../../shared/utils/text'
-import type { EventRegistrationAdminQuery, EventRegistrationBody } from '../dtos/registration-schemas'
+import type { EventRegistrationAdminQuery, EventRegistrationBody, EventRegistrationOwnQuery } from '../dtos/registration-schemas'
 import { eventRegistrationsRepository } from '../repositories/event-registrations.repository'
 import { eventsRepository } from '../repositories/events.repository'
 
 export const eventRegistrationsService = {
-  async register(eventId: number, input: EventRegistrationBody) {
+  async register(eventId: number, studentId: number, input: EventRegistrationBody) {
     if (input.website && input.website.trim().length > 0) {
       throw new AppError(400, 'INVALID_REQUEST', 'La solicitud no es válida.')
     }
@@ -54,6 +54,15 @@ export const eventRegistrationsService = {
           throw new AppError(422, 'EVENT_ALREADY_STARTED', 'El evento ya ha iniciado o ha concluido.')
         }
 
+        const existingForStudent = await eventRegistrationsRepository.findExistingForStudent(tx, eventId, studentId)
+        if (existingForStudent) {
+          throw new AppError(
+            409,
+            'ALREADY_REGISTERED',
+            'Ya existe una inscripción registrada para este estudiante en este evento.'
+          )
+        }
+
         const existing = await eventRegistrationsRepository.findExisting(tx, eventId, email)
         if (existing) {
           throw new AppError(
@@ -70,6 +79,7 @@ export const eventRegistrationsService = {
 
         const registration = await eventRegistrationsRepository.create(tx, {
           eventId,
+          studentId,
           fullName,
           firstNames,
           lastNames,
@@ -97,6 +107,16 @@ export const eventRegistrationsService = {
       }
       throw error
     }
+  },
+
+  async ownList(studentId: number, query: EventRegistrationOwnQuery) {
+    const page = query.page ?? 1
+    const pageSize = query.pageSize ?? 20
+    const [items, total] = await Promise.all([
+      eventRegistrationsRepository.ownList({ studentId, status: query.status, page, pageSize }),
+      eventRegistrationsRepository.ownCount({ studentId, status: query.status })
+    ])
+    return { items, pagination: { page, pageSize, total } }
   },
 
   async adminList(eventId: number, query: EventRegistrationAdminQuery) {
