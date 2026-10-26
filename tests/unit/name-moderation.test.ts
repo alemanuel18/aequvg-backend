@@ -14,4 +14,9 @@ describe('filtro de nombres de estudiantes', () => {
   it('no bloquea coincidencias parciales dentro de un nombre', () => {
     expect(containsOffensiveName('Putomayo')).toBe(false)
   })
+
+  it('detecta separadores y sustituciones simples sin coincidencia parcial', () => {
+    expect(containsOffensiveName('1.d.i.o.t.a')).toBe(true)
+    expect(containsOffensiveName('Putomayo')).toBe(false)
+  })
 })

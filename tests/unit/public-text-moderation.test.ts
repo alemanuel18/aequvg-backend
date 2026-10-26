@@ -17,6 +17,11 @@ describe('moderación de texto público', () => {
     expect(publicTextModerationService.isCommentAllowed('Putomayo es un topónimo')).toBe(true)
   })
 
+  it('normaliza caracteres invisibles y evasiones simples antes de rechazar', () => {
+    expect(publicTextModerationService.isCommentAllowed('i.d.i.o.t.a')).toBe(false)
+    expect(publicTextModerationService.isCommentAllowed('i\u200Bd\u200Biota')).toBe(false)
+  })
+
   it('conecta MOD por defecto y rechaza antes de guardar', async () => {
     await expect(moderationService.isCommentAllowed('Eres un idiota'))
       .resolves.toBe(false)
