@@ -1,6 +1,8 @@
 # Política de moderación y reincidencias (S4-MOD)
 
-> **Estado: borrador para acuerdo con la Asociación. No aprobado ni vigente como política.** Esta rama de implementación se basa en `fix/s4-comments-exclude-theses` e incorpora COM, MOD, AUTH y administración. No contiene valores sancionatorios aprobados; una política solo puede activarse mediante configuración ratificada fuera del repositorio.
+> **Estado: borrador para acuerdo con la Asociación. No aprobado ni vigente como política.** La implementación documentada integra COM, MOD, AUTH y administración. No contiene valores sancionatorios aprobados; una política solo puede activarse mediante configuración ratificada fuera del repositorio.
+
+El procedimiento operativo propuesto, los límites del detector, la evidencia, el contrato compartido con AUTH/ADMIN y los casos de revisión manual están en [`moderation-operations.md`](moderation-operations.md). Este enlace no implica que la Asociación haya aprobado esos procedimientos.
 
 ## Propósito y alcance
 
