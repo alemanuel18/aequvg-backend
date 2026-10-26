@@ -70,8 +70,9 @@ export const studentAuthRoutes = new Elysia({ prefix: '/api/v1/student-auth' })
     detail: { tags: ['Acceso estudiantil'], summary: 'Cierra y revoca la sesión estudiantil actual' }
   })
   .delete('/account', async ({ body, cookie, request, set }) => {
+    const authenticated = await studentAuthService.authenticate(request)
     enforceAuthRateLimit(request, body.email)
-    await studentAuthService.deleteOwnAccount(body).catch(error => {
+    await studentAuthService.deleteOwnAccount(authenticated.user.id, body).catch(error => {
       if (error instanceof AppError && error.code === 'INVALID_CREDENTIALS') recordAuthFailure(request, body.email)
       throw error
     })

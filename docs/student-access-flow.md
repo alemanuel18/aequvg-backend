@@ -15,11 +15,12 @@ Una cuenta estudiantil nunca contiene un rol configurable ni permisos administra
 | `GET` | `/api/v1/student-auth/me` | Estudiante | Consulta la sesión vigente. |
 | `PATCH` | `/api/v1/student-auth/me` | Estudiante + CSRF | Actualiza nombres y apellidos del usuario de la sesión. No admite ID, correo, rol ni estado. |
 | `POST` | `/api/v1/student-auth/logout` | Estudiante + CSRF | Revoca la sesión y elimina las cookies. |
-| `DELETE` | `/api/v1/student-auth/account` | Revalidación | Da de baja con correo, contraseña y `confirm: true`, incluso si la cuenta está bloqueada. |
-| `GET` | `/api/v1/admin/student-users` | Admin + `USERS_MANAGE` | Lista cuentas normales con `q`, `status`, `type` (`ESTUDIANTE`/`INTERESADO`), `page` y `pageSize` (máximo 100). La migración `20261025140000_allow_interested_accounts` habilita el segundo tipo en la base. |
-| `GET` | `/api/v1/admin/student-users/:id` | Admin + `USERS_MANAGE` | Consulta perfil e historial de cambios, actor, fecha, motivo y transición. |
-| `PATCH` | `/api/v1/admin/student-users/:id/status` | Admin + `USERS_MANAGE` + CSRF | Bloquea temporal o permanentemente, o desbloquea a `ACTIVO`; exige motivo y datos del tipo de bloqueo. Registra auditoría y revoca sesiones inmediatamente al bloquear. |
-| `DELETE` | `/api/v1/admin/student-users/:id` | Admin + `USERS_MANAGE` + CSRF | Da de baja con motivo mediante el servicio común de BAJA. Anonimiza datos y conserva comentarios e inscripciones. |
+| `DELETE` | `/api/v1/student-auth/account` | Estudiante + CSRF + revalidación | Da de baja la identidad de la sesión con correo, contraseña y `confirm: true`; responde `204`. |
+| `GET` | `/api/v1/student/events/registrations` | Estudiante | Consulta el historial propio paginado y filtrable por estado. |
+| `GET` | `/api/v1/admin/student-users` | Admin + `USERS_MANAGE` | Lista estudiantes e interesados con búsqueda `q`, filtros `status` y `type` (`ESTUDIANTE`/`INTERESADO`) y paginación. La migración `20261025140000_allow_interested_accounts` habilita el segundo tipo en la base. |
+| `GET` | `/api/v1/admin/student-users/:id` | Admin + `USERS_MANAGE` | Consulta perfil e historial de cambios, actor y motivo. |
+| `PATCH` | `/api/v1/admin/student-users/:id/status` | Admin + `USERS_MANAGE` + CSRF | Activa o bloquea; exige motivo, registra actor/fecha/transición y revoca sesiones al bloquear. |
+| `DELETE` | `/api/v1/admin/student-users/:id` | Admin + `USERS_MANAGE` + CSRF | Da de baja con motivo mediante el servicio común de BAJA. |
 
 Las cookies son `aequvg_student_session` y `aequvg_student_device`, ambas `HttpOnly`, más `aequvg_student_csrf`, legible por el navegador para mutaciones. No sirven en `/api/v1/auth` ni en rutas `/api/v1/admin`; los JWT usan audiencia `aequvg-student`, distinta de `aequvg-admin`.
 
@@ -41,9 +42,7 @@ Las cookies son `aequvg_student_session` y `aequvg_student_device`, ambas `HttpO
 | `BLOQUEADO_PERMANENTE` | Denegado | `403 ACCOUNT_PERMANENTLY_BLOCKED`, con `details.reviewChannel`. |
 | `ELIMINADO` | Denegado | `403 ACCOUNT_DELETED`; todas las sesiones quedan revocadas. |
 
-MOD envía un estado (`ACTIVO`, bloqueo temporal con `blockedUntil` futuro o bloqueo permanente con `reviewChannel`) y un `reason` de 5 a 1000 caracteres. La transacción guarda estado anterior/nuevo, motivo, fecha y actor en `historial_estado_cuenta_estudiante`. Bloquear revoca las sesiones inmediatamente; desbloquear no restaura sesiones anteriores y la persona debe iniciar sesión de nuevo. Un bloqueo temporal se levanta al vencer cuando se procesa el siguiente acceso. Un bloqueo permanente no vence ni se levanta automáticamente: requiere que un administrador lo cambie explícitamente a `ACTIVO`. Los cambios efectivos también limpian el contador en memoria de intentos fallidos para ese correo (cinco fallos por combinación IP/correo durante quince minutos). Repetir una transición sin cambio efectivo no duplica su fila de historial. No hay regla automática que escale sanciones por reincidencia: el panel no cuenta incidentes para imponer un bloqueo; el administrador evalúa cada caso y debe documentar el motivo de cada decisión. No se permite modificar o reactivar una cuenta dada de baja.
-
-Desbloquear y eliminar son acciones distintas. Desbloquear cambia una cuenta bloqueada a `ACTIVO`, mantiene su identidad y sus datos, y permite que vuelva a autenticarse con una sesión nueva. Eliminar ejecuta la baja lógica e irreversible del servicio común BAJA, establece `ELIMINADO`, revoca sesiones, anonimiza nombre, correo y otros datos personales, y no permite reactivar la cuenta. No hay borrado en cascada: comentarios e inscripciones se conservan para mantener la conversación y los cupos/eventos, pero se desasocian o anonimizan sus datos personales. Repetir la baja responde `409` y no duplica efectos. Las rutas administrativas de este flujo consultan exclusivamente `usuario_estudiante` (estudiantes e interesados); nunca listan ni modifican usuarios administrativos.
+ MOD envía un estado (`ACTIVO`, bloqueo temporal con `blockedUntil` futuro o bloqueo permanente con `reviewChannel`) y un `reason` de 5 a 1000 caracteres. La transacción guarda estado anterior/nuevo, motivo, fecha y actor en `historial_estado_cuenta_estudiante`. Bloquear revoca las sesiones inmediatamente; desbloquear no restaura sesiones anteriores y la persona debe iniciar sesión de nuevo. Un bloqueo temporal se levanta al vencer cuando se procesa el siguiente acceso. Un bloqueo permanente requiere que un administrador lo cambie explícitamente a `ACTIVO`. Los cambios efectivos limpian el contador de intentos fallidos. La baja propia y administrativa usan el mismo servicio irreversible: establece `ELIMINADO`, elimina credenciales, anonimiza nombre, correo y datos personales, conserva la relación técnica de inscripciones con snapshots anonimizados, y desvincula comentarios y revisiones conservando su contenido y fechas. No se permite modificar o reactivar una cuenta dada de baja. Las rutas consultan exclusivamente `usuario_estudiante` (estudiantes e interesados); nunca listan ni modifican usuarios administrativos.
 
 ## Matriz de acceso
 
@@ -52,15 +51,15 @@ Desbloquear y eliminar son acciones distintas. Desbloquear cambia una cuenta blo
 | Contenido público | Sí | Sí | Sí |
 | Registro/login estudiantil | Sí | Sí, sin elevar permisos | No mediante su sesión administrativa |
 | Panel personal `/mi-cuenta` | No | Sí | No mediante su sesión administrativa |
-| Inscripciones a eventos | No; la interfaz solicita `/acceso` | Sí, con CSRF y reglas del evento | No mediante su sesión administrativa |
+| Inscripciones a eventos | No; la interfaz solicita `/acceso` | Sí, con CSRF y reglas del evento; el propietario deriva de la sesión | No mediante su sesión administrativa |
 | Comentarios privados futuros | Solicitan `/acceso` | Sí, según regla del módulo | No por implicación; requieren contrato propio |
 | `/api/v1/admin/**` | No | No | Sí, según RBAC |
 | `/administrador` | No | No | Sí |
 | Baja propia estudiantil | Con revalidación | Con revalidación | No aplica |
 
-La navegación y el detalle de eventos permanecen disponibles sin sesión. Abrir una inscripción conserva el evento y el ancla en `returnTo`, y envía a `/acceso`; el `POST` exige cookies estudiantiles y CSRF. Comentarios privados todavía no existen; cuando se implementen deben aplicar el mismo patrón sin crear rutas ficticias por anticipado.
+La navegación y el detalle de eventos permanecen disponibles sin sesión. Abrir una inscripción conserva el evento y el ancla en `returnTo`, y envía a `/acceso`; el `POST` exige cookies estudiantiles y CSRF. El historial propio usa la sesión como único filtro, pagina resultados y no incluye PII ni filas históricas sin propietario.
 
-El panel frontend S4 presenta navegación para `Mi perfil`, `Mis eventos` y `Mis comentarios`. En esta entrega solo se edita el perfil; los listados de eventos y comentarios se conectarán desde sus módulos responsables. El perfil permite cambiar `firstNames` y `lastNames`; `email` se presenta como solo lectura y el tipo de cuenta indica Estudiante UVG.
+El panel frontend S4 presenta navegación para `Mi perfil`, `Mis eventos` y `Mis comentarios`. `Mis eventos` consulta el historial propio paginado, permite filtrar `CONFIRMADA`/`CANCELADA` y excluye filas sin propietario; sus respuestas no contienen PII de inscripción. El perfil permite cambiar `firstNames` y `lastNames`; `email` se presenta como solo lectura y el tipo de cuenta indica Estudiante UVG. La baja propia requiere reautenticación y, tras `204`, la sesión queda revocada y la cuenta deja de estar disponible.
 
 ## Respuestas y pruebas
 

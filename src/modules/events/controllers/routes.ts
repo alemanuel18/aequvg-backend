@@ -4,6 +4,7 @@ import { enforceRateLimit } from '../../../middleware/rate-limit'
 import {
   eventAdminQuery,
   eventCreateBody,
+  eventCategoryListResponse,
   eventErrorResponse,
   eventListResponse,
   eventPublicListResponse,
@@ -24,6 +25,10 @@ import { eventsService } from '../services/events.service'
 import { studentAuthService } from '../../users/services/student-auth.service'
 
 export const eventsRoutes = new Elysia({ prefix: '/api/v1' })
+  .get('/events/categories', () => eventsService.activeCategories(), {
+    response: { 200: eventCategoryListResponse },
+    detail: { tags: ['Eventos'], summary: 'Consulta categorías activas de eventos' }
+  })
   .get('/events', ({ query }) => eventsService.publicList(query), {
     query: eventPublicQuery,
     response: { 200: eventPublicListResponse, 503: eventErrorResponse },

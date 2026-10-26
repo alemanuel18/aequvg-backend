@@ -754,6 +754,54 @@
         },
         {
           "v": "1",
+          "name": "Historial propio de eventos",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/student/events/registrations?page=1&pageSize=20",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Historial propio confirmadas",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/student/events/registrations?page=1&pageSize=20&status=CONFIRMADA",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Historial propio canceladas",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/student/events/registrations?page=1&pageSize=20&status=CANCELADA",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
           "name": "Baja propia con verificación de identidad",
           "method": "DELETE",
           "endpoint": "<<baseUrl>>/student-auth/account",
@@ -762,6 +810,11 @@
             {
               "key": "Content-Type",
               "value": "application/json",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<studentCsrfToken>>",
               "active": true
             }
           ],
@@ -1717,7 +1770,7 @@
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"name\": \"Taller de Química General\",\n  \"description\": \"Taller práctico sobre técnicas básicas de laboratorio para estudiantes de primer ingreso.\",\n  \"startsAt\": \"2026-11-20T15:00:00.000Z\",\n  \"location\": \"Laboratorio Central, Edificio F\",\n  \"maximumCapacity\": 30,\n  \"status\": \"BORRADOR\"\n}"
+            "body": "{\n  \"name\": \"Taller de Química General\",\n  \"description\": \"Taller práctico sobre técnicas básicas de laboratorio para estudiantes de primer ingreso.\",\n  \"startsAt\": \"2026-11-20T15:00:00.000Z\",\n  \"location\": \"Laboratorio Central, Edificio F\",\n  \"maximumCapacity\": 30,\n  \"categoryId\": 2,\n  \"status\": \"BORRADOR\"\n}"
           }
         },
         {
@@ -1771,7 +1824,7 @@
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"status\": \"PUBLICADO\",\n  \"maximumCapacity\": 35\n}"
+            "body": "{\n  \"status\": \"PUBLICADO\",\n  \"maximumCapacity\": 35,\n  \"categoryId\": null\n}"
           }
         },
         {

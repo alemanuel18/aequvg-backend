@@ -177,6 +177,9 @@ async function main() {
   })
 
   const resourceCategory = await prisma.resourceCategory.upsert({ where: { name: 'Laboratorio' }, update: { active: true }, create: { name: 'Laboratorio', active: true } })
+  for (const name of ['Académico', 'Taller', 'Conferencia', 'Visita técnica', 'Social', 'Otro']) {
+    await prisma.eventCategory.upsert({ where: { name }, update: { active: true }, create: { name, active: true } })
+  }
   const resource = await prisma.resource.findFirst({ where: { createdById: developmentUser.id, title: 'Guía de seguridad de laboratorio (desarrollo)' } })
   const resourceData = { fileId: pdfMetadata.id, categoryId: resourceCategory.id, title: 'Guía de seguridad de laboratorio (desarrollo)', description: 'Recurso de prueba que referencia metadatos de un PDF almacenado fuera de PostgreSQL.', status: 'PUBLICADO' as const, publishedAt: developmentPublishedAt }
   const savedResource = resource ? await prisma.resource.update({ where: { id: resource.id }, data: resourceData }) : await prisma.resource.create({ data: { ...resourceData, createdById: developmentUser.id } })

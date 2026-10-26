@@ -273,13 +273,31 @@ Ambos endpoints exponen el campo dinámico `availableCapacity` (entero >= 0), ca
 - **Errores principales:**
   - `400 INVALID_REQUEST`: detección de spam por campo honeypot completado.
   - `404 EVENT_NOT_FOUND`: el evento no existe, o está en estado `BORRADOR` o `ARCHIVADO`.
-  - `409 ALREADY_REGISTERED`: ya existe una inscripción registrada con ese correo (`CITEXT`, insensible a mayúsculas y minúsculas, incluso si estaba `CANCELADA`).
+  - `409 ALREADY_REGISTERED`: ya existe una inscripción con ese correo (`CITEXT`, insensible a mayúsculas y minúsculas, incluso si estaba `CANCELADA`) o el estudiante autenticado ya está inscrito en ese evento.
   - `409 EVENT_FULL`: el evento ha alcanzado su capacidad máxima sin cupos disponibles.
   - `422 EVENT_NOT_OPEN`: el evento está en estado `CANCELADO`, `FINALIZADO` o distinto de `PUBLICADO`.
   - `422 EVENT_ALREADY_STARTED`: el evento ya inició o concluyó en el pasado.
   - `422 VALIDATION_ERROR`: datos incompletos o con formato inválido (incluye consentimiento faltante o falso).
   - `422 INVALID_PRIVACY_VERSION`: versión de privacidad vacía o con solo espacios.
   - `429 RATE_LIMITED`: límite de solicitudes por IP excedido.
+
+### Historial propio de inscripciones
+
+`GET /api/v1/student/events/registrations` requiere una sesión estudiantil válida y obtiene el propietario exclusivamente de ella; el cliente no envía `studentId`. Acepta `page`, `pageSize` y, opcionalmente, `status=CONFIRMADA` o `status=CANCELADA`. Devuelve únicamente las inscripciones del estudiante autenticado, con información pública del evento, estado y fechas, junto con `pagination`; no devuelve `studentId`, nombres, correo, teléfono ni datos de consentimiento o privacidad. Las filas históricas sin propietario (`studentId = NULL`) quedan fuera del historial propio.
+
+La respuesta `409 ALREADY_REGISTERED` cubre tanto un correo ya usado en el evento como una inscripción existente del mismo estudiante en ese evento. Se conservan `UNIQUE(eventId, email)` y la garantía parcial para `eventId + studentId`.
+
+### Baja propia y conservación de actividad
+
+`DELETE /api/v1/student-auth/account` requiere sesión estudiantil, CSRF y el siguiente cuerpo de revalidación:
+
+```json
+{ "email": "...", "password": "...", "confirm": true }
+```
+
+La identidad afectada siempre deriva de la sesión; email y contraseña solo revalidan esa identidad. Una baja exitosa responde `204`: la cuenta queda `ELIMINADO`, su PII se anonimiza, se elimina `StudentCredential`, se revocan todas sus sesiones y se limpian las cookies actuales. Las inscripciones permanecen con su `studentId` técnico, estado, fechas y metadatos de consentimiento/privacidad; sus snapshots personales se anonimizan. Comentarios y revisiones permanecen, pero se desvinculan del autor. La actividad histórica necesaria no se elimina físicamente.
+
+Los errores relevantes incluyen `401 UNAUTHORIZED`, `INVALID_SESSION` o `SESSION_REVOKED`; `403 ACCOUNT_DELETED`, `ACCOUNT_TEMPORARILY_BLOCKED` o `ACCOUNT_PERMANENTLY_BLOCKED`; `422 INVALID_CREDENTIALS` o `CSRF_TOKEN_INVALID`; y `429` por límite de autenticación.
 
 ### Administración de eventos y participantes
 
