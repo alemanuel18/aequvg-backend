@@ -114,7 +114,7 @@ describe('servicio de acceso estudiantil', () => {
 
   it('permite la baja propia bloqueada tras volver a verificar la contraseña', async () => {
     repositoryMocks.findUserByEmail.mockResolvedValue({ ...(await activeStudent()), status: 'BLOQUEADO_PERMANENTE', reviewChannel: 'revision@uvg.edu.gt' })
-    repositoryMocks.deleteAccountAndRevokeSessions.mockResolvedValue({ alreadyDeleted: false, user: { id: 41, status: 'ELIMINADO', deletedAt: new Date(), email: 'estudiante@uvg.edu.gt' } })
+    repositoryMocks.deleteAccountAndRevokeSessions.mockResolvedValue({ alreadyDeleted: false, user: { id: 41, status: 'ELIMINADO', deletedAt: new Date(), email: 'usuario-anonimo-41@anonimo.invalid' }, originalEmail: 'estudiante@uvg.edu.gt' })
     await expect(studentAuthService.deleteOwnAccount({
       email: 'estudiante@uvg.edu.gt', password: 'Clave-estudiante-123!', confirm: true
     })).resolves.toBeUndefined()

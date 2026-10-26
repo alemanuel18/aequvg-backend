@@ -173,11 +173,11 @@ export const studentAuthService = {
     await studentAccountDeletionService.delete(user.id, { actorId: null, reason: 'BAJA_SOLICITADA_POR_USUARIO' })
   },
 
-  async listManagedAccounts(input: { q?: string; status?: string; page?: number; pageSize?: number }) {
+  async listManagedAccounts(input: { q?: string; status?: string; type?: 'ESTUDIANTE' | 'INTERESADO'; page?: number; pageSize?: number }) {
     const page = input.page ?? 1
     const pageSize = input.pageSize ?? 20
     const result = await studentAuthRepository.listManagedAccounts({
-      q: input.q?.trim() || undefined, status: input.status, page, pageSize
+      q: input.q?.trim() || undefined, status: input.status, type: input.type, page, pageSize
     })
     return { items: result.items, pagination: { page, pageSize, total: result.total } }
   },

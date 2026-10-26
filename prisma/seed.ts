@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { PrismaClient, ProjectStatus, ProjectType } from '@prisma/client'
 import { hashPassword } from '../src/shared/utils/auth-crypto'
 
@@ -16,6 +17,10 @@ const testStudent = {
   password: 'AEQUVG-Estudiante-2026!'
 } as const
 
+const sampleCommentHash = (studentId: number, targetType: string, targetId: number, content: string) => createHash('sha256')
+  .update(`${studentId}\n${targetType}\n${targetId}\n${content.normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('es')}`)
+  .digest('hex')
+
 const board = [
   ['Pablo José', 'Presidente', 'ros23193@uvg.edu.gt'],
   ['Andrea María', 'Vicepresidenta', 'moc23178@uvg.edu.gt'],
@@ -25,6 +30,7 @@ const board = [
 ] as const
 
 async function main() {
+  let developmentStudentId: number | null = null
   const permissions = [
     { code: 'ADMIN_ACCESS', description: 'Acceder al panel administrativo.' },
     { code: 'USERS_MANAGE', description: 'Crear y administrar usuarios administrativos.' },
@@ -122,6 +128,7 @@ async function main() {
         status: 'ACTIVO'
       }
     })
+    developmentStudentId = student.id
     const studentPasswordHash = await hashPassword(testStudent.password)
     await prisma.studentCredential.upsert({
       where: { userId: student.id },
@@ -236,6 +243,7 @@ async function main() {
   }
 
   const additionalEvents = [
+    developmentEvent,
     {
       name: 'Simposio de Innovación en Materiales y Polímeros',
       description: 'Conferencia técnica sobre polímeros biodegradables y síntesis verde en la industria actual.',
@@ -259,6 +267,35 @@ async function main() {
     const existing = await prisma.event.findFirst({ where: { createdById: developmentUser.id, name: item.name } })
     if (existing) await prisma.event.update({ where: { id: existing.id }, data: item })
     else await prisma.event.create({ data: { ...item, createdById: developmentUser.id } })
+  }
+
+  // Safe examples for local UI review. Content rejected by MOD is never persisted.
+  if (developmentStudentId !== null) {
+    const demoNews = await prisma.news.findFirstOrThrow({ where: { createdById: developmentUser.id, title: 'Noticia de desarrollo del MVP público' }, select: { id: true } })
+    const demoProject = await prisma.project.findUniqueOrThrow({ where: { slug: 'analisis-microplasticos-fuentes-hidricas' }, select: { id: true } })
+    const demoEvent = await prisma.event.findFirstOrThrow({ where: { createdById: developmentUser.id, name: developmentEvent.name }, select: { id: true } })
+    const sampleComments = [
+      { targetType: 'NOTICIA' as const, targetId: demoNews.id, content: 'Gracias por compartir la convocatoria; me interesa participar.' },
+      { targetType: 'NOTICIA' as const, targetId: demoNews.id, content: '¿Podrían publicar también los requisitos de inscripción?' },
+      { targetType: 'PROYECTO' as const, targetId: demoProject.id, content: 'La explicación del análisis está muy clara. ¡Buen trabajo!' },
+      { targetType: 'EVENTO' as const, targetId: demoEvent.id, content: '¿La actividad requiere inscripción previa?' }
+    ]
+    for (const comment of sampleComments) {
+      const hash = sampleCommentHash(developmentStudentId, comment.targetType, comment.targetId, comment.content)
+      await prisma.publicationComment.upsert({
+        where: { dedupeHash: hash },
+        update: { content: comment.content },
+        create: {
+          studentId: developmentStudentId,
+          targetType: comment.targetType,
+          content: comment.content,
+          dedupeHash: hash,
+          ...(comment.targetType === 'NOTICIA' ? { newsId: comment.targetId } : {}),
+          ...(comment.targetType === 'PROYECTO' ? { projectId: comment.targetId } : {}),
+          ...(comment.targetType === 'EVENTO' ? { eventId: comment.targetId } : {})
+        }
+      })
+    }
   }
 
   const firstNews = await prisma.news.findFirst({ where: { status: 'PUBLICADO' } })

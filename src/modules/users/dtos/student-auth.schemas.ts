@@ -62,6 +62,7 @@ export const studentStatusBody = t.Union([
 
 export const managedStudentListQuery = t.Object({
   q: t.Optional(t.String({ maxLength: 160 })),
+  type: t.Optional(t.Union([t.Literal('ESTUDIANTE'), t.Literal('INTERESADO')])),
   status: t.Optional(t.Union([t.Literal('ACTIVO'), t.Literal('BLOQUEADO_TEMPORAL'), t.Literal('BLOQUEADO_PERMANENTE'), t.Literal('ELIMINADO')])),
   page: t.Optional(t.Numeric({ minimum: 1, maximum: 100000 })),
   pageSize: t.Optional(t.Numeric({ minimum: 1, maximum: 100 }))
@@ -71,7 +72,7 @@ export const managedStudentDeleteBody = t.Object({ reason: t.String({ minLength:
 
 const managedStudent = t.Object({
   id: t.Integer(), name: t.String(), firstNames: t.String(), lastNames: t.String(), email: t.String(),
-  status: t.String(), blockedUntil: t.Nullable(t.Date()), reviewChannel: t.Nullable(t.String()),
+  isStudent: t.Boolean(), status: t.String(), blockedUntil: t.Nullable(t.Date()), reviewChannel: t.Nullable(t.String()),
   deletedAt: t.Nullable(t.Date()), createdAt: t.Date(), updatedAt: t.Date()
 })
 export const managedStudentListResponse = t.Object({

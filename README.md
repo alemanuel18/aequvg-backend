@@ -74,6 +74,10 @@ Perfil: Estudiante normal
 
 Estas credenciales son públicas y sirven exclusivamente para desarrollo y pruebas locales. La cuenta se guarda en las tablas estudiantiles, no recibe rol ni permisos administrativos y la seed la restablece con estado `ACTIVO`. No se crea cuando `NODE_ENV=production`; no debe copiarse manualmente ni utilizarse en un despliegue real.
 
+## Comentarios e historial personal
+
+S4-COM expone comentarios por noticias publicadas, proyectos aprobados y eventos publicados, además del historial paginado del estudiante autenticado. La creación consulta el proveedor central interno MOD antes de persistir; actualmente usa una política léxica explícita. El API entrega texto plano y el frontend renderiza el historial mediante interpolación escapada. Contrato, límites, deduplicación y anonimización se documentan en [`docs/comments-flow.md`](docs/comments-flow.md).
+
 ## Autenticación y perfiles administrativos
 
 Las solicitudes de cuenta se envían desde `POST /api/v1/auth/registration-requests` con `firstNames`, `lastNames`, correo `@uvg.edu.gt` y contraseña. Nombres y apellidos se almacenan en columnas separadas. Se guardan como pendientes y no crean una cuenta ni otorgan acceso. Una persona con `USERS_MANAGE` puede consultarlas en `GET /api/v1/admin/registration-requests` y aprobarlas con un rol o rechazarlas mediante `POST /api/v1/admin/registration-requests/:id/review`. La aprobación crea la cuenta activa y mueve el hash de contraseña a sus credenciales; al resolver la solicitud, el hash se elimina de la solicitud. Los cambios administrativos requieren CSRF. Quien aprueba debe verificar la identidad del solicitante por un canal institucional antes de aprobar.
@@ -466,6 +470,7 @@ El seed está en `prisma/seed.ts`. Carga de forma idempotente:
 - El estudiante normal `estudiante.pruebas@uvg.edu.gt`, con la contraseña documentada en la sección de acceso estudiantil, únicamente fuera de producción.
 - Medios de contacto, integrantes y orden de la junta directiva.
 - Bloques institucionales, una noticia y un recurso publicados de ejemplo.
+- Comentarios de muestra aprobados para la noticia, proyecto y evento de desarrollo; no se persisten textos rechazados por moderación.
 - Metadatos de un PDF de ejemplo para comprobar la relación entre recursos y archivos.
 
 Puede ejecutarse varias veces. La junta se busca por correo institucional; si existe, se actualiza. Los medios se buscan por `type` y `value`; una entrada idéntica se actualiza en lugar de duplicarse.
@@ -485,6 +490,8 @@ bun run db:seed
 ```
 
 La base debe tener las migraciones aplicadas antes de ejecutar el seed. Los datos de ejemplo están marcados como contenido de desarrollo y no reemplazan contenido institucional aprobado.
+
+Para ver los comentarios, abre los detalles desde las listas públicas de Noticias, Investigación o Eventos. Inicia sesión con `estudiante.pruebas@uvg.edu.gt` para probar el formulario. Un texto como `Eres un idiota` debe ser rechazado por MOD y quedarse sin publicar; la API no conserva comentarios bloqueados.
 
 Fuera de Docker la seed sigue siendo manual. El Compose de desarrollo sí la ejecuta automáticamente; el Compose de producción conserva la seed como herramienta manual.
 

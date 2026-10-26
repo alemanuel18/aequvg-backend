@@ -427,6 +427,16 @@
             "contentType": null,
             "body": null
           }
+        },
+        {
+          "v": "1",
+          "name": "Comentarios de un evento publicado",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/publications/EVENTO/<<eventId>>/comments?page=1&pageSize=20",
+          "params": [],
+          "headers": [],
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": null, "body": null }
         }
       ]
     },
@@ -435,6 +445,30 @@
       "name": "Acceso estudiantil",
       "folders": [],
       "requests": [
+        {
+          "v": "1",
+          "name": "Crear comentario (requiere sesión + MOD)",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/publications/EVENTO/<<eventId>>/comments",
+          "params": [],
+          "headers": [
+            { "key": "Content-Type", "value": "application/json", "active": true },
+            { "key": "Cookie", "value": "<<studentSessionCookie>>", "active": true },
+            { "key": "X-CSRF-Token", "value": "<<studentCsrfToken>>", "active": true }
+          ],
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": "application/json", "body": "{\n  \"content\": \"Comentario de prueba\"\n}" }
+        },
+        {
+          "v": "1",
+          "name": "Historial de mis comentarios",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/student-auth/me/comments?page=1&pageSize=20",
+          "params": [],
+          "headers": [{ "key": "Cookie", "value": "<<studentSessionCookie>>", "active": true }],
+          "auth": { "authType": "none", "authActive": true },
+          "body": { "contentType": null, "body": null }
+        },
         {
           "v": "1",
           "name": "Registrar estudiante UVG",
@@ -2263,6 +2297,10 @@
         {
           "key": "studentCsrfToken",
           "value": "copy-from-student-login-response"
+        },
+        {
+          "key": "studentSessionCookie",
+          "value": "aequvg_student_session=copy-from-login; aequvg_student_device=copy-from-login"
         },
         {
           "key": "studentUserId",

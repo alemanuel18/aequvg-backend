@@ -68,6 +68,21 @@ enum PublicationStatus {
   @@map("estado_publicacion_cientifica")
 }
 
+enum CommentTargetType {
+  NOTICIA
+  PROYECTO
+  EVENTO
+
+  @@map("tipo_destino_comentario")
+}
+
+enum CommentRevisionAction {
+  EDIT
+  DELETE
+
+  @@map("accion_historial_comentario")
+}
+
 enum ContributionRole {
   AUTOR
   COAUTOR
@@ -224,6 +239,7 @@ model Project {
   reviewer     AdministrativeUser? @relation("ProjectReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
   coverImage   File?               @relation("ProjectCoverImage", fields: [coverImageId], references: [id], onDelete: Restrict)
   documentFile File?               @relation("ProjectDocument", fields: [documentFileId], references: [id], onDelete: Restrict)
+  comments     PublicationComment[]
 
   // Índices 
   @@index([status, createdAt])
@@ -364,6 +380,8 @@ model StudentUser {
   credential StudentCredential?
   sessions   StudentSession[]
   statusHistory StudentAccountStatusHistory[]
+  comments   PublicationComment[]
+  commentRevisions PublicationCommentRevision[]
 
   @@index([status, blockedUntil])
   @@map("usuario_estudiante")
@@ -565,6 +583,7 @@ model News {
   category      NewsCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   image         File?              @relation("NewsImage", fields: [imageId], references: [id], onDelete: Restrict)
   featuredItems FeaturedItem[]
+  comments      PublicationComment[]
 
   @@index([status, publishedAt])
   @@index([categoryId, status, publishedAt])
@@ -591,6 +610,7 @@ model Event {
   image         File?               @relation("EventImage", fields: [imageId], references: [id], onDelete: Restrict)
   registrations EventRegistration[]
   featuredItems FeaturedItem[]
+  comments      PublicationComment[]
 
   @@index([status, startsAt])
   @@index([createdById])
@@ -764,4 +784,46 @@ model ContactMethod {
 
   @@index([active, displayOrder])
   @@map("medio_contacto")
+}
+
+model PublicationComment {
+  id          Int               @id @default(autoincrement()) @map("id_comentario")
+  studentId   Int?              @map("id_estudiante")
+  targetType  CommentTargetType @map("tipo_destino")
+  newsId      Int?              @map("id_noticia")
+  projectId   Int?              @map("id_proyecto")
+  eventId     Int?              @map("id_evento")
+  content     String            @map("contenido") @db.VarChar(2000)
+  dedupeHash  String            @unique(map: "comentario_publicacion_no_duplicado_idx") @map("hash_deduplicacion") @db.Char(64)
+  createdAt   DateTime          @default(now()) @map("creado_en") @db.Timestamptz(3)
+  deletedAt   DateTime?         @map("eliminado_en") @db.Timestamptz(3)
+
+  student StudentUser? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  news    News?        @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  project Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  event   Event?        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  revisions PublicationCommentRevision[]
+
+  @@index([targetType, newsId, createdAt], map: "comentario_publicacion_noticia_fecha_idx")
+  @@index([targetType, projectId, createdAt], map: "comentario_publicacion_proyecto_fecha_idx")
+  @@index([targetType, eventId, createdAt], map: "comentario_publicacion_evento_fecha_idx")
+  @@index([studentId, createdAt], map: "comentario_publicacion_estudiante_fecha_idx")
+  @@map("comentario_publicacion")
+}
+
+model PublicationCommentRevision {
+  id                Int                   @id @default(autoincrement()) @map("id_historial_comentario")
+  commentId         Int                   @map("id_comentario")
+  actorStudentId    Int?                  @map("id_estudiante_actor")
+  action            CommentRevisionAction @map("accion")
+  previousContent   String                @map("contenido_anterior") @db.VarChar(2000)
+  nextContent       String?               @map("contenido_nuevo") @db.VarChar(2000)
+  changedAt         DateTime              @default(now()) @map("cambiado_en") @db.Timestamptz(3)
+
+  comment PublicationComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  actor   StudentUser?       @relation(fields: [actorStudentId], references: [id], onDelete: SetNull)
+
+  @@index([changedAt, id])
+  @@index([commentId, changedAt])
+  @@map("historial_comentario_publicacion")
 }

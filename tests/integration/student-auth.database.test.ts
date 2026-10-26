@@ -13,7 +13,9 @@ const request = (path: string, options: RequestInit = {}) => new Request(`http:/
 describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
   const app = createApp()
   let userId = 0
+  let interestedUserId = 0
   let deletionUserId = 0
+  let deletionEventId = 0
   let adminId = 0
   let roleId = 0
   let studentCookies = ''
@@ -41,10 +43,13 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
     if (userId) await prisma.studentSession.deleteMany({ where: { userId } })
     if (userId) await prisma.studentCredential.deleteMany({ where: { userId } })
     if (userId) await prisma.studentUser.deleteMany({ where: { id: userId } })
+    if (interestedUserId) await prisma.studentUser.deleteMany({ where: { id: interestedUserId } })
     if (deletionUserId) await prisma.studentAccountStatusHistory.deleteMany({ where: { studentId: deletionUserId } })
     if (deletionUserId) await prisma.studentSession.deleteMany({ where: { userId: deletionUserId } })
     if (deletionUserId) await prisma.studentCredential.deleteMany({ where: { userId: deletionUserId } })
     if (deletionUserId) await prisma.studentUser.deleteMany({ where: { id: deletionUserId } })
+    if (deletionEventId) await prisma.eventRegistration.deleteMany({ where: { eventId: deletionEventId } })
+    if (deletionEventId) await prisma.event.deleteMany({ where: { id: deletionEventId } })
     if (adminId) await prisma.administrativeCredential.deleteMany({ where: { userId: adminId } })
     if (adminId) await prisma.administrativeUser.deleteMany({ where: { id: adminId } })
     if (roleId) await prisma.rolePermission.deleteMany({ where: { roleId } })
@@ -117,6 +122,13 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
 
   it('administra solo cuentas normales y expone el historial de actor, motivo y transición', async () => {
     const headers = { cookie: adminCookies, 'user-agent': userAgent }
+    const interested = await prisma.studentUser.create({ data: {
+      name: 'Persona interesada', firstNames: 'Persona', lastNames: 'Interesada',
+      email: `${runId}-interesada@example.net`, isStudent: false
+    } })
+    interestedUserId = interested.id
+    const interestedList = await app.handle(request('/api/v1/admin/student-users?type=INTERESADO&page=1&pageSize=10', { headers }))
+    expect(await interestedList.json()).toMatchObject({ items: expect.arrayContaining([expect.objectContaining({ id: interestedUserId, isStudent: false })]) })
     const list = await app.handle(request('/api/v1/admin/student-users?q=integración&page=1&pageSize=10', { headers }))
     expect(list.status).toBe(200)
     expect(await list.json()).toMatchObject({ items: [expect.objectContaining({ id: userId, email })], pagination: { page: 1, pageSize: 10, total: 1 } })
@@ -233,6 +245,15 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
     }))
     expect(created.status).toBe(201)
     deletionUserId = (await created.json() as { id: number }).id
+    const event = await prisma.event.create({ data: {
+      createdById: adminId, name: `${runId} evento preservado`, description: 'Registro para probar anonimización.',
+      startsAt: new Date('2030-01-01T12:00:00.000Z'), location: 'UVG', maximumCapacity: 10
+    } })
+    deletionEventId = event.id
+    await prisma.eventRegistration.create({ data: {
+      eventId: event.id, fullName: 'Cuenta Baja', email: deletionEmail, phone: '+502 5555 1234',
+      consentedAt: new Date(), privacyVersion: 'test-policy-v1'
+    } })
     const login = await app.handle(request('/api/v1/student-auth/login', {
       method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': userAgent },
       body: JSON.stringify({ email: deletionEmail, password })
@@ -247,6 +268,9 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
     expect(await deletion.json()).toMatchObject({ id: deletionUserId, status: 'ELIMINADO' })
     const history = await prisma.studentAccountStatusHistory.findFirst({ where: { studentId: deletionUserId } })
     expect(history).toMatchObject({ actorId: adminId, fromStatus: 'ACTIVO', toStatus: 'ELIMINADO', reason: 'Solicitud administrativa documentada' })
+    expect(await prisma.studentUser.findUnique({ where: { id: deletionUserId } })).toMatchObject({ name: 'Usuario anónimo', email: `usuario-anonimo-${deletionUserId}@anonimo.invalid`, status: 'ELIMINADO' })
+    expect(await prisma.studentCredential.findUnique({ where: { userId: deletionUserId } })).toBeNull()
+    expect(await prisma.eventRegistration.findFirst({ where: { eventId: deletionEventId } })).toMatchObject({ fullName: 'Usuario anónimo', email: expect.stringMatching(/^usuario-anonimo-inscripcion-\d+@anonimo\.invalid$/), phone: '0000000000' })
     expect((await prisma.studentSession.findMany({ where: { userId: deletionUserId } })).every(session => session.revocationReason === 'ACCOUNT_DELETED')).toBe(true)
   })
 
@@ -275,6 +299,6 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
     const deletedLogin = await app.handle(request('/api/v1/student-auth/login', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password })
     }))
-    expect(deletedLogin.status).toBe(403)
+    expect(deletedLogin.status).toBe(401)
   })
 })

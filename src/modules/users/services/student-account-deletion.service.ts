@@ -12,7 +12,7 @@ export const studentAccountDeletionService = {
     })
     if (!result) throw new AppError(404, 'STUDENT_NOT_FOUND', 'La cuenta estudiantil no existe.')
     if (result.alreadyDeleted) throw new AppError(409, 'STUDENT_ALREADY_DELETED', 'La cuenta estudiantil ya fue dada de baja.')
-    clearAuthFailuresForEmail(result.user.email)
+    clearAuthFailuresForEmail(result.originalEmail)
     return { id: result.user.id, status: 'ELIMINADO' as const, deletedAt: result.user.deletedAt ?? new Date() }
   }
 }

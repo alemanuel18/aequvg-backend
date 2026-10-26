@@ -1,6 +1,9 @@
+import { createHash, randomUUID } from 'node:crypto'
 import { prisma } from '../../../shared/database/prisma'
 
-const studentAccountWhere = { isStudent: true, email: { endsWith: '@uvg.edu.gt', mode: 'insensitive' as const } }
+// La tabla StudentUser contiene exclusivamente cuentas normales; el tipo esStudent
+// distingue estudiantes actuales de interesados. Las cuentas administrativas viven en otra tabla.
+const studentAccountWhere = {}
 
 const studentAuthenticationInclude = { credential: true } as const
 
@@ -13,9 +16,10 @@ export const studentAuthRepository = {
     where: { id }, include: studentAuthenticationInclude
   }),
 
-  listManagedAccounts: async ({ q, status, page, pageSize }: { q?: string; status?: string; page: number; pageSize: number }) => {
+  listManagedAccounts: async ({ q, status, type, page, pageSize }: { q?: string; status?: string; type?: 'ESTUDIANTE' | 'INTERESADO'; page: number; pageSize: number }) => {
     const where = {
       ...studentAccountWhere,
+      ...(type ? { isStudent: type === 'ESTUDIANTE' } : {}),
       ...(status ? { status: status as 'ACTIVO' | 'BLOQUEADO_TEMPORAL' | 'BLOQUEADO_PERMANENTE' | 'ELIMINADO' } : {}),
       ...(q ? { OR: [
         { name: { contains: q, mode: 'insensitive' as const } },
@@ -23,7 +27,7 @@ export const studentAuthRepository = {
       ] } : {})
     }
     const [items, total] = await prisma.$transaction([
-      prisma.studentUser.findMany({ where, select: { id: true, name: true, firstNames: true, lastNames: true, email: true, status: true, blockedUntil: true, reviewChannel: true, deletedAt: true, createdAt: true, updatedAt: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.studentUser.findMany({ where, select: { id: true, name: true, firstNames: true, lastNames: true, email: true, isStudent: true, status: true, blockedUntil: true, reviewChannel: true, deletedAt: true, createdAt: true, updatedAt: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: (page - 1) * pageSize, take: pageSize }),
       prisma.studentUser.count({ where })
     ])
     return { items, total }
@@ -117,15 +121,39 @@ export const studentAuthRepository = {
     if (!current) return null
     if (current.status === 'ELIMINADO') return { alreadyDeleted: true as const }
     const deletedAt = new Date()
+    const comments = await tx.publicationComment.findMany({ where: { studentId: userId }, select: { id: true } })
+    for (const comment of comments) {
+      await tx.publicationComment.update({
+        where: { id: comment.id },
+        data: { studentId: null, dedupeHash: createHash('sha256').update(randomUUID()).digest('hex') }
+      })
+    }
+    await tx.publicationCommentRevision.updateMany({ where: { actorStudentId: userId }, data: { actorStudentId: null } })
     const user = await tx.studentUser.update({
       where: { id: userId },
       data: {
+        name: 'Usuario anónimo',
+        firstNames: 'Usuario',
+        lastNames: 'anónimo',
+        email: `usuario-anonimo-${userId}@anonimo.invalid`,
         status: 'ELIMINADO',
         deletedAt,
         blockedUntil: null,
         reviewChannel: null
       }
     })
+    await tx.studentCredential.deleteMany({ where: { userId } })
+    const registrations = await tx.eventRegistration.findMany({ where: { email: current.email }, select: { id: true } })
+    for (const registration of registrations) {
+      await tx.eventRegistration.update({
+        where: { id: registration.id },
+        data: {
+          fullName: 'Usuario anónimo',
+          email: `usuario-anonimo-inscripcion-${registration.id}@anonimo.invalid`,
+          phone: '0000000000'
+        }
+      })
+    }
     await tx.studentAccountStatusHistory.create({ data: {
       studentId: userId, actorId: data.actorId, fromStatus: current.status, toStatus: 'ELIMINADO',
       reason: data.reason, blockedUntil: null, reviewChannel: null
@@ -134,6 +162,6 @@ export const studentAuthRepository = {
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date(), revocationReason: 'ACCOUNT_DELETED' }
     })
-    return { alreadyDeleted: false as const, user }
+    return { alreadyDeleted: false as const, user, originalEmail: current.email }
   })
 }
