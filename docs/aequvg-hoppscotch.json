@@ -756,104 +756,6 @@
         },
         {
           "v": "1",
-          "name": "Listar cuentas normales de estudiantes",
-          "method": "GET",
-          "endpoint": "<<baseUrl>>/admin/student-users?q=Ana&status=ACTIVO&page=1&pageSize=20",
-          "params": [],
-          "headers": [
-            {
-              "key": "X-CSRF-Token",
-              "value": "<<csrfToken>>",
-              "active": true
-            }
-          ],
-          "auth": {
-            "authType": "none",
-            "authActive": true
-          },
-          "body": {
-            "contentType": null,
-            "body": null
-          }
-        },
-        {
-          "v": "1",
-          "name": "Consultar cuenta e historial de estados",
-          "method": "GET",
-          "endpoint": "<<baseUrl>>/admin/student-users/<<studentUserId>>",
-          "params": [],
-          "headers": [
-            {
-              "key": "X-CSRF-Token",
-              "value": "<<csrfToken>>",
-              "active": true
-            }
-          ],
-          "auth": {
-            "authType": "none",
-            "authActive": true
-          },
-          "body": {
-            "contentType": null,
-            "body": null
-          }
-        },
-        {
-          "v": "1",
-          "name": "Dar de baja cuenta normal mediante BAJA",
-          "method": "DELETE",
-          "endpoint": "<<baseUrl>>/admin/student-users/<<studentUserId>>",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true
-            },
-            {
-              "key": "X-CSRF-Token",
-              "value": "<<csrfToken>>",
-              "active": true
-            }
-          ],
-          "auth": {
-            "authType": "none",
-            "authActive": true
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"reason\": \"Solicitud administrativa documentada\"\n}"
-          }
-        },
-        {
-          "v": "1",
-          "name": "Actualizar estado y registrar motivo",
-          "method": "PATCH",
-          "endpoint": "<<baseUrl>>/admin/student-users/<<studentUserId>>/status",
-          "params": [],
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json",
-              "active": true
-            },
-            {
-              "key": "X-CSRF-Token",
-              "value": "<<csrfToken>>",
-              "active": true
-            }
-          ],
-          "auth": {
-            "authType": "none",
-            "authActive": true
-          },
-          "body": {
-            "contentType": "application/json",
-            "body": "{\n  \"status\": \"BLOQUEADO_PERMANENTE\",\n  \"reviewChannel\": \"revision@uvg.edu.gt\",\n  \"reason\": \"Revisión administrativa pendiente\"\n}"
-          }
-        },
-        {
-          "v": "1",
           "name": "Editar mi comentario (pasa nuevamente por MOD)",
           "method": "PUT",
           "endpoint": "<<baseUrl>>/student-auth/me/comments/<<commentId>>",
@@ -2487,6 +2389,245 @@
           }
         }
       ]
+    },
+    {
+      "v": 3,
+      "name": "Administración de cuentas normales — S4-ADMIN",
+      "folders": [],
+      "requests": [
+        {
+          "v": "1",
+          "name": "S4 — listar cuentas normales (filtros y paginación)",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/student-users?q=Ana&type=ESTUDIANTE&status=ACTIVO&page=1&pageSize=20",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "S4 — consultar detalle e historial",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/student-users/<<studentUserId>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "S4 — bloqueo temporal y revocación",
+          "method": "PATCH",
+          "endpoint": "<<baseUrl>>/admin/student-users/<<studentUserId>>/status",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"status\": \"BLOQUEADO_TEMPORAL\",\n  \"blockedUntil\": \"2030-12-31T23:59:00.000Z\",\n  \"reason\": \"Revisión temporal documentada\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "S4 — desbloquear / falso positivo",
+          "method": "PATCH",
+          "endpoint": "<<baseUrl>>/admin/student-users/<<studentUserId>>/status",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"status\": \"ACTIVO\",\n  \"reason\": \"Revisión concluyó que fue un falso positivo\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "S4 — bloquear permanentemente",
+          "method": "PATCH",
+          "endpoint": "<<baseUrl>>/admin/student-users/<<studentUserId>>/status",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"status\": \"BLOQUEADO_PERMANENTE\",\n  \"reviewChannel\": \"revision@uvg.edu.gt\",\n  \"reason\": \"Incumplimiento grave documentado\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "S4 — baja administrativa mediante BAJA",
+          "method": "DELETE",
+          "endpoint": "<<baseUrl>>/admin/student-users/<<studentUserId>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"reason\": \"Solicitud administrativa documentada\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "S4 — visitante no puede listar cuentas",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/student-users?page=1&pageSize=20",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "S4 — estudiante no puede listar cuentas",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/student-users?page=1&pageSize=20",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<studentSessionCookie>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "S4 — administrador sin USERS_MANAGE no puede listar",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/student-users?page=1&pageSize=20",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminWithoutUsersManageCookie>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        }
+      ]
     }
   ],
   "requests": [],
@@ -2561,6 +2702,10 @@
         {
           "key": "adminSessionCookie",
           "value": "aequvg_session=copy-from-admin-login; aequvg_device=copy-from-admin-login"
+        },
+        {
+          "key": "adminWithoutUsersManageCookie",
+          "value": "aequvg_session=copy-from-restricted-admin-login; aequvg_device=copy-from-restricted-admin-login"
         }
       ]
     }
