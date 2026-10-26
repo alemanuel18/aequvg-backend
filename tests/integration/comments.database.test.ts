@@ -18,6 +18,7 @@ let eventId = 0
 let newsCategoryId = 0
 let newsId = 0
 let projectId = 0
+let thesisId = 0
 let studentHeaders: Record<string, string>
 let otherStudentHeaders: Record<string, string>
 const app = createApp()
@@ -70,6 +71,14 @@ describeDatabase('comentarios de publicaciones con PostgreSQL', () => {
       }
     })
     projectId = project.id
+    const thesis = await prisma.project.create({
+      data: {
+        authorId, title: `${runId} tesis`, slug: `${runId}-thesis`,
+        description: 'Tesis aprobada excluida del alcance de comentarios S4.',
+        type: 'TESIS', status: 'APROBADO'
+      }
+    })
+    thesisId = thesis.id
   })
 
   afterAll(async () => {
@@ -77,9 +86,11 @@ describeDatabase('comentarios de publicaciones con PostgreSQL', () => {
       if (eventId) await prisma.publicationComment.deleteMany({ where: { eventId } })
       if (newsId) await prisma.publicationComment.deleteMany({ where: { newsId } })
       if (projectId) await prisma.publicationComment.deleteMany({ where: { projectId } })
+      if (thesisId) await prisma.publicationComment.deleteMany({ where: { projectId: thesisId } })
       if (eventId) await prisma.event.delete({ where: { id: eventId } })
       if (newsId) await prisma.news.delete({ where: { id: newsId } })
       if (projectId) await prisma.project.delete({ where: { id: projectId } })
+      if (thesisId) await prisma.project.delete({ where: { id: thesisId } })
       if (newsCategoryId) await prisma.newsCategory.delete({ where: { id: newsCategoryId } })
       if (otherStudentId) {
         await prisma.studentSession.deleteMany({ where: { userId: otherStudentId } })
@@ -252,6 +263,21 @@ describeDatabase('comentarios de publicaciones con PostgreSQL', () => {
     } finally {
       await prisma.event.delete({ where: { id: hidden.id } })
     }
+  })
+
+  it('excluye tesis aprobadas de los destinos de comentarios', async () => {
+    await expect(commentsRepository.findVisibleTarget('PROYECTO', thesisId)).resolves.toBeNull()
+    await expect(commentsService.create(studentId, 'PROYECTO', thesisId, { content: 'Comentario fuera de alcance' }))
+      .rejects.toMatchObject({ status: 404, code: 'PUBLICATION_NOT_FOUND' })
+
+    const response = await app.handle(request(`/api/v1/publications/PROYECTO/${thesisId}/comments`, {
+      method: 'POST', headers: otherStudentHeaders, body: JSON.stringify({ content: 'Comentario para tesis' })
+    }))
+    expect(response.status).toBe(404)
+    expect((await response.json()).error.code).toBe('PUBLICATION_NOT_FOUND')
+    const listing = await app.handle(request(`/api/v1/publications/PROYECTO/${thesisId}/comments`))
+    expect(listing.status).toBe(404)
+    expect((await listing.json()).error.code).toBe('PUBLICATION_NOT_FOUND')
   })
 
   it('conserva contenido HTML malicioso como texto plano en la respuesta', async () => {
