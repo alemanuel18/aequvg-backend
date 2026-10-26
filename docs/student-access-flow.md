@@ -15,7 +15,8 @@ Una cuenta estudiantil nunca contiene un rol configurable ni permisos administra
 | `GET` | `/api/v1/student-auth/me` | Estudiante | Consulta la sesión vigente. |
 | `PATCH` | `/api/v1/student-auth/me` | Estudiante + CSRF | Actualiza nombres y apellidos del usuario de la sesión. No admite ID, correo, rol ni estado. |
 | `POST` | `/api/v1/student-auth/logout` | Estudiante + CSRF | Revoca la sesión y elimina las cookies. |
-| `DELETE` | `/api/v1/student-auth/account` | Revalidación | Da de baja con correo, contraseña y `confirm: true`, incluso si la cuenta está bloqueada. |
+| `DELETE` | `/api/v1/student-auth/account` | Estudiante + CSRF + revalidación | Da de baja la identidad de la sesión con correo, contraseña y `confirm: true`; responde `204`. |
+| `GET` | `/api/v1/student/events/registrations` | Estudiante | Consulta el historial propio paginado y filtrable por estado. |
 | `GET` | `/api/v1/admin/student-users` | Admin + `USERS_MANAGE` | Lista estudiantes e interesados con búsqueda `q`, filtros `status` y `type` (`ESTUDIANTE`/`INTERESADO`) y paginación. La migración `20261025140000_allow_interested_accounts` habilita el segundo tipo en la base. |
 | `GET` | `/api/v1/admin/student-users/:id` | Admin + `USERS_MANAGE` | Consulta perfil e historial de cambios, actor y motivo. |
 | `PATCH` | `/api/v1/admin/student-users/:id/status` | Admin + `USERS_MANAGE` + CSRF | Activa o bloquea; exige motivo, registra actor/fecha/transición y revoca sesiones al bloquear. |
@@ -41,7 +42,7 @@ Las cookies son `aequvg_student_session` y `aequvg_student_device`, ambas `HttpO
 | `BLOQUEADO_PERMANENTE` | Denegado | `403 ACCOUNT_PERMANENTLY_BLOCKED`, con `details.reviewChannel`. |
 | `ELIMINADO` | Denegado | `403 ACCOUNT_DELETED`; todas las sesiones quedan revocadas. |
 
-MOD envía un estado (`ACTIVO`, bloqueo temporal con `blockedUntil` futuro o bloqueo permanente con `reviewChannel`) y un `reason` de al menos cinco caracteres. La transacción guarda estado anterior/nuevo, motivo, fecha y actor en `historial_estado_cuenta_estudiante`. Al bloquear se revocan las sesiones; al activar no se revocan. Los cambios efectivos también limpian el contador en memoria de intentos fallidos para ese correo (cinco fallos por combinación IP/correo durante quince minutos). No se permite modificar o reactivar una cuenta dada de baja. BAJA propia y administrativa usan el mismo servicio de baja lógica, registran su motivo y revocan sesiones; la baja administrativa requiere `reason`. No hay borrado en cascada: el registro queda como `Usuario anónimo`, se eliminan credenciales, y las inscripciones existentes se conservan con nombre y contacto anonimizados. La tabla de comentarios todavía no existe en este backend; si se agrega con FK a la cuenta, su autoría podrá presentarse usando el registro anonimizado. Las rutas consultan exclusivamente `usuario_estudiante` (estudiantes e interesados); nunca listan ni modifican usuarios administrativos.
+MOD envía un estado (`ACTIVO`, bloqueo temporal con `blockedUntil` futuro o bloqueo permanente con `reviewChannel`) y un `reason` de al menos cinco caracteres. La transacción guarda estado anterior/nuevo, motivo, fecha y actor en `historial_estado_cuenta_estudiante`. Al bloquear se revocan las sesiones; al activar no se revocan. Los cambios efectivos también limpian el contador en memoria de intentos fallidos para ese correo (cinco fallos por combinación IP/correo durante quince minutos). No se permite modificar o reactivar una cuenta dada de baja. BAJA propia y administrativa usan el mismo servicio de baja lógica, registran su transición y revocan sesiones; la baja administrativa requiere `reason`. No hay borrado en cascada: el registro queda como `Usuario anónimo`, se eliminan credenciales, y las inscripciones existentes conservan su relación técnica, estado, fechas y metadatos, con snapshots de contacto anonimizados. Los comentarios y revisiones conservan contenido y fechas, pero se desvinculan del estudiante y su autor público se presenta como `Anónimo`. Las rutas consultan exclusivamente `usuario_estudiante` (estudiantes e interesados); nunca listan ni modifican usuarios administrativos.
 
 ## Matriz de acceso
 
@@ -50,15 +51,15 @@ MOD envía un estado (`ACTIVO`, bloqueo temporal con `blockedUntil` futuro o blo
 | Contenido público | Sí | Sí | Sí |
 | Registro/login estudiantil | Sí | Sí, sin elevar permisos | No mediante su sesión administrativa |
 | Panel personal `/mi-cuenta` | No | Sí | No mediante su sesión administrativa |
-| Inscripciones a eventos | No; la interfaz solicita `/acceso` | Sí, con CSRF y reglas del evento | No mediante su sesión administrativa |
+| Inscripciones a eventos | No; la interfaz solicita `/acceso` | Sí, con CSRF y reglas del evento; el propietario deriva de la sesión | No mediante su sesión administrativa |
 | Comentarios privados futuros | Solicitan `/acceso` | Sí, según regla del módulo | No por implicación; requieren contrato propio |
 | `/api/v1/admin/**` | No | No | Sí, según RBAC |
 | `/administrador` | No | No | Sí |
 | Baja propia estudiantil | Con revalidación | Con revalidación | No aplica |
 
-La navegación y el detalle de eventos permanecen disponibles sin sesión. Abrir una inscripción conserva el evento y el ancla en `returnTo`, y envía a `/acceso`; el `POST` exige cookies estudiantiles y CSRF. Comentarios privados todavía no existen; cuando se implementen deben aplicar el mismo patrón sin crear rutas ficticias por anticipado.
+La navegación y el detalle de eventos permanecen disponibles sin sesión. Abrir una inscripción conserva el evento y el ancla en `returnTo`, y envía a `/acceso`; el `POST` exige cookies estudiantiles y CSRF. El historial propio usa la sesión como único filtro, pagina resultados y no incluye PII ni filas históricas sin propietario.
 
-El panel frontend S4 presenta navegación para `Mi perfil`, `Mis eventos` y `Mis comentarios`. En esta entrega solo se edita el perfil; los listados de eventos y comentarios se conectarán desde sus módulos responsables. El perfil permite cambiar `firstNames` y `lastNames`; `email` se presenta como solo lectura y el tipo de cuenta indica Estudiante UVG.
+El panel frontend S4 presenta navegación para `Mi perfil`, `Mis eventos` y `Mis comentarios`. `Mis eventos` consulta el historial propio paginado, permite filtrar `CONFIRMADA`/`CANCELADA` y excluye filas sin propietario; sus respuestas no contienen PII de inscripción. El perfil permite cambiar `firstNames` y `lastNames`; `email` se presenta como solo lectura y el tipo de cuenta indica Estudiante UVG. La baja propia requiere reautenticación y, tras `204`, la sesión queda revocada y la cuenta deja de estar disponible.
 
 ## Respuestas y pruebas
 
