@@ -2,6 +2,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app'
 import { clearRateLimitsForTests } from '../../src/middleware/rate-limit'
 import { prisma } from '../../src/shared/database/prisma'
+import { studentAuthRepository } from '../../src/modules/users/repositories/student-auth.repository'
+import { verifyStudentSessionJwt } from '../../src/shared/utils/auth-crypto'
 import { createAdminSessionHeaders } from '../helpers/admin-session'
 import { createStudentSessionHeaders } from '../helpers/student-session'
 
@@ -119,7 +121,48 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
   const ownRequest = (headers: Record<string, string>, query = '') =>
     new Request(`http://localhost/api/v1/student/events/registrations${query}`, { headers })
 
+  const sessionIdFromHeaders = (headers: Record<string, string>) => {
+    const token = headers.cookie?.match(/aequvg_student_session=([^;]+)/)?.[1]
+    if (!token) throw new Error('La sesión de prueba no contiene cookie estudiantil.')
+    return verifyStudentSessionJwt(token).sid
+  }
+
   describe('propiedad e historial estudiantil', () => {
+    it('rechaza el historial sin sesión', async () => {
+      const response = await app.handle(anonymousRequest('/api/v1/student/events/registrations'))
+      expect(response.status).toBe(401)
+      expect((await response.json()).error.code).toBe('UNAUTHORIZED')
+    })
+
+    it('rechaza el historial con una sesión revocada o expirada', async () => {
+      const revokedSessionId = sessionIdFromHeaders(studentHeaders)
+      await studentAuthRepository.revokeSession(revokedSessionId, 'TEST_SESSION_REVOKED')
+      const revoked = await app.handle(ownRequest(studentHeaders))
+      expect(revoked.status).toBe(401)
+      expect((await revoked.json()).error.code).toBe('INVALID_SESSION')
+
+      studentHeaders = await createStudentSessionHeaders(prisma, studentId)
+      const expiredSessionId = sessionIdFromHeaders(studentHeaders)
+      await prisma.studentSession.update({ where: { id: expiredSessionId }, data: { expiresAt: new Date(0) } })
+      const expired = await app.handle(ownRequest(studentHeaders))
+      expect(expired.status).toBe(401)
+      expect((await expired.json()).error.code).toBe('INVALID_SESSION')
+      studentHeaders = await createStudentSessionHeaders(prisma, studentId)
+    })
+
+    it('rechaza el historial para una cuenta bloqueada o eliminada', async () => {
+      await prisma.studentUser.update({ where: { id: studentId }, data: { status: 'BLOQUEADO_PERMANENTE', reviewChannel: 'revision@uvg.edu.gt' } })
+      const blocked = await app.handle(ownRequest(studentHeaders))
+      expect(blocked.status).toBe(403)
+      expect((await blocked.json()).error.code).toBe('ACCOUNT_PERMANENTLY_BLOCKED')
+
+      await prisma.studentUser.update({ where: { id: studentId }, data: { status: 'ELIMINADO', deletedAt: new Date() } })
+      const deleted = await app.handle(ownRequest(studentHeaders))
+      expect(deleted.status).toBe(403)
+      expect((await deleted.json()).error.code).toBe('ACCOUNT_DELETED')
+      await prisma.studentUser.update({ where: { id: studentId }, data: { status: 'ACTIVO', deletedAt: null, reviewChannel: null } })
+    })
+
     it('persiste la identidad autenticada y nunca acepta studentId del body', async () => {
       const event = await createEvent({ maximumCapacity: 10 })
       const response = await app.handle(request(`/api/v1/events/${event.id}/registrations`, {
