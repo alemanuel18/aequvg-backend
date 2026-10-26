@@ -18,6 +18,8 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
   let interestedUserId = 0
   let deletionUserId = 0
   let deletionEventId = 0
+  let selfDeletionUserId = 0
+  const selfDeletionEventIds: number[] = []
   let adminId = 0
   let roleId = 0
   let restrictedRoleId = 0
@@ -63,6 +65,12 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
     if (deletionUserId) await prisma.studentUser.deleteMany({ where: { id: deletionUserId } })
     if (deletionEventId) await prisma.eventRegistration.deleteMany({ where: { eventId: deletionEventId } })
     if (deletionEventId) await prisma.event.deleteMany({ where: { id: deletionEventId } })
+    if (selfDeletionEventIds.length) await prisma.eventRegistration.deleteMany({ where: { eventId: { in: selfDeletionEventIds } } })
+    if (selfDeletionEventIds.length) await prisma.event.deleteMany({ where: { id: { in: selfDeletionEventIds } } })
+    if (selfDeletionUserId) await prisma.studentSession.deleteMany({ where: { userId: selfDeletionUserId } })
+    if (selfDeletionUserId) await prisma.studentCredential.deleteMany({ where: { userId: selfDeletionUserId } })
+    if (selfDeletionUserId) await prisma.studentAccountStatusHistory.deleteMany({ where: { studentId: selfDeletionUserId } })
+    if (selfDeletionUserId) await prisma.studentUser.deleteMany({ where: { id: selfDeletionUserId } })
     if (adminId) await prisma.administrativeCredential.deleteMany({ where: { userId: adminId } })
     if (adminId) await prisma.administrativeUser.deleteMany({ where: { id: adminId } })
     if (restrictedAdminId) await prisma.administrativeCredential.deleteMany({ where: { userId: restrictedAdminId } })
@@ -396,7 +404,7 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
     } })
     deletionEventId = event.id
     await prisma.eventRegistration.create({ data: {
-      eventId: event.id, fullName: 'Cuenta Baja', email: deletionEmail, phone: '+502 5555 1234',
+      eventId: event.id, studentId: deletionUserId, fullName: 'Cuenta Baja', firstNames: 'Cuenta', lastNames: 'Baja', email: deletionEmail, phone: '+502 5555 1234',
       consentedAt: new Date(), privacyVersion: 'test-policy-v1'
     } })
     const comment = await prisma.publicationComment.create({ data: {
@@ -429,7 +437,7 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
     expect(await prisma.studentUser.findUnique({ where: { email: deletionEmail } })).toBeNull()
     expect(await prisma.studentCredential.findUnique({ where: { userId: deletionUserId } })).toBeNull()
     const preservedRegistration = await prisma.eventRegistration.findFirst({ where: { eventId: deletionEventId } })
-    expect(preservedRegistration).toMatchObject({ fullName: 'Usuario anónimo', email: expect.stringMatching(/^usuario-anonimo-inscripcion-\d+@anonimo\.invalid$/), phone: '0000000000' })
+    expect(preservedRegistration).toMatchObject({ studentId: deletionUserId, fullName: 'Usuario anónimo', firstNames: 'Usuario', lastNames: 'anónimo', email: expect.stringMatching(/^usuario-anonimo-inscripcion-\d+@anonimo\.invalid$/), phone: '0000000000' })
     expect(await prisma.event.count({ where: { id: deletionEventId, maximumCapacity: 10 } })).toBe(1)
     expect(await prisma.eventRegistration.count({ where: { eventId: deletionEventId } })).toBe(1)
     expect(await prisma.eventRegistration.count({ where: { eventId: deletionEventId, email: deletionEmail } })).toBe(0)
@@ -452,7 +460,7 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
     expect(await prisma.event.count({ where: { id: deletionEventId, maximumCapacity: 10 } })).toBe(1)
   })
 
-  it('expone fecha o canal según el tipo de bloqueo y permite la baja bloqueada', async () => {
+  it('expone fecha o canal según el tipo de bloqueo y rechaza la baja sin sesión válida', async () => {
     const blockedUntil = new Date(Date.now() + 60_000)
     await prisma.studentUser.update({ where: { id: userId }, data: { status: 'BLOQUEADO_TEMPORAL', blockedUntil } })
     const temporary = await app.handle(request('/api/v1/student-auth/login', {
@@ -477,12 +485,52 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
     const deletion = await app.handle(request('/api/v1/student-auth/account', {
       method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password, confirm: true })
     }))
-    expect(deletion.status).toBe(204)
-    expect(await prisma.studentUser.findUnique({ where: { id: userId } })).toMatchObject({ status: 'ELIMINADO', deletedAt: expect.any(Date) })
+    expect(deletion.status).toBe(401)
+    expect(await prisma.studentUser.findUnique({ where: { id: userId } })).toMatchObject({ status: 'BLOQUEADO_PERMANENTE', deletedAt: null })
 
     const deletedLogin = await app.handle(request('/api/v1/student-auth/login', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password })
     }))
-    expect(deletedLogin.status).toBe(401)
+    expect(deletedLogin.status).toBe(403)
+  })
+
+  it('da de baja la cuenta propia por identidad autenticada, conserva actividad y revoca todas las sesiones', async () => {
+    const selfEmail = `${runId}-self-delete@uvg.edu.gt`
+    const created = await app.handle(request('/api/v1/student-auth/register', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ firstNames: 'Baja', lastNames: 'Propia', email: selfEmail, password, isStudent: true })
+    }))
+    selfDeletionUserId = (await created.json() as { id: number }).id
+    const event = await prisma.event.create({ data: { createdById: adminId, name: `${runId} self-delete`, description: 'Actividad conservada.', startsAt: new Date('2030-02-01T12:00:00.000Z'), location: 'UVG', maximumCapacity: 10 } })
+    selfDeletionEventIds.push(event.id)
+    const legacyEvent = await prisma.event.create({ data: { createdById: adminId, name: `${runId} legacy`, description: 'Legacy sin propietario.', startsAt: new Date('2030-02-02T12:00:00.000Z'), location: 'UVG', maximumCapacity: 10 } })
+    selfDeletionEventIds.push(legacyEvent.id)
+    const otherEvent = await prisma.event.create({ data: { createdById: adminId, name: `${runId} other`, description: 'Otra identidad.', startsAt: new Date('2030-02-03T12:00:00.000Z'), location: 'UVG', maximumCapacity: 10 } })
+    selfDeletionEventIds.push(otherEvent.id)
+    const snapshot = { fullName: 'Baja Propia', firstNames: 'Baja', lastNames: 'Propia', email: selfEmail, phone: '+502 5555 1212', consentedAt: new Date(), privacyVersion: 'test-policy-v1' }
+    await prisma.eventRegistration.create({ data: { eventId: event.id, studentId: selfDeletionUserId, ...snapshot } })
+    const legacy = await prisma.eventRegistration.create({ data: { eventId: legacyEvent.id, ...snapshot } })
+    const other = await prisma.eventRegistration.create({ data: { eventId: otherEvent.id, studentId: otherStudentId, ...snapshot } })
+    const loginOne = await app.handle(request('/api/v1/student-auth/login', { method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': `${userAgent}/one` }, body: JSON.stringify({ email: selfEmail, password }) }))
+    const loginTwo = await app.handle(request('/api/v1/student-auth/login', { method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': `${userAgent}/two` }, body: JSON.stringify({ email: selfEmail, password }) }))
+    const csrfOne = (await loginOne.json() as { csrfToken: string }).csrfToken
+    const cookiesOneRaw = loginOne.headers.get('set-cookie') ?? ''
+    const cookiesOne = `${cookiesOneRaw.match(/aequvg_student_session=[^;]+/)?.[0]}; ${cookiesOneRaw.match(/aequvg_student_device=[^;]+/)?.[0]}`
+    const cookiesTwoRaw = loginTwo.headers.get('set-cookie') ?? ''
+    const cookiesTwo = `${cookiesTwoRaw.match(/aequvg_student_session=[^;]+/)?.[0]}; ${cookiesTwoRaw.match(/aequvg_student_device=[^;]+/)?.[0]}`
+
+    const noSession = await app.handle(request('/api/v1/student-auth/account', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: selfEmail, password, confirm: true }) }))
+    expect(noSession.status).toBe(401)
+    const invalidCsrf = await app.handle(request('/api/v1/student-auth/account', { method: 'DELETE', headers: { cookie: cookiesOne, 'user-agent': `${userAgent}/one`, 'content-type': 'application/json', 'x-csrf-token': 'invalid' }, body: JSON.stringify({ email: selfEmail, password, confirm: true }) }))
+    expect(invalidCsrf.status).toBe(403)
+    const deletion = await app.handle(request('/api/v1/student-auth/account', { method: 'DELETE', headers: { cookie: cookiesOne, 'user-agent': `${userAgent}/one`, 'content-type': 'application/json', 'x-csrf-token': csrfOne }, body: JSON.stringify({ email: selfEmail, password, confirm: true }) }))
+    expect(deletion.status).toBe(204)
+    expect(deletion.headers.get('set-cookie')).toContain('Max-Age=0')
+    expect((await app.handle(request('/api/v1/student-auth/me', { headers: { cookie: cookiesTwo, 'user-agent': `${userAgent}/two` } }))).status).toBe(401)
+    expect(await prisma.studentUser.findUnique({ where: { id: selfDeletionUserId } })).toMatchObject({ status: 'ELIMINADO', name: 'Usuario anónimo', firstNames: 'Usuario', lastNames: 'anónimo', email: `usuario-anonimo-${selfDeletionUserId}@anonimo.invalid` })
+    expect(await prisma.studentCredential.findUnique({ where: { userId: selfDeletionUserId } })).toBeNull()
+    expect(await prisma.eventRegistration.findUnique({ where: { id: (await prisma.eventRegistration.findFirstOrThrow({ where: { eventId: event.id } })).id } })).toMatchObject({ studentId: selfDeletionUserId, fullName: 'Usuario anónimo', firstNames: 'Usuario', lastNames: 'anónimo', phone: '0000000000', status: 'CONFIRMADA', registeredAt: expect.any(Date), consentedAt: expect.any(Date), privacyVersion: 'test-policy-v1' })
+    expect(await prisma.eventRegistration.findUnique({ where: { id: legacy.id } })).toMatchObject({ email: selfEmail, fullName: 'Baja Propia' })
+    expect(await prisma.eventRegistration.findUnique({ where: { id: other.id } })).toMatchObject({ email: selfEmail, fullName: 'Baja Propia', studentId: otherStudentId })
   })
 })

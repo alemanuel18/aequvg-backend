@@ -116,13 +116,34 @@ describe('servicio de acceso estudiantil', () => {
     expect(repositoryMocks.createSession).not.toHaveBeenCalled()
   })
 
-  it('permite la baja propia bloqueada tras volver a verificar la contraseña', async () => {
-    repositoryMocks.findUserByEmail.mockResolvedValue({ ...(await activeStudent()), status: 'BLOQUEADO_PERMANENTE', reviewChannel: 'revision@uvg.edu.gt' })
+  it('revalida la baja contra la identidad autenticada y no contra el correo del body', async () => {
+    repositoryMocks.findUserById.mockResolvedValue(await activeStudent())
     repositoryMocks.deleteAccountAndRevokeSessions.mockResolvedValue({ alreadyDeleted: false, user: { id: 41, status: 'ELIMINADO', deletedAt: new Date(), email: 'usuario-anonimo-41@anonimo.invalid' }, originalEmail: 'estudiante@uvg.edu.gt' })
-    await expect(studentAuthService.deleteOwnAccount({
+    await expect(studentAuthService.deleteOwnAccount(41, {
       email: 'estudiante@uvg.edu.gt', password: 'Clave-estudiante-123!', confirm: true
     })).resolves.toBeUndefined()
-    expect(repositoryMocks.deleteAccountAndRevokeSessions).toHaveBeenCalledWith(41, { actorId: null, reason: 'BAJA_SOLICITADA_POR_USUARIO' })
+    expect(repositoryMocks.deleteAccountAndRevokeSessions).toHaveBeenCalledWith(41, {
+      actorId: null,
+      reason: 'BAJA_SOLICITADA_POR_USUARIO',
+      revalidation: { email: 'estudiante@uvg.edu.gt', password: 'Clave-estudiante-123!' }
+    })
+
+    await expect(studentAuthService.deleteOwnAccount(41, {
+      email: 'otra@uvg.edu.gt', password: 'Clave-estudiante-123!', confirm: true
+    })).rejects.toMatchObject({ status: 401, code: 'INVALID_CREDENTIALS' })
+  })
+
+  it('rechaza la baja si la revalidación transaccional encuentra un bloqueo o credencial cambiada', async () => {
+    repositoryMocks.findUserById.mockResolvedValue(await activeStudent())
+    repositoryMocks.deleteAccountAndRevokeSessions.mockResolvedValueOnce({ notAccessible: 'BLOQUEADO_PERMANENTE' })
+    await expect(studentAuthService.deleteOwnAccount(41, {
+      email: 'estudiante@uvg.edu.gt', password: 'Clave-estudiante-123!', confirm: true
+    })).rejects.toMatchObject({ status: 403, code: 'ACCOUNT_PERMANENTLY_BLOCKED' })
+
+    repositoryMocks.deleteAccountAndRevokeSessions.mockResolvedValueOnce({ revalidationFailed: true })
+    await expect(studentAuthService.deleteOwnAccount(41, {
+      email: 'estudiante@uvg.edu.gt', password: 'Clave-estudiante-123!', confirm: true
+    })).rejects.toMatchObject({ status: 401, code: 'INVALID_CREDENTIALS' })
   })
 
   it('exige una fecha futura para el bloqueo temporal', async () => {
