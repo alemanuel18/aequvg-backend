@@ -2,24 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { commentModerationService } from '../../src/modules/comments/services/comment-moderation.service'
 import { moderationService } from '../../src/modules/moderation/services/moderation.service'
 import { publicTextModerationService } from '../../src/modules/moderation/services/public-text-moderation.service'
+import { innocuousCommentCorpus, offensiveCommentCorpus } from '../fixtures/moderation-corpus'
 
 describe('moderación de texto público', () => {
-  it('permite comentarios sin términos bloqueados', () => {
-    expect(publicTextModerationService.isCommentAllowed('Gracias por compartir la información.')).toBe(true)
+  it.each(offensiveCommentCorpus)('rechaza el corpus ofensivo (%s): %s', (_label, candidate) => {
+    expect(publicTextModerationService.isCommentAllowed(candidate)).toBe(false)
   })
 
-  it('rechaza insultos directos aunque cambien las mayúsculas o tildes', () => {
-    expect(publicTextModerationService.isCommentAllowed('Eres un IDIÓTA')).toBe(false)
-    expect(publicTextModerationService.isCommentAllowed('Qué mierda')).toBe(false)
-  })
-
-  it('revisa términos completos sin bloquear coincidencias dentro de otras palabras', () => {
-    expect(publicTextModerationService.isCommentAllowed('Putomayo es un topónimo')).toBe(true)
-  })
-
-  it('normaliza caracteres invisibles y evasiones simples antes de rechazar', () => {
-    expect(publicTextModerationService.isCommentAllowed('i.d.i.o.t.a')).toBe(false)
-    expect(publicTextModerationService.isCommentAllowed('i\u200Bd\u200Biota')).toBe(false)
+  it.each(innocuousCommentCorpus)('permite el texto inocuo (%s): %s', (_label, candidate) => {
+    expect(publicTextModerationService.isCommentAllowed(candidate)).toBe(true)
   })
 
   it('conecta MOD por defecto y rechaza antes de guardar', async () => {
