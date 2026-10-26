@@ -1,6 +1,6 @@
 # Política de moderación y reincidencias (S4-MOD)
 
-> **Estado: borrador para acuerdo con la Asociación. No aprobado ni vigente como política.** Los valores pendientes de esta guía no deben convertirse en sanciones automáticas ni comunicarse como reglas aprobadas. La implementación actual descrita abajo es evidencia del código revisado, no una ratificación de su catálogo.
+> **Estado: borrador para acuerdo con la Asociación. No aprobado ni vigente como política.** Los valores pendientes de esta guía no deben convertirse en sanciones automáticas ni comunicarse como reglas aprobadas. Esta rama se basa en `origin/develop`; lo que no está en esa base se identifica por separado y no se presenta como integración vigente.
 
 ## Propósito y alcance
 
@@ -8,15 +8,20 @@ Definir, antes de automatizar sanciones, qué contenido infringe las reglas de l
 
 La Asociación debe aprobar el catálogo, las excepciones, la ventana de reincidencia, cada umbral y duración de bloqueo, y el efecto de un desbloqueo sobre el contador. La persona responsable registra el acuerdo en la sección de aprobación antes de habilitar automatización.
 
-## Situación observada en el repositorio
+## Situación observada en `origin/develop`
 
-La rama revisada contiene estos comportamientos; son punto de partida técnico, no política aprobada:
+Esta base contiene filtro de nombres y estados administrativos de cuentas, pero no contiene los módulos `src/modules/comments` ni `src/modules/moderation`. Los siguientes puntos describen solo lo verificable en esta rama y no ratifican la política:
 
 - El alta y la edición de nombres llaman `containsOffensiveName`. Si encuentra un término, devuelven `OFFENSIVE_NAME`; el alta falla antes de crear la cuenta. El perfil también rechaza la edición.
-- El filtro de nombres y MOD para comentarios tienen listas léxicas separadas. Comparten comparación por términos completos, pero su normalización difiere: nombres usa NFD, quita tildes, minúsculas y separadores; comentarios usa NFKD, quita caracteres invisibles específicos y separa por caracteres no alfanuméricos. Las listas no coinciden.
-- MOD rechaza un comentario antes de persistirlo con `COMMENT_REJECTED_BY_MODERATION`. No registra un incidente ni incrementa reincidencias.
+- El filtro de nombres es una lista léxica local; normaliza Unicode NFD, quita tildes, convierte a minúsculas, reemplaza separadores y compara términos completos. El catálogo no es configurable ni está identificado como aprobado por la Asociación.
 - Los estados actuales de cuenta son `ACTIVO`, `BLOQUEADO_TEMPORAL`, `BLOQUEADO_PERMANENTE` y `ELIMINADO`. Administración puede cambiar el estado, guardar actor, fecha, motivo y transición; al bloquear se revocan sesiones. El bloqueo temporal vence y se reactiva al procesar una autenticación; esa reactivación automática no agrega una fila al historial de estados.
-- No existe contador/ventana de infracciones, catálogo configurable aprobado ni regla automática que convierta rechazos MOD en sanciones progresivas. Las pruebas actuales verifican el filtro y el rechazo de nombres, no un acuerdo de la Asociación.
+- No existe contador ni ventana de infracciones en el esquema de esta base. La prueba unitaria de nombres acredita el comportamiento del filtro; no acredita un catálogo acordado.
+
+## Integración de comentarios y MOD fuera de esta base
+
+La implementación de comentarios y su moderador léxico están en la rama S4 `fix/s4-comments-exclude-theses`, no en `origin/develop` al momento de preparar este borrador. Esa rama no forma parte de este PR de documentación ni se declara integrada por esta guía. Sus resultados y pruebas deben revisarse al integrar dicha rama; hasta entonces, este documento no afirma como vigente el rechazo MOD de comentarios ni su conexión con AUTH/COM. Ninguna de las ramas observadas contiene contador de infracciones o sanción progresiva automatizada.
+
+La política propuesta sí contempla comentarios porque COM está en el alcance de S4-MOD, pero la validación de integración debe repetirse sobre el código que finalmente se integre.
 
 ## Decisiones para ratificar
 
@@ -75,20 +80,20 @@ Para la política aprobada, conservar la separación entre **incidente MOD** y *
 
 Los resultados de política de esta matriz quedan pendientes hasta aprobación. Las pruebas técnicas deben distinguir el comportamiento actual del comportamiento que se autorice.
 
-| Caso | Entrada/situación | Resultado técnico actual | Resultado de política por acordar |
+| Caso | Entrada/situación | Evidencia técnica (base `develop` / rama S4 candidata) | Resultado de política por acordar |
 | --- | --- | --- | --- |
 | Nombre con término exacto del catálogo candidato | En nombres o apellidos | Rechaza con `OFFENSIVE_NAME`; alta no crea usuario | Confirmar término, excepción, mensaje y canal de revisión |
 | Perfil con nombre coincidente | Edición de nombres/apellidos | Rechaza la actualización | Confirmar revisión y si cuenta como infracción |
 | Coincidencia con mayúsculas o tildes | Texto con variación ortográfica | Los filtros actuales normalizan de forma distinta | Ratificar normalización común y pruebas de equivalencia |
 | Coincidencia dentro de otra palabra | Término candidato como parte de un nombre propio/topónimo | La comparación por token completo no bloquea el fragmento | Ratificar límites y falsos positivos |
-| Caracteres invisibles/separadores insertados | Variación ofuscada | Comentarios quita ciertos invisibles; nombres no | Decidir cobertura común y comportamiento esperado |
-| Cita o uso académico | Texto contiene término candidato sin insultar a una persona | El filtro léxico de comentarios puede rechazarlo; no hay revisión implementada | Definir excepción/revisión y si cuenta como infracción |
-| Comentario rechazado varias veces por reintento de red | Mismo envío lógico | Cada petición vuelve a MOD; no existe conteo de sanción | Deduplicar incidente para que reintentos no incrementen reincidencia |
-| Envíos diferentes rechazados | Varias infracciones potenciales | Se rechaza cada texto; no se persiste historial MOD | Definir confirmación, ventana y conteo |
-| Cuenta bloqueada comenta o inicia sesión | Estado no activo | AUTH impide el acceso según estado; bloque temporal devuelve fecha | Verificar que duración y texto de UI correspondan a configuración aprobada |
+| Caracteres invisibles/separadores insertados | Variación ofuscada | Nombres: la normalización de `develop` no quita invisibles. Comentarios: esa lógica solo existe en la rama S4 candidata, pendiente de integración. | Decidir cobertura común y comportamiento esperado |
+| Cita o uso académico | Texto contiene término candidato sin insultar a una persona | La rama S4 candidata aplica filtro léxico a comentarios; esa conducta no está en `develop` y no hay revisión documentada aquí. | Definir excepción/revisión y si cuenta como infracción |
+| Comentario rechazado varias veces por reintento de red | Mismo envío lógico | No verificable en `develop`; la candidata de comentarios no persiste contador de sanción. | Deduplicar incidente para que reintentos no incrementen reincidencia |
+| Envíos diferentes rechazados | Varias infracciones potenciales | No verificable en `develop`; la candidata de comentarios no persiste historial MOD. | Definir confirmación, ventana y conteo |
+| Cuenta bloqueada comenta o inicia sesión | Estado no activo | AUTH en `develop` impide el acceso según estado; el rechazo de comentarios pertenece a la rama S4 candidata. | Verificar que duración y texto de UI correspondan a configuración aprobada |
 | Vence bloqueo temporal | Hora actual supera `blockedUntil` | Se activa al autenticar; sin transición en historial | Ratificar reactivación y si conserva/reinicia/reduce contador |
 | Desbloqueo manual | ADMIN cambia estado a `ACTIVO` | Se registra actor/motivo/transición; no hay contador MOD | Elegir efecto sobre el contador y requerir revisión/motivo |
-| Catálogo causa falso positivo | Persona disputa el rechazo | No hay endpoint o flujo de apelación MOD observado | Definir responsable, plazo, evidencia y corrección |
+| Catálogo causa falso positivo | Persona disputa el rechazo | No se identificó flujo de apelación en la base ni en la rama S4 candidata revisada. | Definir responsable, plazo, evidencia y corrección |
 
 ## Acuerdo de la Asociación
 
