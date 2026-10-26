@@ -99,6 +99,34 @@ describe('contrato HTTP base', () => {
     expect(document.paths['/api/v1/student-auth/me/comments']?.get?.responses['200']).toBeTruthy()
   })
 
+  it('publica en OpenAPI el alcance y cuerpo vigente de S4-COM', async () => {
+    const response = await app.handle(new Request('http://localhost/openapi/json'))
+    const document = await response.json() as {
+      paths: Record<string, Record<string, {
+        description?: string
+        security?: Array<Record<string, string[]>>
+        parameters?: Array<{ name: string; schema?: { enum?: string[] } }>
+        requestBody?: { content?: { 'application/json'?: { schema?: { properties?: Record<string, { minLength?: number; maxLength?: number }> } } } }
+      }>>
+    }
+    const publicationPath = document.paths['/api/v1/publications/{targetType}/{targetId}/comments']
+    const targetType = publicationPath?.get?.parameters?.find(parameter => parameter.name === 'targetType')
+    expect(targetType?.schema?.enum).toEqual(['NOTICIA', 'PROYECTO', 'EVENTO'])
+    expect(publicationPath?.get?.description).toContain('NOTICIA publicada, PROYECTO aprobado y EVENTO publicado')
+    expect(publicationPath?.post?.requestBody?.content?.['application/json']?.schema?.properties).toEqual({
+      content: expect.objectContaining({ minLength: 1, maxLength: 2000 })
+    })
+    expect(publicationPath?.post?.description).toContain('el autor siempre se deriva de la sesión')
+    expect(publicationPath?.post?.security).toEqual([{ studentCookieAuth: [], csrfToken: [] }])
+    expect(publicationPath?.post?.description).not.toMatch(/tesis|reacciones|chat/i)
+
+    const history = document.paths['/api/v1/student-auth/me/comments']?.get
+    expect(history?.description).toContain('no hay parámetro para consultar el historial de otra cuenta')
+    expect(history?.parameters?.some(parameter => parameter.name.toLowerCase().includes('student'))).toBe(false)
+    expect(history?.security).toEqual([{ studentCookieAuth: [] }])
+    expect(document.paths['/api/v1/admin/comments/history']?.get?.security).toEqual([{ cookieAuth: [] }])
+  })
+
   it('protege la consulta del historial de comentarios propios', async () => {
     const response = await app.handle(new Request('http://localhost/api/v1/student-auth/me/comments'))
     expect(response.status).toBe(401)
