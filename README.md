@@ -64,6 +64,8 @@ Los estados son `ACTIVO`, `BLOQUEADO_TEMPORAL`, `BLOQUEADO_PERMANENTE` y `ELIMIN
 
 El borrador de política de lenguaje ofensivo, reincidencias, transiciones y decisiones pendientes de ratificación está en [`docs/moderation-policy.md`](docs/moderation-policy.md). Es una propuesta de trabajo; los valores no se consideran aprobados ni habilitan sanciones automáticas.
 
+El motor usa `MODERATION_POLICY_JSON` para cargar la versión ratificada: metadata (`approved`, `version`, `approvedBy`, `approvedAt`), `blockedTerms` y `exceptions` por ámbito `NAME`/`COMMENT`, `recurrenceWindowHours`, pasos `sanctions` (`after`, `TEMPORARY` con `durationHours` o `PERMANENT`), `manualUnlockEffect`, `expiryEffect` y canal de revisión permanente si aplica. No se distribuye una política aprobada por defecto. Con la variable vacía, el detector local sigue rechazando el catálogo candidato actual, pero no registra reincidencias ni aplica sanciones progresivas. JSON inválido falla de forma cerrada para operaciones moderadas. No activar sanciones sin acuerdo firmado y configuración revisada.
+
 ### Estudiante local de pruebas
 
 Al ejecutar la seed con `NODE_ENV` distinto de `production`, se crea o restablece esta cuenta estudiantil ficticia:

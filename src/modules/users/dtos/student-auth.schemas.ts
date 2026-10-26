@@ -80,7 +80,11 @@ export const managedStudentListResponse = t.Object({
   pagination: t.Object({ page: t.Integer(), pageSize: t.Integer(), total: t.Integer() })
 })
 export const managedStudentDetailResponse = t.Intersect([managedStudent, t.Object({
-  isStudent: t.Boolean(), statusHistory: t.Array(t.Object({
+  isStudent: t.Boolean(), moderationViolationCount: t.Integer(), moderationIncidents: t.Array(t.Object({
+    id: t.Integer(), source: t.String(), policyVersion: t.String(), ruleId: t.String(), evidenceHash: t.String(),
+    occurrenceNumber: t.Integer(), sanction: t.String(), blockedUntil: t.Nullable(t.Date()),
+    reviewChannel: t.Nullable(t.String()), createdAt: t.Date()
+  })), statusHistory: t.Array(t.Object({
     id: t.Integer(), fromStatus: t.String(), toStatus: t.String(), reason: t.String(),
     blockedUntil: t.Nullable(t.Date()), reviewChannel: t.Nullable(t.String()), createdAt: t.Date(),
     actor: t.Nullable(t.Object({ id: t.Integer(), name: t.String() }))

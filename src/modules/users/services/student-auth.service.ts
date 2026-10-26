@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { AppError } from '../../../shared/errors/app-error'
-import { containsOffensiveName } from '../../../shared/utils/name-moderation'
 import { hashPassword, hmacSha256, randomToken, secureEqual, sha256, signSessionJwt, verifyPassword, verifyStudentSessionJwt } from '../../../shared/utils/auth-crypto'
 import { studentAuthRepository } from '../repositories/student-auth.repository'
 import { clearAuthFailuresForEmail } from '../../../middleware/auth-rate-limit'
 import { studentAccountDeletionService } from './student-account-deletion.service'
+import { moderationService } from '../../moderation/services/moderation.service'
 
 export const STUDENT_AUTH_COOKIE = 'aequvg_student_session'
 export const STUDENT_DEVICE_COOKIE = 'aequvg_student_device'
@@ -39,7 +39,7 @@ const publicUser = (user: Student) => ({
 const accessibleStudent = async (user: Student) => {
   if (!user.isStudent || !institutionalEmail.test(user.email)) throw new AppError(403, 'FORBIDDEN', 'La cuenta no cumple las condiciones de acceso estudiantil.')
   if (user.status === 'BLOQUEADO_TEMPORAL') {
-    if (user.blockedUntil && user.blockedUntil <= new Date()) return studentAuthRepository.activateExpiredTemporaryBlock(user.id)
+    if (user.blockedUntil && user.blockedUntil <= new Date()) return accessibleStudent(await moderationService.applyExpiry(user.id))
     throw new AppError(403, 'ACCOUNT_TEMPORARILY_BLOCKED', 'La cuenta está bloqueada temporalmente.', {
       blockedUntil: user.blockedUntil?.toISOString() ?? ''
     })
@@ -95,7 +95,7 @@ export const studentAuthService = {
     if (!input.isStudent) throw new AppError(422, 'STUDENT_STATUS_REQUIRED', 'Debes confirmar que eres estudiante de UVG.')
     if (!institutionalEmail.test(email)) throw new AppError(422, 'INSTITUTIONAL_EMAIL_REQUIRED', 'El correo debe pertenecer al dominio @uvg.edu.gt.')
     if (firstNames.length < 2 || lastNames.length < 2 || firstNames.length > 80 || lastNames.length > 80 || name.length > 160) throw new AppError(422, 'INVALID_NAME', 'Escribe nombres y apellidos válidos.')
-    if (containsOffensiveName(name)) throw new AppError(422, 'OFFENSIVE_NAME', 'Los nombres o apellidos contienen términos no permitidos.')
+    await moderationService.confirmTextAllowed(name, 'NAME')
     if (!strongPassword.test(input.password)) throw new AppError(422, 'WEAK_PASSWORD', 'La contraseña debe tener entre 12 y 128 caracteres e incluir mayúscula, minúscula, número y símbolo.')
     try {
       const user = await studentAuthRepository.createUser({ name, firstNames, lastNames, email, passwordHash: await hashPassword(input.password) })
@@ -137,14 +137,14 @@ export const studentAuthService = {
     return { sessionId: session.id, user }
   },
 
-  async updateOwnProfile(userId: number, input: { firstNames: string; lastNames: string }) {
+  async updateOwnProfile(userId: number, input: { firstNames: string; lastNames: string }, idempotencyKey?: string) {
     const firstNames = input.firstNames.trim().replace(/\s+/g, ' ')
     const lastNames = input.lastNames.trim().replace(/\s+/g, ' ')
     const name = `${firstNames} ${lastNames}`
     if (firstNames.length < 2 || lastNames.length < 2 || firstNames.length > 80 || lastNames.length > 80 || name.length > 160) {
       throw new AppError(422, 'INVALID_NAME', 'Escribe nombres y apellidos válidos.')
     }
-    if (containsOffensiveName(name)) throw new AppError(422, 'OFFENSIVE_NAME', 'Los nombres o apellidos contienen términos no permitidos.')
+    await moderationService.confirmTextAllowed(name, 'NAME', { studentId: userId, source: 'PROFILE_NAME_UPDATE', idempotencyKey })
     try {
       const user = await studentAuthRepository.updateProfile(userId, { name, firstNames, lastNames })
       return publicUser(user)
@@ -203,10 +203,11 @@ export const studentAuthService = {
       reviewChannel = input.reviewChannel.trim()
       if (reviewChannel.length < 2) throw new AppError(422, 'INVALID_REVIEW_CHANNEL', 'Indica un canal válido para solicitar revisión.')
     }
+    const counterEffect = input.status === 'ACTIVO' ? await moderationService.applyManualUnlockEffect() : undefined
     const reason = input.reason.trim()
     if (reason.length < 5) throw new AppError(422, 'INVALID_STATUS_REASON', 'El motivo debe tener al menos 5 caracteres.')
     try {
-      const result = await studentAuthRepository.updateStatusAndRevokeSessions(userId, { status: input.status, blockedUntil, reviewChannel, actorId, reason })
+      const result = await studentAuthRepository.updateStatusAndRevokeSessions(userId, { status: input.status, blockedUntil, reviewChannel, actorId, reason, counterEffect })
       if (!result) throw new AppError(404, 'STUDENT_NOT_FOUND', 'La cuenta estudiantil no existe.')
       if (result.deleted) throw new AppError(409, 'STUDENT_ALREADY_DELETED', 'Una cuenta dada de baja no puede reactivarse ni modificarse.')
       if (result.changed) clearAuthFailuresForEmail(result.user.email)

@@ -2,6 +2,7 @@ import { Elysia } from 'elysia'
 import { enforceRateLimit } from '../../../middleware/rate-limit'
 import { requireAdmin } from '../../../middleware/admin'
 import { studentAuthService } from '../../users/services/student-auth.service'
+import { moderationIdempotencyHeaders } from '../../moderation/dtos/schemas'
 import { commentBody, commentDeleteResponse, commentErrorResponse, commentIdParams, commentListResponse, commentPagination, commentResponse, commentRevisionListResponse, commentTargetParams } from '../dtos/schemas'
 import { commentsService } from '../services/comments.service'
 
@@ -21,19 +22,21 @@ export const commentsRoutes = new Elysia({ prefix: '/api/v1' })
     const authenticated = await studentAuthService.authenticate(request)
     enforceRateLimit(`student-${authenticated.user.id}`)
     set.status = 201
-    return commentsService.create(authenticated.user.id, params.targetType, params.targetId, body)
+    return commentsService.create(authenticated.user.id, params.targetType, params.targetId, body, request.headers.get('idempotency-key') ?? undefined)
   }, {
     params: commentTargetParams,
+    headers: moderationIdempotencyHeaders,
     body: commentBody,
     response: { 201: commentResponse, 401: commentErrorResponse, 403: commentErrorResponse, 404: commentErrorResponse, 409: commentErrorResponse, 422: commentErrorResponse, 429: commentErrorResponse, 503: commentErrorResponse },
-    detail: { tags: ['Comentarios'], summary: 'Publica un comentario con la identidad de sesión estudiantil', description: 'Admite NOTICIA publicada, registro PROYECTO de tipo PROYECTO aprobado (TESIS excluida) o EVENTO publicado. Requiere cuenta estudiantil activa, cookie de sesión y X-CSRF-Token. El cuerpo documentado contiene content (texto plano, 1–2000 caracteres); cualquier identidad de autor enviada por el cliente se ignora y el autor siempre se deriva de la sesión. MOD evalúa el texto antes de persistir. Errores relevantes: 401 sin sesión, 403 cuenta bloqueada/CSRF inválido, 404 destino no visible, 409 duplicado, 422 validación o rechazo MOD, 429 límite de solicitudes y 503 MOD no disponible.', security: [{ studentCookieAuth: [], csrfToken: [] }] }
+    detail: { tags: ['Comentarios'], summary: 'Publica un comentario con la identidad de sesión estudiantil', description: 'Admite NOTICIA publicada, registro PROYECTO de tipo PROYECTO aprobado (TESIS excluida) o EVENTO publicado. Requiere cuenta estudiantil activa, cookie de sesión y X-CSRF-Token. El cuerpo documentado contiene content (texto plano, 1–2000 caracteres); cualquier identidad de autor enviada por el cliente se ignora y el autor siempre se deriva de la sesión. MOD evalúa el texto antes de persistir; acepta Idempotency-Key opcional para deduplicar la contabilización de un mismo intento. Errores relevantes: 401 sin sesión, 403 cuenta bloqueada/CSRF inválido, 404 destino no visible, 409 duplicado, 422 validación o rechazo MOD, 429 límite de solicitudes y 503 MOD no disponible.', security: [{ studentCookieAuth: [], csrfToken: [] }] }
   })
   .put('/student-auth/me/comments/:id', async ({ params, body, request }) => {
     const authenticated = await studentAuthService.authenticate(request)
     enforceRateLimit(`student-${authenticated.user.id}`)
-    return commentsService.updateOwn(authenticated.user.id, params.id, body)
+    return commentsService.updateOwn(authenticated.user.id, params.id, body, request.headers.get('idempotency-key') ?? undefined)
   }, {
     params: commentIdParams,
+    headers: moderationIdempotencyHeaders,
     body: commentBody,
     response: { 200: commentResponse, 401: commentErrorResponse, 403: commentErrorResponse, 404: commentErrorResponse, 409: commentErrorResponse, 422: commentErrorResponse, 429: commentErrorResponse, 503: commentErrorResponse },
     detail: { tags: ['Comentarios'], summary: 'Edita un comentario propio', description: 'Requiere sesión estudiantil activa y X-CSRF-Token. Solo edita el autor autenticado; el texto nuevo vuelve a pasar por MOD antes de persistir. Un duplicado responde 409, texto rechazado 422 y comentario ajeno o inexistente 404.', security: [{ studentCookieAuth: [], csrfToken: [] }] }
