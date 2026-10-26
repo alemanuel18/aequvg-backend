@@ -381,6 +381,7 @@ model StudentUser {
   credential StudentCredential?
   sessions   StudentSession[]
   statusHistory StudentAccountStatusHistory[]
+  eventRegistrations EventRegistration[]
   comments   PublicationComment[]
   commentRevisions PublicationCommentRevision[]
 
@@ -622,6 +623,7 @@ model Event {
 model EventRegistration {
   id             Int                     @id @default(autoincrement()) @map("id_inscripcion")
   eventId        Int                     @map("id_evento")
+  studentId      Int?                    @map("id_estudiante")
   fullName       String                  @map("nombre_completo") @db.VarChar(160)
   firstNames     String                  @default("") @map("nombres") @db.VarChar(80)
   lastNames      String                  @default("") @map("apellidos") @db.VarChar(80)
@@ -633,9 +635,11 @@ model EventRegistration {
   registeredAt   DateTime                @default(now()) @map("inscrito_en") @db.Timestamptz(3)
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  student StudentUser? @relation(fields: [studentId], references: [id], onDelete: SetNull)
 
   @@unique([eventId, email])
   @@index([eventId, status])
+  @@index([studentId, registeredAt, id])
   @@map("inscripcion_evento")
 }
 
