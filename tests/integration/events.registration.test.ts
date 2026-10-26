@@ -144,16 +144,18 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
     })
 
     it('aplica status, paginación y orden determinista sin exponer PII', async () => {
-      const event = await createEvent({ maximumCapacity: 20 })
       const registeredAt = new Date('2026-10-25T18:00:00.000Z')
+      const firstEvent = await createEvent({ maximumCapacity: 20 })
+      const secondEvent = await createEvent({ maximumCapacity: 20 })
+      const thirdEvent = await createEvent({ maximumCapacity: 20 })
       const first = await prisma.eventRegistration.create({ data: {
-        eventId: event.id, studentId, fullName: 'Primero', email: `${runId}-first@uvg.edu.gt`, phone: '55555551', status: 'CONFIRMADA', consentedAt: new Date(), privacyVersion: '1.0', registeredAt
+        eventId: firstEvent.id, studentId, fullName: 'Primero', email: `${runId}-first@uvg.edu.gt`, phone: '55555551', status: 'CONFIRMADA', consentedAt: new Date(), privacyVersion: '1.0', registeredAt
       } })
       const second = await prisma.eventRegistration.create({ data: {
-        eventId: event.id, studentId, fullName: 'Segundo', email: `${runId}-second@uvg.edu.gt`, phone: '55555552', status: 'CANCELADA', consentedAt: new Date(), privacyVersion: '1.0', registeredAt
+        eventId: secondEvent.id, studentId, fullName: 'Segundo', email: `${runId}-second@uvg.edu.gt`, phone: '55555552', status: 'CANCELADA', consentedAt: new Date(), privacyVersion: '1.0', registeredAt
       } })
       const third = await prisma.eventRegistration.create({ data: {
-        eventId: event.id, studentId, fullName: 'Tercero', email: `${runId}-third@uvg.edu.gt`, phone: '55555553', status: 'CONFIRMADA', consentedAt: new Date(), privacyVersion: '1.0', registeredAt: new Date('2026-10-26T18:00:00.000Z')
+        eventId: thirdEvent.id, studentId, fullName: 'Tercero', email: `${runId}-third@uvg.edu.gt`, phone: '55555553', status: 'CONFIRMADA', consentedAt: new Date(), privacyVersion: '1.0', registeredAt: new Date('2026-10-26T18:00:00.000Z')
       } })
 
       const page = await app.handle(ownRequest(studentHeaders, '?page=1&pageSize=2'))
