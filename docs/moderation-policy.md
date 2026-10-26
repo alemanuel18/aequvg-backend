@@ -16,7 +16,7 @@ Esta rama integra el detector y el motor con nombres, comentarios, autenticació
 - Nombres y comentarios comparten normalización Unicode NFKD, equivalencia de diacríticos, minúsculas, remoción de caracteres de formato, mapeo de algunas sustituciones visuales/leet y comparación de términos completos. También se comprimen separadores de puntuación dentro de un token para detectar evasiones simples sin buscar subcadenas en palabras ordinarias. El catálogo heredado de nombres y el de comentarios aún son distintos.
 - `MODERATION_POLICY_JSON` está vacío por defecto. En ese modo se conserva el rechazo léxico local y no se cuentan infracciones ni se sanciona automáticamente. Con una política que valide como aprobada, MOD aplica los términos y excepciones configurados para nombres y comentarios, y solo entonces registra infracciones de cuentas existentes.
 - El motor persiste una fila por operación idempotente, versión y regla, origen, número dentro de la ventana, acción, fecha, vencimiento/canal si aplica y hash del texto normalizado; no guarda el contenido ofensivo. La transacción bloquea la fila de cuenta, comprueba la clave de operación, cuenta eventos dentro de la ventana y actualiza el contador y estado atómicamente.
-- `Idempotency-Key` opcional en crear/editar comentario y cambiar perfil permite deduplicar reintentos de una operación. La clave se transforma en hash ligado a cuenta y origen. Si se repite con otra evidencia responde `409`.
+- `Idempotency-Key` requerido en crear/editar comentario y cambiar perfil permite deduplicar reintentos de una operación. El frontend genera una clave para el contenido enviado y la conserva si reintenta sin cambiarlo; una edición genera clave nueva. La clave se transforma en hash ligado a cuenta y origen. Si se repite con otra evidencia responde `409`.
 - Al alcanzar un paso temporal o permanente, el motor registra la transición en historial de cuenta, aplica motivo de política y revoca sesiones en la misma transacción. El estado se verifica por AUTH en rutas privadas. Solo un administrador puede cambiar un bloqueo permanente; únicamente los temporales vencen automáticamente. Vencimiento y desbloqueo aplican el efecto de contador de la política y dejan la transición auditada.
 - ADMIN puede consultar en detalle de cuenta el contador, historial de estados e incidentes con evidencia hash. Los incidentes conservan fecha/regla/acción y su vínculo a la cuenta se anula al borrar físicamente la cuenta.
 
@@ -36,7 +36,7 @@ Las propuestas son opciones para revisión. **Ninguna está aprobada por esta do
 | Excepciones | Revisar contexto de cita, análisis académico, denuncia, referencia a una infracción o uso no dirigido antes de sancionar. No crear excepciones amplias que desactiven el filtro por subcadena sin revisión. | Pendiente: excepciones válidas y quién puede resolverlas | No aprobado |
 | Primer rechazo de comentario | Rechazar el contenido que coincida con una regla aprobada; decidir por separado si el caso suma infracción. | Pendiente: relación rechazo/conteo | No aprobado |
 | Falsos positivos | Mantener el contenido sin publicar; proveer un canal de revisión, resultado auditable y corrección del catálogo/regla. No sancionar mientras el caso esté disputado, si la Asociación aprueba este criterio. | Pendiente: canal, plazo, revisor y efecto del reclamo | No aprobado |
-| Reincidencia | Ventana configurable y conteo de infracciones confirmadas, con una unidad por envío lógico; un reintento técnico no debe multiplicar eventos. | Pendiente: duración de ventana y deduplicación | No aprobado |
+| Reincidencia | Ventana configurable y conteo de infracciones confirmadas, con una unidad por envío lógico; el cliente reusa la clave al reintentar el mismo contenido. | Pendiente: duración de ventana y qué eventos confirmados cuentan | No aprobado |
 | Bloqueo temporal | Tabla configurable por ordinal/umbral de reincidencia, con duración explícita por paso. | Pendiente: número de pasos, umbrales y duración de cada uno | No aprobado |
 | Bloqueo permanente | Aplicarlo solo según un umbral o revisión explícitamente aprobados. | Pendiente: umbral, revisión y autoridad | No aprobado |
 | Desbloqueo antes del vencimiento | Elegir si conserva, reinicia o reduce el contador; registrar actor, motivo y valor antes/después. | Pendiente: efecto sobre el contador | No aprobado |
@@ -58,7 +58,7 @@ La configuración se valida al usar MOD. El repositorio no incluye un JSON aprob
 | `expiryEffect` | `PRESERVE`, `RESET` o `REDUCE` | Sin definir | Efecto del vencimiento temporal | Pendiente |
 | `permanentReviewChannel` | texto | Sin definir | Canal devuelto al bloquear permanentemente; requerido si hay paso permanente | Pendiente |
 
-Al aparecer una regla permanente, el parser exige `permanentReviewChannel`. Umbrales y duraciones deben ser enteros positivos. Un JSON malformado/incompleto falla cerrado con `503 MODERATION_POLICY_INVALID`; una variable vacía mantiene el filtro local de rechazo, sin contador ni sanciones progresivas.
+Al aparecer una regla permanente, el parser exige `permanentReviewChannel`. Umbrales y duraciones deben ser enteros positivos, y cada bloqueo temporal posterior debe durar más que el anterior. Un JSON malformado/incompleto falla cerrado con `503 MODERATION_POLICY_INVALID`; una variable vacía mantiene el filtro local de rechazo, sin contador ni sanciones progresivas.
 
 ## Estados y transiciones
 
@@ -91,7 +91,7 @@ Los resultados de política de esta matriz quedan pendientes hasta aprobación. 
 | Comentario detectado | Texto de comentario coincide con regla | No se publica; sin política aprobada solo rechaza. Con política aprobada registra incidente | Confirmar qué coincidencias cuentan como infracción |
 | Perfil detectado | Cuenta existente intenta guardar nombre | No actualiza el perfil; con política aprobada registra incidente y puede sancionar | Confirmar qué coincidencias cuentan como infracción |
 | Alta detectada | Nombre coincide antes de alta | Devuelve `OFFENSIVE_NAME`; `createUser` no se llama ni se crea cuenta | Confirmar catálogo/mensaje y canal de revisión |
-| Reintento con misma clave | Mismo usuario, origen, clave y evidencia | Reutiliza el incidente existente; evidencia distinta con la misma clave da 409 | Ratificar duración/idempotencia que usará el cliente |
+| Reintento con misma clave | Mismo usuario, origen, clave y evidencia | La API requiere la clave y reutiliza el incidente existente; evidencia distinta con la misma clave da 409 | Verificar que los clientes mantengan la clave por intento lógico |
 | Envíos distintos dentro/fuera de ventana | Diferentes claves para el usuario | Cuenta atómicamente solo incidencias con `createdAt` dentro de la ventana configurada | Ratificar ventana y umbrales |
 | Cuenta bloqueada comenta o inicia sesión | Estado no activo | AUTH impide ruta privada; comentario detectado aplica sanción antes de persistir y revoca sesiones | Ratificar duración y mensajes visibles |
 | Vence bloqueo temporal | Hora actual supera `blockedUntil` | Se reactiva en autenticación, registra transición y aplica `expiryEffect` | Ratificar efecto sobre contador |

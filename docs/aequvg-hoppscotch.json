@@ -504,6 +504,11 @@
               "key": "X-CSRF-Token",
               "value": "<<studentCsrfToken>>",
               "active": true
+            },
+            {
+              "key": "Idempotency-Key",
+              "value": "comment-event-attempt-001",
+              "active": true
             }
           ],
           "auth": {
@@ -536,6 +541,11 @@
               "key": "X-CSRF-Token",
               "value": "<<studentCsrfToken>>",
               "active": true
+            },
+            {
+              "key": "Idempotency-Key",
+              "value": "comment-news-attempt-001",
+              "active": true
             }
           ],
           "auth": {
@@ -567,6 +577,11 @@
             {
               "key": "X-CSRF-Token",
               "value": "<<studentCsrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Idempotency-Key",
+              "value": "comment-project-attempt-001",
               "active": true
             }
           ],
@@ -698,6 +713,11 @@
             {
               "key": "X-CSRF-Token",
               "value": "<<studentCsrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Idempotency-Key",
+              "value": "student-profile-attempt-001",
               "active": true
             }
           ],
@@ -872,6 +892,11 @@
             {
               "key": "X-CSRF-Token",
               "value": "<<studentCsrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Idempotency-Key",
+              "value": "comment-edit-attempt-001",
               "active": true
             }
           ],

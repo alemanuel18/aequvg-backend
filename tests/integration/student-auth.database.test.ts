@@ -8,7 +8,14 @@ const runId = `student-auth-${Date.now()}`
 const email = `${runId}@uvg.edu.gt`
 const password = 'Clave-estudiante-123!'
 const userAgent = 'AEQUVG-Student-Integration/1.0'
-const request = (path: string, options: RequestInit = {}) => new Request(`http://localhost${path}`, options)
+let idempotencyRequestId = 0
+const request = (path: string, options: RequestInit = {}) => {
+  const headers = new Headers(options.headers)
+  if (options.method === 'PATCH' && path === '/api/v1/student-auth/me') {
+    headers.set('idempotency-key', `${runId}-${++idempotencyRequestId}`)
+  }
+  return new Request(`http://localhost${path}`, { ...options, headers })
+}
 
 describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
   const app = createApp()
@@ -179,6 +186,13 @@ describeDatabase('acceso estudiantil separado con PostgreSQL', () => {
     expect(await prisma.studentUser.findUnique({ where: { id: userId } })).toMatchObject({
       name: 'Ana María de integración', firstNames: 'Ana María', lastNames: 'de integración'
     })
+
+    const missingIdempotencyKey = await app.handle(new Request('http://localhost/api/v1/student-auth/me', {
+      method: 'PATCH',
+      headers: { cookie: studentCookies, 'user-agent': userAgent, 'x-csrf-token': studentCsrf, 'content-type': 'application/json' },
+      body: JSON.stringify({ firstNames: 'Ana María', lastNames: 'de integración' })
+    }))
+    expect(missingIdempotencyKey.status).toBe(422)
 
     for (const protectedPayload of [
       { firstNames: 'No debe guardarse', lastNames: 'Cambio', id: userId + 1 },

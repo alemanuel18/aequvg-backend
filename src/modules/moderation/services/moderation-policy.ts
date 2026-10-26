@@ -57,6 +57,8 @@ const parseApprovedPolicy = (input: unknown): ApprovedModerationPolicy => {
   if (new Set(sanctions.map(step => step.after)).size !== sanctions.length) return invalidPolicy()
   const rank = (step: ModerationSanctionStep) => step.action === 'PERMANENT' ? 2 : 1
   if (sanctions.some((step, index) => index > 0 && rank(step) < rank(sanctions[index - 1]!))) return invalidPolicy()
+  const temporarySteps = sanctions.filter((step): step is Extract<ModerationSanctionStep, { action: 'TEMPORARY' }> => step.action === 'TEMPORARY')
+  if (temporarySteps.some((step, index) => index > 0 && step.durationHours <= temporarySteps[index - 1]!.durationHours)) return invalidPolicy()
   if (new Set(blockedTerms.map(rule => rule.id)).size !== blockedTerms.length) return invalidPolicy()
   if (blockedTerms.some(rule => !rule.term.trim() || rule.term.length > 2000)) return invalidPolicy()
   if (exceptions.some(exception => exception.exactText.length > 2000)) return invalidPolicy()

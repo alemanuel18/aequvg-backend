@@ -1,7 +1,7 @@
 import { Elysia, t } from 'elysia'
 import { clearAuthFailures, enforceAuthRateLimit, enforceRegistrationRateLimit, recordAuthFailure, recordRegistrationAttempt } from '../../../middleware/auth-rate-limit'
 import { AppError } from '../../../shared/errors/app-error'
-import { moderationIdempotencyHeaders } from '../../moderation/dtos/schemas'
+import { moderationIdempotencyHeaders, moderationIdempotencyParameter, requireModerationIdempotencyKey } from '../../moderation/dtos/schemas'
 import { studentAuthErrorResponse, studentDeleteBody, studentLoginBody, studentProfileBody, studentRegisterBody, studentSessionResponse, studentUserResponse } from '../dtos/student-auth.schemas'
 import { STUDENT_AUTH_COOKIE, STUDENT_CSRF_COOKIE, STUDENT_DEVICE_COOKIE, studentAuthService } from '../services/student-auth.service'
 
@@ -50,12 +50,12 @@ export const studentAuthRoutes = new Elysia({ prefix: '/api/v1/student-auth' })
     const unknownFields = Object.keys(body as Record<string, unknown>).filter(field => !allowedProfileFields.has(field))
     if (unknownFields.length) throw new AppError(422, 'VALIDATION_ERROR', 'La solicitud contiene campos que no se pueden modificar.', { fields: unknownFields.join(',') })
     const authenticated = await studentAuthService.authenticate(request)
-    return { user: await studentAuthService.updateOwnProfile(authenticated.user.id, body, request.headers.get('idempotency-key') ?? undefined) }
+    return { user: await studentAuthService.updateOwnProfile(authenticated.user.id, body, requireModerationIdempotencyKey(request.headers.get('idempotency-key'))) }
   }, {
     headers: moderationIdempotencyHeaders,
     body: studentProfileBody,
     response: { 200: studentSessionResponse, 401: studentAuthErrorResponse, 403: studentAuthErrorResponse, 404: studentAuthErrorResponse, 422: studentAuthErrorResponse },
-    detail: { tags: ['Acceso estudiantil'], summary: 'Actualiza los nombres del perfil estudiantil propio', description: 'MOD revisa los nombres antes de guardarlos. Idempotency-Key opcional deduplica la contabilización de un mismo intento.' }
+    detail: { tags: ['Acceso estudiantil'], summary: 'Actualiza los nombres del perfil estudiantil propio', description: 'Requiere Idempotency-Key; el cliente reutiliza la misma clave al reintentar los mismos nombres. MOD revisa los nombres antes de guardarlos. Una clave faltante o inválida responde 422.', parameters: [moderationIdempotencyParameter] }
   })
   .post('/logout', async ({ cookie, request, set }) => {
     await studentAuthService.authenticate(request)

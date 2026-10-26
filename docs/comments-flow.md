@@ -7,13 +7,15 @@ Los únicos destinos habilitados en S4 son una noticia publicada (`NOTICIA`), un
 | Método | Ruta | Acceso |
 | --- | --- | --- |
 | `GET` | `/api/v1/publications/:targetType/:targetId/comments?page=1&pageSize=20` | Público; solo destino visible |
-| `POST` | `/api/v1/publications/:targetType/:targetId/comments` | Sesión estudiantil activa y `X-CSRF-Token` |
+| `POST` | `/api/v1/publications/:targetType/:targetId/comments` | Sesión estudiantil activa, `X-CSRF-Token` e `Idempotency-Key` |
 | `GET` | `/api/v1/student-auth/me/comments?page=1&pageSize=20` | Sesión estudiantil activa |
-| `PUT` | `/api/v1/student-auth/me/comments/:id` | Autor del comentario, sesión activa y `X-CSRF-Token` |
+| `PUT` | `/api/v1/student-auth/me/comments/:id` | Autor del comentario, sesión activa, `X-CSRF-Token` e `Idempotency-Key` |
 | `DELETE` | `/api/v1/student-auth/me/comments/:id` | Autor del comentario, sesión activa y `X-CSRF-Token` |
 | `GET` | `/api/v1/admin/comments/history?page=1&pageSize=20` | Administrador (`ADMIN_ACCESS`) |
 
 El cuerpo documentado de creación contiene `{ "content": "..." }`. El servidor obtiene el autor de la sesión; cualquier identidad de autor añadida por el cliente no se usa. Normaliza Unicode NFC, recorta espacios laterales y admite de 1 a 2000 caracteres. El historial se ordena por fecha descendente y usa páginas de 1 a 100 elementos. Las respuestas no exponen correo ni otros datos de cuenta.
+
+Crear/editar comentarios y cambiar el nombre del perfil requieren `Idempotency-Key`. Genera una clave nueva para cada contenido enviado y conserva la misma si reintentas esa operación tras un error de red; al cambiar el texto genera otra clave. Así, un reintento del mismo contenido ofensivo no suma otra infracción. Una clave faltante o inválida se rechaza con `422`.
 
 Un hash SHA-256 compuesto por autor, destino y texto normalizado permite que PostgreSQL rechace de forma atómica un texto duplicado por el mismo autor en el mismo destino (`409 DUPLICATE_COMMENT`). La moderación se ejecuta después de validar la publicación y antes de persistir; un rechazo responde `422 COMMENT_REJECTED_BY_MODERATION`.
 

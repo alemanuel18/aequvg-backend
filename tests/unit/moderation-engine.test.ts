@@ -70,7 +70,15 @@ describe('motor de moderación configurable', () => {
   it('valida que la política de producción tenga aprobación y reglas completas', () => {
     const badApproval = () => loadApprovedModerationPolicy(JSON.stringify({ ...policy, approved: false }))
     const incompleteSanction = () => loadApprovedModerationPolicy(JSON.stringify({ ...policy, sanctions: [{ after: 1, action: 'TEMPORARY' }] }))
+    const shorterLaterTemporary = () => loadApprovedModerationPolicy(JSON.stringify({
+      ...policy,
+      sanctions: [
+        { after: 2, action: 'TEMPORARY', durationHours: 24 },
+        { after: 4, action: 'TEMPORARY', durationHours: 12 }
+      ]
+    }))
     expect(badApproval).toThrow('La política de moderación configurada no es válida.')
     expect(incompleteSanction).toThrow('La política de moderación configurada no es válida.')
+    expect(shorterLaterTemporary).toThrow('La política de moderación configurada no es válida.')
   })
 })
