@@ -14,6 +14,7 @@ let studentId = 0
 let studentHeaders: Record<string, string> = {}
 let secondStudentId = 0
 let secondStudentHeaders: Record<string, string> = {}
+const isolatedStudentIds: number[] = []
 
 const request = (path: string, options: RequestInit = {}) => {
   const needsStudentSession = options.method === 'POST' && /^\/api\/v1\/events\/\d+\/registrations$/.test(path)
@@ -22,6 +23,11 @@ const request = (path: string, options: RequestInit = {}) => {
     : options.headers
   return new Request(`http://localhost${path}`, { ...options, headers })
 }
+const requestWithStudent = (headers: Record<string, string>, path: string, options: RequestInit = {}) =>
+  new Request(`http://localhost${path}`, {
+    ...options,
+    headers: { ...headers, ...(options.headers as Record<string, string> | undefined) }
+  })
 const anonymousRequest = (path: string, options: RequestInit = {}) => new Request(`http://localhost${path}`, options)
 let adminHeaders: Record<string, string>
 
@@ -74,6 +80,10 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
         await prisma.studentSession.deleteMany({ where: { userId: secondStudentId } })
         await prisma.studentUser.delete({ where: { id: secondStudentId } })
       }
+      for (const isolatedStudentId of isolatedStudentIds) {
+        await prisma.studentSession.deleteMany({ where: { userId: isolatedStudentId } })
+        await prisma.studentUser.delete({ where: { id: isolatedStudentId } })
+      }
     } finally {
       await prisma.$disconnect()
     }
@@ -98,6 +108,14 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
     })
   }
 
+  const createIsolatedStudent = async (label: string) => {
+    const student = await prisma.studentUser.create({
+      data: { name: `Estudiante ${label}`, email: `${runId}-${label}-${isolatedStudentIds.length}@uvg.edu.gt` }
+    })
+    isolatedStudentIds.push(student.id)
+    return { id: student.id, headers: await createStudentSessionHeaders(prisma, student.id) }
+  }
+
   const ownRequest = (headers: Record<string, string>, query = '') =>
     new Request(`http://localhost/api/v1/student/events/registrations${query}`, { headers })
 
@@ -115,9 +133,10 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
     })
 
     it('lista únicamente las inscripciones propias y excluye registros sin propietario', async () => {
+      const owner = await createIsolatedStudent('history-owner')
       const event = await createEvent({ maximumCapacity: 10 })
       const owned = await prisma.eventRegistration.create({ data: {
-        eventId: event.id, studentId, fullName: 'Propio', email: `${runId}-owned-history@uvg.edu.gt`, phone: '55555555', status: 'CONFIRMADA', consentedAt: new Date(), privacyVersion: '1.0'
+        eventId: event.id, studentId: owner.id, fullName: 'Propio', email: `${runId}-owned-history@uvg.edu.gt`, phone: '55555555', status: 'CONFIRMADA', consentedAt: new Date(), privacyVersion: '1.0'
       } })
       await prisma.eventRegistration.create({ data: {
         eventId: event.id, studentId: secondStudentId, fullName: 'Otro', email: `${runId}-other-history@uvg.edu.gt`, phone: '55555556', status: 'CONFIRMADA', consentedAt: new Date(), privacyVersion: '1.0'
@@ -126,7 +145,7 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
         eventId: event.id, fullName: 'Histórico', email: `${runId}-legacy-history@uvg.edu.gt`, phone: '55555557', status: 'CANCELADA', consentedAt: new Date(), privacyVersion: '1.0'
       } })
 
-      const response = await app.handle(ownRequest(studentHeaders, '?page=1&pageSize=1&status=CONFIRMADA'))
+      const response = await app.handle(ownRequest(owner.headers, '?page=1&pageSize=1&status=CONFIRMADA'))
       expect(response.status).toBe(200)
       const body = await response.json()
       expect(body.pagination).toEqual({ page: 1, pageSize: 1, total: 1 })
@@ -139,26 +158,29 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
     })
 
     it('no permite seleccionar otro propietario desde la request', async () => {
-      const response = await app.handle(ownRequest(studentHeaders, `?studentId=${secondStudentId}`))
-      expect(response.status).toBe(422)
+      const owner = await createIsolatedStudent('query-owner')
+      const response = await app.handle(ownRequest(owner.headers, `?studentId=${secondStudentId}`))
+      expect(response.status).toBe(200)
+      expect((await response.json()).pagination.total).toBe(0)
     })
 
     it('aplica status, paginación y orden determinista sin exponer PII', async () => {
+      const owner = await createIsolatedStudent('history-filters')
       const registeredAt = new Date('2026-10-25T18:00:00.000Z')
       const firstEvent = await createEvent({ maximumCapacity: 20 })
       const secondEvent = await createEvent({ maximumCapacity: 20 })
       const thirdEvent = await createEvent({ maximumCapacity: 20 })
       const first = await prisma.eventRegistration.create({ data: {
-        eventId: firstEvent.id, studentId, fullName: 'Primero', email: `${runId}-first@uvg.edu.gt`, phone: '55555551', status: 'CONFIRMADA', consentedAt: new Date(), privacyVersion: '1.0', registeredAt
+        eventId: firstEvent.id, studentId: owner.id, fullName: 'Primero', email: `${runId}-first@uvg.edu.gt`, phone: '55555551', status: 'CONFIRMADA', consentedAt: new Date(), privacyVersion: '1.0', registeredAt
       } })
       const second = await prisma.eventRegistration.create({ data: {
-        eventId: secondEvent.id, studentId, fullName: 'Segundo', email: `${runId}-second@uvg.edu.gt`, phone: '55555552', status: 'CANCELADA', consentedAt: new Date(), privacyVersion: '1.0', registeredAt
+        eventId: secondEvent.id, studentId: owner.id, fullName: 'Segundo', email: `${runId}-second@uvg.edu.gt`, phone: '55555552', status: 'CANCELADA', consentedAt: new Date(), privacyVersion: '1.0', registeredAt
       } })
       const third = await prisma.eventRegistration.create({ data: {
-        eventId: thirdEvent.id, studentId, fullName: 'Tercero', email: `${runId}-third@uvg.edu.gt`, phone: '55555553', status: 'CONFIRMADA', consentedAt: new Date(), privacyVersion: '1.0', registeredAt: new Date('2026-10-26T18:00:00.000Z')
+        eventId: thirdEvent.id, studentId: owner.id, fullName: 'Tercero', email: `${runId}-third@uvg.edu.gt`, phone: '55555553', status: 'CONFIRMADA', consentedAt: new Date(), privacyVersion: '1.0', registeredAt: new Date('2026-10-26T18:00:00.000Z')
       } })
 
-      const page = await app.handle(ownRequest(studentHeaders, '?page=1&pageSize=2'))
+      const page = await app.handle(ownRequest(owner.headers, '?page=1&pageSize=2'))
       expect(page.status).toBe(200)
       const pageBody = await page.json()
       expect(pageBody.pagination).toEqual({ page: 1, pageSize: 2, total: 3 })
@@ -168,9 +190,9 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
       expect(pageBody.items[0]).not.toHaveProperty('fullName')
       expect(pageBody.items[0]).not.toHaveProperty('studentId')
 
-      const confirmed = await app.handle(ownRequest(studentHeaders, '?status=CONFIRMADA'))
+      const confirmed = await app.handle(ownRequest(owner.headers, '?status=CONFIRMADA'))
       expect((await confirmed.json()).items.map((item: { id: number }) => item.id)).toEqual([third.id, first.id])
-      const cancelled = await app.handle(ownRequest(studentHeaders, '?status=CANCELADA'))
+      const cancelled = await app.handle(ownRequest(owner.headers, '?status=CANCELADA'))
       expect((await cancelled.json()).items.map((item: { id: number }) => item.id)).toEqual([second.id])
     })
 
@@ -627,9 +649,11 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
   describe('Control de cupos y Rate Limit', () => {
     it('devuelve 409 EVENT_FULL cuando el cupo está completamente lleno', async () => {
       const event = await createEvent({ maximumCapacity: 1 })
+      const firstStudent = await createIsolatedStudent('full-first')
+      const secondStudent = await createIsolatedStudent('full-second')
 
       const res1 = await app.handle(
-        request(`/api/v1/events/${event.id}/registrations`, {
+        requestWithStudent(firstStudent.headers, `/api/v1/events/${event.id}/registrations`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'x-forwarded-for': '10.0.0.1' },
           body: JSON.stringify(baseRegistrationPayload({ email: `${runId}-p1@uvg.edu.gt` }))
@@ -638,7 +662,7 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
       expect(res1.status).toBe(201)
 
       const res2 = await app.handle(
-        request(`/api/v1/events/${event.id}/registrations`, {
+        requestWithStudent(secondStudent.headers, `/api/v1/events/${event.id}/registrations`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'x-forwarded-for': '10.0.0.2' },
           body: JSON.stringify(baseRegistrationPayload({ email: `${runId}-p2@uvg.edu.gt` }))
@@ -652,10 +676,11 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
     it('aplica rate limiting tras superar el umbral por IP', async () => {
       const event = await createEvent({ maximumCapacity: 100 })
       const ip = '198.51.100.42'
+      const students = await Promise.all(Array.from({ length: 6 }, (_, i) => createIsolatedStudent(`rate-${i}`)))
 
       for (let i = 0; i < 5; i++) {
         const res = await app.handle(
-          request(`/api/v1/events/${event.id}/registrations`, {
+          requestWithStudent(students[i]!.headers, `/api/v1/events/${event.id}/registrations`, {
             method: 'POST',
             headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
             body: JSON.stringify(baseRegistrationPayload({ email: `${runId}-rate-${i}@uvg.edu.gt` }))
@@ -665,7 +690,7 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
       }
 
       const blockedRes = await app.handle(
-        request(`/api/v1/events/${event.id}/registrations`, {
+        requestWithStudent(students[5]!.headers, `/api/v1/events/${event.id}/registrations`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
           body: JSON.stringify(baseRegistrationPayload({ email: `${runId}-rate-overflow@uvg.edu.gt` }))
@@ -681,10 +706,11 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
     it('Caso 1: Cupo 1 vs 10 solicitudes concurrentes (exactamente 1 éxito y 9 EVENT_FULL)', async () => {
       const event = await createEvent({ maximumCapacity: 1 })
       const concurrency = 10
+      const students = await Promise.all(Array.from({ length: concurrency }, (_, i) => createIsolatedStudent(`concurrency-one-${i}`)))
 
       const promises = Array.from({ length: concurrency }, (_, i) => {
         return app.handle(
-          request(`/api/v1/events/${event.id}/registrations`, {
+          requestWithStudent(students[i]!.headers, `/api/v1/events/${event.id}/registrations`, {
             method: 'POST',
             headers: {
               'content-type': 'application/json',
@@ -720,10 +746,11 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
     it('Caso 2: Cupo 5 vs 20 solicitudes concurrentes (exactamente 5 éxitos y 15 EVENT_FULL)', async () => {
       const event = await createEvent({ maximumCapacity: 5 })
       const concurrency = 20
+      const students = await Promise.all(Array.from({ length: concurrency }, (_, i) => createIsolatedStudent(`concurrency-five-${i}`)))
 
       const promises = Array.from({ length: concurrency }, (_, i) => {
         return app.handle(
-          request(`/api/v1/events/${event.id}/registrations`, {
+          requestWithStudent(students[i]!.headers, `/api/v1/events/${event.id}/registrations`, {
             method: 'POST',
             headers: {
               'content-type': 'application/json',
@@ -798,6 +825,7 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
 
     it('Caso 4: Carrera entre reducción de cupo por Admin e Inscripción pública (invariante: cupo >= inscripciones)', async () => {
       const event = await createEvent({ maximumCapacity: 2 })
+      const racer = await createIsolatedStudent('capacity-racer')
 
       const preRes = await app.handle(
         request(`/api/v1/events/${event.id}/registrations`, {
@@ -817,7 +845,7 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
           })
         ),
         app.handle(
-          request(`/api/v1/events/${event.id}/registrations`, {
+          requestWithStudent(racer.headers, `/api/v1/events/${event.id}/registrations`, {
             method: 'POST',
             headers: { 'content-type': 'application/json', 'x-forwarded-for': '172.16.4.2' },
             body: JSON.stringify(baseRegistrationPayload({ email: `${runId}-racer@uvg.edu.gt` }))
