@@ -62,6 +62,8 @@ El portal estudiantil usa `/api/v1/student-auth/register`, `/login`, `/me`, `/lo
 
 Los estados son `ACTIVO`, `BLOQUEADO_TEMPORAL`, `BLOQUEADO_PERMANENTE` y `ELIMINADO`. Administración exclusiva (`USERS_MANAGE`) permite filtrar/listar, consultar detalle e historial, cambiar estado con motivo obligatorio y dar de baja cuentas normales. MOD registra actor, fecha, motivo y transición; al bloquear revoca sesiones y al cambiar estado limpia el contador de intentos fallidos por correo. BAJA propia y administrativa comparten el servicio de baja lógica, que no borra en cascada. Todos estos endpoints operan solo sobre cuentas estudiantiles y excluyen cuentas administrativas. Consulta contratos, matriz de acceso, coordinación con MOD/BAJA y evidencia en [`docs/student-access-flow.md`](docs/student-access-flow.md). La colección Hoppscotch incluye el flujo manual y OpenAPI publica el tag `Acceso estudiantil`.
 
+El borrador de política de lenguaje ofensivo, reincidencias, transiciones y decisiones pendientes de ratificación está en [`docs/moderation-policy.md`](docs/moderation-policy.md). Es una propuesta de trabajo; los valores no se consideran aprobados ni habilitan sanciones automáticas.
+
 ### Estudiante local de pruebas
 
 Al ejecutar la seed con `NODE_ENV` distinto de `production`, se crea o restablece esta cuenta estudiantil ficticia:
