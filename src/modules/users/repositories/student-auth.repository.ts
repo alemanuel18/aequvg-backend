@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { prisma } from '../../../shared/database/prisma'
+import { verifyPassword } from '../../../shared/utils/auth-crypto'
 
 // La tabla StudentUser contiene exclusivamente cuentas normales; el tipo esStudent
 // distingue estudiantes actuales de interesados. Las cuentas administrativas viven en otra tabla.
@@ -116,10 +117,19 @@ export const studentAuthRepository = {
     return { user, changed, deleted: false as const }
   }),
 
-  deleteAccountAndRevokeSessions: (userId: number, data: { actorId: number | null; reason: string }) => prisma.$transaction(async tx => {
-    const current = await tx.studentUser.findFirst({ where: { id: userId, ...studentAccountWhere } })
+  deleteAccountAndRevokeSessions: (userId: number, data: { actorId: number | null; reason: string; revalidation?: { email: string; password: string } }) => prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT "id_estudiante" FROM "usuario_estudiante" WHERE "id_estudiante" = ${userId} FOR UPDATE`
+    const current = await tx.studentUser.findFirst({ where: { id: userId, ...studentAccountWhere }, include: studentAuthenticationInclude })
     if (!current) return null
     if (current.status === 'ELIMINADO') return { alreadyDeleted: true as const }
+    if (data.revalidation) {
+      if (current.status !== 'ACTIVO') return { notAccessible: current.status as 'BLOQUEADO_TEMPORAL' | 'BLOQUEADO_PERMANENTE' }
+      const emailMatches = data.revalidation.email.trim().toLowerCase() === current.email.trim().toLowerCase()
+      const passwordMatches = current.credential
+        ? await verifyPassword(data.revalidation.password, current.credential.passwordHash).catch(() => false)
+        : false
+      if (!emailMatches || !passwordMatches) return { revalidationFailed: true as const }
+    }
     const deletedAt = new Date()
     const comments = await tx.publicationComment.findMany({ where: { studentId: userId }, select: { id: true } })
     for (const comment of comments) {
@@ -143,12 +153,14 @@ export const studentAuthRepository = {
       }
     })
     await tx.studentCredential.deleteMany({ where: { userId } })
-    const registrations = await tx.eventRegistration.findMany({ where: { email: current.email }, select: { id: true } })
+    const registrations = await tx.eventRegistration.findMany({ where: { studentId: userId }, select: { id: true } })
     for (const registration of registrations) {
       await tx.eventRegistration.update({
         where: { id: registration.id },
         data: {
           fullName: 'Usuario anónimo',
+          firstNames: 'Usuario',
+          lastNames: 'anónimo',
           email: `usuario-anonimo-inscripcion-${registration.id}@anonimo.invalid`,
           phone: '0000000000'
         }
