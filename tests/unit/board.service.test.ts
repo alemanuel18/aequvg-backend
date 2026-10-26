@@ -7,7 +7,7 @@ vi.mock('../../src/modules/board/repositories/board.repository', () => ({ boardR
 
 import { boardService, normalizeBoardInput } from '../../src/modules/board/services/board.service'
 
-const valid = { name: 'Ana Pérez', position: 'Presidenta', institutionalEmail: ' ANA@UVG.EDU.GT ', termStartsAt: '2026-01-01', termEndsAt: '2027-01-01', displayOrder: 1, status: 'ACTIVO' as const }
+const valid = { firstNames: 'Ana', lastNames: 'Pérez', position: 'Presidenta', institutionalEmail: ' ANA@UVG.EDU.GT ', termStartsAt: '2026-01-01', termEndsAt: '2027-01-01', displayOrder: 1, status: 'ACTIVO' as const }
 
 describe('servicio de Junta Directiva', () => {
   beforeEach(() => vi.clearAllMocks())

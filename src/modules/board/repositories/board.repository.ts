@@ -5,6 +5,8 @@ const select = {
   id: true,
   photoId: true,
   name: true,
+  firstNames: true,
+  lastNames: true,
   position: true,
   description: true,
   institutionalEmail: true,

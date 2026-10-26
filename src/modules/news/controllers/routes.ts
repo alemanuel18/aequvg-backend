@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia'
 import { requireAdmin } from '../../../middleware/admin'
-import { newsAdminQuery, newsCategoryListResponse, newsCreateBody, newsErrorResponse, newsListResponse, newsPublicQuery, newsResponse, newsUpdateBody } from '../dtos/schemas'
+import { newsAdminQuery, newsCategoryCreateBody, newsCategoryListResponse, newsCategoryResponse, newsCreateBody, newsErrorResponse, newsListResponse, newsPublicQuery, newsResponse, newsUpdateBody } from '../dtos/schemas'
 import { newsService } from '../services/news.service'
 
 const idParams = t.Object({ id: t.Integer({ minimum: 1 }) })
@@ -9,6 +9,15 @@ export const newsRoutes = new Elysia({ prefix: '/api/v1' })
   .get('/news/categories', () => newsService.activeCategories(), {
     response: { 200: newsCategoryListResponse },
     detail: { tags: ['Noticias'], summary: 'Consulta categorías activas de noticias', description: 'Devuelve únicamente categorías activas que pueden usarse al consultar publicaciones públicas.' }
+  })
+  .post('/admin/news/categories', async ({ request, body, set }) => {
+    await requireAdmin(request, 'NEWS_MANAGE')
+    set.status = 201
+    return newsService.createCategory(body.name)
+  }, {
+    body: newsCategoryCreateBody,
+    response: { 201: newsCategoryResponse, 401: newsErrorResponse, 403: newsErrorResponse, 409: newsErrorResponse, 422: newsErrorResponse, 503: newsErrorResponse },
+    detail: { tags: ['Administración'], summary: 'Crea una categoría de noticias', description: 'Requiere sesión administrativa con NEWS_MANAGE y un nombre único de 2 a 80 caracteres.' }
   })
   .get('/news', ({ query }) => newsService.publicList(query), {
     query: newsPublicQuery,

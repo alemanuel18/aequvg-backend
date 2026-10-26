@@ -11,7 +11,7 @@ import { createApp } from '../../src/app'
 const SESSION_SECRET = 'secreto-de-junta-con-al-menos-32-caracteres'
 const USER_AGENT = 'AEQUVG-Board-Test/1.0'
 const PLATFORM = '"Linux"'
-const validMember = { name: 'Ana Pérez', position: 'Presidenta', description: null, institutionalEmail: 'ana@uvg.edu.gt', termStartsAt: '2026-01-01', termEndsAt: '2026-12-31', displayOrder: 1, status: 'ACTIVO' }
+const validMember = { firstNames: 'Ana', lastNames: 'Pérez', position: 'Presidenta', description: null, institutionalEmail: 'ana@uvg.edu.gt', termStartsAt: '2026-01-01', termEndsAt: '2026-12-31', displayOrder: 1, status: 'ACTIVO' }
 
 describe('acceso administrativo de Junta Directiva', () => {
   const app = createApp()
@@ -65,6 +65,14 @@ describe('acceso administrativo de Junta Directiva', () => {
     const saved = { id: 8, photoId: null, ...validMember, term: '2026', photo: null }
     boardRepoMocks.adminList.mockResolvedValue([saved]); boardRepoMocks.findById.mockResolvedValue({ id: 8 }); boardRepoMocks.findIds.mockResolvedValue([{ id: 8 }]); boardRepoMocks.create.mockResolvedValue(saved); boardRepoMocks.update.mockResolvedValue(saved); boardRepoMocks.retire.mockResolvedValue({ ...saved, status: 'INACTIVO' }); boardRepoMocks.reorder.mockResolvedValue([saved])
     for (const route of routes) expect((await request(route.method, route.path, session(), route.body)).status).toBe(route.method === 'POST' ? 201 : 200)
+  })
+
+  it('rechaza integrantes sin los campos obligatorios antes de escribir', async () => {
+    for (const field of ['firstNames', 'lastNames', 'position', 'institutionalEmail', 'termStartsAt', 'termEndsAt', 'status'] as const) {
+      const response = await request('POST', '/api/v1/admin/board-members', session(), { ...validMember, [field]: undefined })
+      expect(response.status).toBe(422)
+    }
+    expect(boardRepoMocks.create).not.toHaveBeenCalled()
   })
 
   it('rechaza manipulación de IDs sin tocar el repositorio', async () => {

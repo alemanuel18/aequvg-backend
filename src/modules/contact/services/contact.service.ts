@@ -5,15 +5,20 @@ import { cleanText, isHttpUrl } from '../../../shared/utils/text'
 import { contactRepository } from '../repositories/contact.repository'
 import { contactEmailService } from './contact-email.service'
 
-export type RequestInput = { name: string; email: string; phone: string; type: ContactRequestType; subject: string; message: string; preferredAt?: string | null; consent: true; privacyVersion: string; website?: string }
+export type RequestInput = { firstNames: string; lastNames: string; email: string; phone: string; type: ContactRequestType; subject: string; message: string; preferredAt?: string | null; consent: true; privacyVersion: string; website?: string }
 export type MethodInput = { type: ContactMethodType; label: string; value: string; url?: string | null; displayOrder?: number; active?: boolean }
 
 export const normalizeContactRequest = (input: RequestInput) => {
   if (!input.consent) throw new AppError(422, 'CONSENT_REQUIRED', 'Debes aceptar el aviso de privacidad.')
   if (input.website) throw new AppError(400, 'INVALID_REQUEST', 'La solicitud no es válida.')
   if (input.type === 'REUNION' && !input.preferredAt) throw new AppError(422, 'PREFERRED_DATE_REQUIRED', 'Indica una fecha tentativa para la reunión.', { preferredAt: 'Campo obligatorio para reuniones.' })
+  const firstNames = cleanText(input.firstNames)
+  const lastNames = cleanText(input.lastNames)
+  if (firstNames.length < 2 || lastNames.length < 2 || firstNames.length > 80 || lastNames.length > 80) throw new AppError(422, 'INVALID_NAME', 'Escribe nombres y apellidos válidos.')
   const normalized = {
-    name: cleanText(input.name),
+    name: `${firstNames} ${lastNames}`,
+    firstNames,
+    lastNames,
     email: input.email.trim().toLowerCase(),
     phone: cleanText(input.phone),
     type: input.type,
@@ -23,7 +28,7 @@ export const normalizeContactRequest = (input: RequestInput) => {
     consentedAt: new Date(),
     privacyVersion: cleanText(input.privacyVersion)
   }
-  const missingField = (['name', 'phone', 'subject', 'message', 'privacyVersion'] as const).find(field => !normalized[field])
+  const missingField = (['phone', 'subject', 'message', 'privacyVersion'] as const).find(field => !normalized[field])
   if (missingField || !normalized.email) {
     const field = missingField ?? 'email'
     throw new AppError(422, 'VALIDATION_ERROR', 'Completa los campos obligatorios.', { [field]: 'Campo obligatorio.' })
@@ -35,15 +40,20 @@ const normalizeMethod = (input: MethodInput) => {
   const { displayOrder: _displayOrder, ...method } = input
   const label = cleanText(input.label)
   const value = cleanText(input.value)
+  if (label.length < 2 || value.length < 2) throw new AppError(422, 'INVALID_CONTACT_METHOD', 'Completa el nombre y el valor público del medio.')
   const suppliedUrl = input.url?.trim() || null
   let url = suppliedUrl
+  let normalizedValue = value
 
   if (input.type === 'EMAIL') {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) throw new AppError(422, 'INVALID_CONTACT_EMAIL', 'Ingresa un correo de contacto válido.', { value: 'El correo no es válido.' })
     url = `mailto:${value.toLowerCase()}`
   } else if (input.type === 'TELEFONO') {
-    if (!/^[+\d][\d\s().-]{6,39}$/.test(value)) throw new AppError(422, 'INVALID_CONTACT_PHONE', 'Ingresa un teléfono de contacto válido.', { value: 'El teléfono no es válido.' })
-    url = suppliedUrl ?? `tel:${value.replace(/[^+\d]/g, '')}`
+    const compactPhone = value.replace(/[\s().-]/g, '')
+    const nationalPhone = compactPhone.startsWith('+502') ? compactPhone.slice(4) : compactPhone
+    if (!/^\d{8}$/.test(nationalPhone)) throw new AppError(422, 'INVALID_CONTACT_PHONE', 'Ingresa los 8 dígitos de un número de Guatemala.', { value: 'Ingresa un número guatemalteco de 8 dígitos, sin +502.' })
+    normalizedValue = `+502 ${nationalPhone.slice(0, 4)} ${nationalPhone.slice(4)}`
+    url = `tel:+502${nationalPhone}`
   } else {
     if (!suppliedUrl || !isHttpUrl(suppliedUrl)) throw new AppError(422, 'CONTACT_URL_REQUIRED', 'Este medio requiere un enlace HTTPS válido.', { url: 'Ingresa un enlace válido.' })
     const parsedUrl = new URL(suppliedUrl)
@@ -53,7 +63,7 @@ const normalizeMethod = (input: MethodInput) => {
     }
   }
 
-  return { ...method, label, value: input.type === 'EMAIL' ? value.toLowerCase() : value, url, active: input.active ?? true }
+  return { ...method, label, value: input.type === 'EMAIL' ? value.toLowerCase() : normalizedValue, url, active: input.active ?? true }
 }
 
 const translateMissingMethod = (error: unknown): never => {
@@ -109,6 +119,7 @@ export const contactService = {
     const minuteBucket = Math.floor(Date.now() / 60_000)
     const fingerprint = createHash('sha256').update(JSON.stringify({ ...request, consentedAt: request.consentedAt.toISOString(), preferredAt: request.preferredAt?.toISOString(), minuteBucket })).digest('hex')
     await contactEmailService.send(recipient.value, { ...request, deliveryKey: `contact/${fingerprint}` })
+    await contactRepository.createRequest(request)
     return { accepted: true as const }
   }
 }

@@ -143,14 +143,17 @@ async function main() {
   }
 
   for (const [index, [name, position, institutionalEmail]] of board.entries()) {
-    const data = { name, position, institutionalEmail, term: '2026', displayOrder: index + 1, status: 'ACTIVO' as const }
+    const nameParts = name.trim().split(/\s+/)
+    const lastNames = nameParts.pop() ?? 'No registrado'
+    const firstNames = nameParts.join(' ') || lastNames
+    const data = { name, firstNames, lastNames, position, institutionalEmail, term: '2026', displayOrder: index + 1, status: 'ACTIVO' as const }
     const existing = await prisma.boardMember.findFirst({ where: { institutionalEmail } })
     if (existing) await prisma.boardMember.update({ where: { id: existing.id }, data })
     else await prisma.boardMember.create({ data })
   }
 
   const blocks = [
-    { type: 'HERO' as const, title: 'Contenido de desarrollo', subtitle: 'Datos de ejemplo para una base local.', body: 'Este bloque permite verificar el flujo público sin usar contenido institucional definitivo.', displayOrder: 1 },
+    { type: 'HERO' as const, title: 'Contenido de desarrollo', subtitle: 'Datos de ejemplo para una base local.', body: 'Este bloque permite verificar el flujo público sin usar contenido institucional definitivo.', actionLabel: 'Conocer la carrera', actionUrl: '/contacto', displayOrder: 1 },
     { type: 'LABORATORIO' as const, title: 'Laboratorios', subtitle: null, body: 'Información de ejemplo para validar el orden del contenido.', displayOrder: 1 }
   ]
   for (const block of blocks) {

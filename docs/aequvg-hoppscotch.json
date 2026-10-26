@@ -90,7 +90,7 @@
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"name\": \"Persona de prueba\",\n  \"email\": \"persona@example.com\",\n  \"phone\": \"+502 5555-5555\",\n  \"type\": \"CONSULTA\",\n  \"subject\": \"Información de la carrera\",\n  \"message\": \"Quisiera recibir información sobre la carrera.\",\n  \"consent\": true,\n  \"privacyVersion\": \"2026-09\"\n}"
+            "body": "{\n  \"firstNames\": \"Persona\",\n  \"lastNames\": \"de prueba\",\n  \"email\": \"persona@example.com\",\n  \"phone\": \"+502 5555-5555\",\n  \"type\": \"CONSULTA\",\n  \"subject\": \"Información de la carrera\",\n  \"message\": \"Quisiera recibir información sobre la carrera.\",\n  \"consent\": true,\n  \"privacyVersion\": \"2026-09\"\n}"
           }
         },
         {
@@ -382,7 +382,7 @@
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"fullName\": \"Estudiante de Prueba\",\n  \"email\": \"estudiante.prueba@example.com\",\n  \"phone\": \"+502 5555-0123\",\n  \"consent\": true,\n  \"privacyVersion\": \"pendiente-validacion\"\n}"
+            "body": "{\n  \"firstNames\": \"Estudiante\",\n  \"lastNames\": \"de Prueba\",\n  \"email\": \"estudiante.prueba@example.com\",\n  \"phone\": \"+502 5555-0123\",\n  \"consent\": true,\n  \"privacyVersion\": \"pendiente-validacion\"\n}"
           }
         },
         {
@@ -409,7 +409,7 @@
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"fullName\": \"Participante Excedente\",\n  \"email\": \"excedente@example.com\",\n  \"phone\": \"+502 5555-9876\",\n  \"consent\": true,\n  \"privacyVersion\": \"pendiente-validacion\"\n}"
+            "body": "{\n  \"firstNames\": \"Participante\",\n  \"lastNames\": \"Excedente\",\n  \"email\": \"excedente@example.com\",\n  \"phone\": \"+502 5555-9876\",\n  \"consent\": true,\n  \"privacyVersion\": \"pendiente-validacion\"\n}"
           }
         },
         {
@@ -940,6 +940,33 @@
           "body": {
             "contentType": null,
             "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Crear categoría de noticias",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/news/categories",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"name\": \"Convocatorias\"\n}"
           }
         },
         {
@@ -2011,7 +2038,7 @@
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"type\": \"HERO\",\n  \"title\": \"Licenciatura en Química UVG\",\n  \"subtitle\": \"Liderazgo científico con excelencia analítica\",\n  \"body\": \"Formamos profesionales con capacidad innovadora para resolver los retos del país.\",\n  \"actionLabel\": \"Conocer el programa\",\n  \"actionUrl\": \"#conocer-carrera\",\n  \"displayOrder\": 0,\n  \"status\": \"PUBLICADO\"\n}"
+            "body": "{\n  \"type\": \"HERO\",\n  \"title\": \"Licenciatura en Química UVG\",\n  \"subtitle\": \"Liderazgo científico con excelencia analítica\",\n  \"body\": \"Formamos profesionales con capacidad innovadora para resolver los retos del país.\",\n  \"actionLabel\": \"Conocer el programa\",\n  \"actionUrl\": \"/contacto\",\n  \"displayOrder\": 0,\n  \"status\": \"PUBLICADO\"\n}"
           }
         },
         {

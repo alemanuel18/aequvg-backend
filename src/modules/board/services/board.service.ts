@@ -3,26 +3,28 @@ import { AppError } from '../../../shared/errors/app-error'
 import { cleanText } from '../../../shared/utils/text'
 import { boardRepository } from '../repositories/board.repository'
 
-export type BoardInput = { name: string; position: string; description?: string | null; institutionalEmail: string; termStartsAt: string; termEndsAt: string; displayOrder?: number; status?: BoardMemberStatus }
+export type BoardInput = { firstNames: string; lastNames: string; position: string; description?: string | null; institutionalEmail: string; termStartsAt: string; termEndsAt: string; displayOrder?: number; status?: BoardMemberStatus }
 
 const notFound = () => new AppError(404, 'BOARD_MEMBER_NOT_FOUND', 'El integrante de junta solicitado no existe.')
 
 export const normalizeBoardInput = async (input: BoardInput, currentDisplayOrder = 0): Promise<Prisma.BoardMemberUncheckedCreateInput> => {
   if (!input || typeof input !== 'object') throw new AppError(422, 'INVALID_BOARD_CONTENT', 'Completa los campos obligatorios del integrante.')
-  const requiredFields = ['name', 'position', 'institutionalEmail', 'termStartsAt', 'termEndsAt'] as const
+  const requiredFields = ['firstNames', 'lastNames', 'position', 'institutionalEmail', 'termStartsAt', 'termEndsAt'] as const
   if (requiredFields.some(field => typeof input[field] !== 'string' || !input[field].trim())) {
     throw new AppError(422, 'INVALID_BOARD_CONTENT', 'Completa los campos obligatorios del integrante.')
   }
   const email = input.institutionalEmail.trim().toLowerCase()
-  const name = cleanText(input.name)
+  const firstNames = cleanText(input.firstNames)
+  const lastNames = cleanText(input.lastNames)
+  const name = `${firstNames} ${lastNames}`
   const position = cleanText(input.position)
-  if (name.length < 2 || position.length < 2) throw new AppError(422, 'INVALID_BOARD_CONTENT', 'Nombre y cargo deben contener texto válido.')
+  if (firstNames.length < 2 || lastNames.length < 2 || firstNames.length > 80 || lastNames.length > 80 || name.length > 160 || position.length < 2) throw new AppError(422, 'INVALID_BOARD_CONTENT', 'Nombres, apellidos y cargo deben contener texto válido.')
   if (!/^[^\s@]+@uvg\.edu\.gt$/i.test(email)) throw new AppError(422, 'INVALID_INSTITUTIONAL_EMAIL', 'El correo institucional debe pertenecer exactamente a @uvg.edu.gt.')
   if (input.termStartsAt > input.termEndsAt) throw new AppError(422, 'INVALID_TERM', 'El inicio del período debe ser anterior al final.')
   const startYear = Number(input.termStartsAt.slice(0, 4))
   const endYear = Number(input.termEndsAt.slice(0, 4))
   const term = startYear === endYear ? String(startYear) : `${startYear}–${endYear}`
-  return { name, position, description: input.description ? cleanText(input.description) : null, institutionalEmail: email, term, termStartsAt: new Date(`${input.termStartsAt}T00:00:00.000Z`), termEndsAt: new Date(`${input.termEndsAt}T00:00:00.000Z`), displayOrder: input.displayOrder ?? currentDisplayOrder, status: input.status ?? 'ACTIVO' as BoardMemberStatus }
+  return { name, firstNames, lastNames, position, description: input.description ? cleanText(input.description) : null, institutionalEmail: email, term, termStartsAt: new Date(`${input.termStartsAt}T00:00:00.000Z`), termEndsAt: new Date(`${input.termEndsAt}T00:00:00.000Z`), displayOrder: input.displayOrder ?? currentDisplayOrder, status: input.status ?? 'ACTIVO' as BoardMemberStatus }
 }
 
 export const boardService = {

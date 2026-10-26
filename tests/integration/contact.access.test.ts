@@ -4,6 +4,7 @@ import { hmacSha256, randomToken, sha256, signSessionJwt } from '../../src/share
 const authRepoMocks = vi.hoisted(() => ({ findUserByEmail: vi.fn(), findSession: vi.fn(), revokeSession: vi.fn(), touchSession: vi.fn() }))
 const contactRepoMocks = vi.hoisted(() => ({
   publicMethods: vi.fn(), allMethods: vi.fn(), primaryEmailMethod: vi.fn(),
+  createRequest: vi.fn(),
   createMethod: vi.fn(), updateMethod: vi.fn(), deactivateMethod: vi.fn(), reorderMethods: vi.fn()
 }))
 const emailMocks = vi.hoisted(() => ({ send: vi.fn() }))
@@ -136,7 +137,7 @@ describe('Acceso administrativo y entrega pública de contacto', () => {
   it('mantiene público el POST, valida consentimiento y no acepta estados internos', async () => {
     contactRepoMocks.primaryEmailMethod.mockResolvedValue({ value: 'asoquimica@uvg.edu.gt' })
     emailMocks.send.mockResolvedValue(undefined)
-    const body = { name: 'Ana Pérez', email: 'ana@example.com', phone: '+502 5555 5555', type: 'CONSULTA', subject: 'Información', message: 'Quisiera recibir más información.', consent: true, privacyVersion: '2026-10' }
+    const body = { firstNames: 'Ana', lastNames: 'Pérez', email: 'ana@example.com', phone: '+502 5555 5555', type: 'CONSULTA', subject: 'Información', message: 'Quisiera recibir más información.', consent: true, privacyVersion: '2026-10' }
     const accepted = await request('POST', '/api/v1/contact-requests', undefined, body)
     expect(accepted.status).toBe(202)
     expect(await accepted.json()).toEqual({ accepted: true })
@@ -145,6 +146,27 @@ describe('Acceso administrativo y entrega pública de contacto', () => {
     const invalid = await request('POST', '/api/v1/contact-requests', undefined, { ...body, consent: false, status: 'ATENDIDA' })
     expect(invalid.status).toBe(422)
     expect(emailMocks.send).toHaveBeenCalledOnce()
+  })
+
+  it('rechaza campos obligatorios y la fecha ausente de una reunión desde la API', async () => {
+    const body = { name: 'Ana Pérez', email: 'ana@example.com', phone: '+502 5555 5555', type: 'CONSULTA', subject: 'Información', message: 'Quisiera recibir más información.', consent: true, privacyVersion: '2026-10' }
+    for (const field of ['name', 'email', 'phone', 'type', 'subject', 'message', 'consent', 'privacyVersion'] as const) {
+      const response = await request('POST', '/api/v1/contact-requests', undefined, { ...body, [field]: undefined })
+      expect(response.status).toBe(422)
+    }
+    expect((await request('POST', '/api/v1/contact-requests', undefined, { ...body, type: 'REUNION' })).status).toBe(422)
+    expect(emailMocks.send).not.toHaveBeenCalled()
+  })
+
+  it('rechaza medios sin nombre, valor o enlace requerido desde la API', async () => {
+    for (const body of [
+      { ...validMethod, label: undefined },
+      { ...validMethod, value: undefined },
+      { ...validMethod, url: undefined }
+    ]) {
+      expect((await request('POST', '/api/v1/admin/contact-methods', session(), body)).status).toBe(422)
+    }
+    expect(contactRepoMocks.createMethod).not.toHaveBeenCalled()
   })
 
   it('no expone la bandeja descartada ni sus detalles', async () => {
