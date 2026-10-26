@@ -115,13 +115,15 @@ describe('contrato HTTP base', () => {
       paths: Record<string, Record<string, {
         description?: string
         security?: Array<Record<string, string[]>>
-        parameters?: Array<{ name: string; schema?: { enum?: string[] } }>
+        parameters?: Array<{ name: string; required?: boolean; schema?: { enum?: string[] } }>
         requestBody?: { content?: { 'application/json'?: { schema?: { properties?: Record<string, { minLength?: number; maxLength?: number }> } } } }
       }>>
     }
     const publicationPath = document.paths['/api/v1/publications/{targetType}/{targetId}/comments']
     const targetType = publicationPath?.get?.parameters?.find(parameter => parameter.name === 'targetType')
+    const idempotencyKey = publicationPath?.post?.parameters?.find(parameter => parameter.name === 'idempotency-key')
     expect(targetType?.schema?.enum).toEqual(['NOTICIA', 'PROYECTO', 'EVENTO'])
+    expect(idempotencyKey?.required).toBe(true)
     expect(publicationPath?.get?.description).toContain('registro PROYECTO de tipo PROYECTO aprobado (TESIS excluida)')
     expect(publicationPath?.post?.requestBody?.content?.['application/json']?.schema?.properties).toEqual({
       content: expect.objectContaining({ minLength: 1, maxLength: 2000 })
@@ -135,6 +137,8 @@ describe('contrato HTTP base', () => {
     expect(history?.description).toContain('no hay parámetro para consultar el historial de otra cuenta')
     expect(history?.parameters?.some(parameter => parameter.name.toLowerCase().includes('student'))).toBe(false)
     expect(history?.security).toEqual([{ studentCookieAuth: [] }])
+    const profileUpdate = document.paths['/api/v1/student-auth/me']?.patch
+    expect(profileUpdate?.parameters?.find(parameter => parameter.name === 'idempotency-key')?.required).toBe(true)
     expect(document.paths['/api/v1/admin/comments/history']?.get?.security).toEqual([{ cookieAuth: [] }])
   })
 
@@ -146,7 +150,7 @@ describe('contrato HTTP base', () => {
 
   it('rechaza que un visitante publique comentarios aunque envíe un autor', async () => {
     const response = await app.handle(new Request('http://localhost/api/v1/publications/EVENTO/1/comments', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
+      method: 'POST', headers: { 'content-type': 'application/json', 'idempotency-key': 'visitor-attempt-1' },
       body: JSON.stringify({ content: 'Intento anónimo', studentId: 1, authorId: 1 })
     }))
     expect(response.status).toBe(401)

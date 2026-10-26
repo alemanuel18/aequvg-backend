@@ -22,8 +22,15 @@ let thesisId = 0
 let studentHeaders: Record<string, string>
 let otherStudentHeaders: Record<string, string>
 const app = createApp()
+let idempotencyRequestId = 0
 
-const request = (path: string, options: RequestInit = {}) => new Request(`http://localhost${path}`, options)
+const request = (path: string, options: RequestInit = {}) => {
+  const headers = new Headers(options.headers)
+  if (['POST', 'PUT'].includes(options.method ?? '') && path.includes('/comments')) {
+    headers.set('idempotency-key', `${runId}-${++idempotencyRequestId}`)
+  }
+  return new Request(`http://localhost${path}`, { ...options, headers })
+}
 
 describeDatabase('comentarios de publicaciones con PostgreSQL', () => {
   beforeEach(() => clearRateLimitsForTests())
@@ -143,6 +150,14 @@ describeDatabase('comentarios de publicaciones con PostgreSQL', () => {
     const publicComments = await app.handle(request(`/api/v1/publications/EVENTO/${eventId}/comments`))
     expect(publicComments.status).toBe(200)
     expect(await publicComments.json()).toMatchObject({ total: 2, items: expect.arrayContaining([expect.objectContaining({ id: created.id }), expect.objectContaining({ id: secondCreated.id })]) })
+  })
+
+  it('rechaza creación de comentarios sin clave de idempotencia', async () => {
+    const response = await app.handle(new Request(`http://localhost/api/v1/publications/EVENTO/${eventId}/comments`, {
+      method: 'POST', headers: studentHeaders, body: JSON.stringify({ content: 'Comentario sin clave' })
+    }))
+    expect(response.status).toBe(422)
+    expect(await prisma.publicationComment.count({ where: { eventId, content: 'Comentario sin clave' } })).toBe(0)
   })
 
   it('conecta creación, publicación e historial con noticias, proyectos y eventos', async () => {

@@ -34,6 +34,7 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
       SESSION_SECRET: ${SESSION_SECRET:-change-me-with-at-least-32-random-characters}
+      MODERATION_POLICY_JSON: ${MODERATION_POLICY_JSON:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
       MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID:-}
