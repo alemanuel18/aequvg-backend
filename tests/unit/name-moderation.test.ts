@@ -6,17 +6,21 @@ describe('filtro de nombres de estudiantes', () => {
     expect(containsOffensiveName('María José Pérez')).toBe(false)
   })
 
-  it('detecta términos ofensivos aunque usen mayúsculas o tildes', () => {
-    expect(containsOffensiveName('Nombre CEROTE')).toBe(true)
-    expect(containsOffensiveName('Idióta')).toBe(true)
+  it.each([
+    ['CEROTE', 'Nombre CEROTE'],
+    ['tildes y mayúsculas', 'IDÍOTA Pérez'],
+    ['separadores', 'i.d.i.o.t.a'],
+    ['caracteres invisibles', 'i\u200Bd\u200Biota'],
+    ['sustituciones simples', '1d10ta']
+  ])('detecta el corpus ofensivo con %s', (_label, candidate) => {
+    expect(containsOffensiveName(candidate)).toBe(true)
   })
 
-  it('no bloquea coincidencias parciales dentro de un nombre', () => {
-    expect(containsOffensiveName('Putomayo')).toBe(false)
-  })
-
-  it('detecta separadores y sustituciones simples sin coincidencia parcial', () => {
-    expect(containsOffensiveName('1.d.i.o.t.a')).toBe(true)
-    expect(containsOffensiveName('Putomayo')).toBe(false)
+  it.each([
+    ['topónimo con coincidencia parcial', 'Putomayo'],
+    ['nombre académico', 'María Analía Pérez'],
+    ['nombre inocuo con acentos', 'José María López']
+  ])('no marca como ofensivo el caso inocuo: %s', (_label, candidate) => {
+    expect(containsOffensiveName(candidate)).toBe(false)
   })
 })

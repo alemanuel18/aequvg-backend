@@ -8,18 +8,22 @@ describe('moderación de texto público', () => {
     expect(publicTextModerationService.isCommentAllowed('Gracias por compartir la información.')).toBe(true)
   })
 
-  it('rechaza insultos directos aunque cambien las mayúsculas o tildes', () => {
-    expect(publicTextModerationService.isCommentAllowed('Eres un IDIÓTA')).toBe(false)
-    expect(publicTextModerationService.isCommentAllowed('Qué mierda')).toBe(false)
+  it.each([
+    ['mayúsculas y tildes', 'Eres un IDIÓTA'],
+    ['mayúsculas', 'Qué MIERDA'],
+    ['separadores', 'i.d.i.o.t.a'],
+    ['caracteres invisibles', 'i\u200Bd\u200Biota'],
+    ['sustituciones simples', '1d10ta']
+  ])('rechaza el corpus ofensivo con %s', (_label, candidate) => {
+    expect(publicTextModerationService.isCommentAllowed(candidate)).toBe(false)
   })
 
-  it('revisa términos completos sin bloquear coincidencias dentro de otras palabras', () => {
-    expect(publicTextModerationService.isCommentAllowed('Putomayo es un topónimo')).toBe(true)
-  })
-
-  it('normaliza caracteres invisibles y evasiones simples antes de rechazar', () => {
-    expect(publicTextModerationService.isCommentAllowed('i.d.i.o.t.a')).toBe(false)
-    expect(publicTextModerationService.isCommentAllowed('i\u200Bd\u200Biota')).toBe(false)
+  it.each([
+    ['frase académica', 'La química analítica estudia las sustancias.'],
+    ['coincidencia parcial de topónimo', 'Putomayo es un topónimo'],
+    ['palabra académica inocua', 'El análisis cuantitativo usa métodos cuidadosos.']
+  ])('permite el texto inocuo: %s', (_label, candidate) => {
+    expect(publicTextModerationService.isCommentAllowed(candidate)).toBe(true)
   })
 
   it('conecta MOD por defecto y rechaza antes de guardar', async () => {
