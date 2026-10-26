@@ -3,6 +3,7 @@ import { AppError } from '../../src/shared/errors/app-error'
 
 const repositoryMocks = vi.hoisted(() => ({
   primaryEmailMethod: vi.fn(),
+  createRequest: vi.fn(),
   publicMethods: vi.fn(),
   allMethods: vi.fn(),
   createMethod: vi.fn(),
@@ -17,13 +18,13 @@ vi.mock('../../src/modules/contact/services/contact-email.service', () => ({ con
 
 import { contactService, normalizeContactRequest } from '../../src/modules/contact/services/contact.service'
 
-const valid = { name: 'Ana Pérez', email: 'ANA@example.com', phone: '+502 5555 5555', type: 'CONSULTA' as const, subject: 'Información', message: 'Quisiera conocer más detalles.', consent: true as const, privacyVersion: '2026-09' }
+const valid = { firstNames: 'Ana', lastNames: 'Pérez', email: 'ANA@example.com', phone: '+502 5555 5555', type: 'CONSULTA' as const, subject: 'Información', message: 'Quisiera conocer más detalles.', consent: true as const, privacyVersion: '2026-09' }
 
 describe('normalización de solicitudes de contacto', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('sanitiza texto y normaliza el correo', () => {
-    const result = normalizeContactRequest({ ...valid, name: '<b>Ana</b> Pérez' })
+    const result = normalizeContactRequest({ ...valid, firstNames: '<b>Ana</b>' })
     expect(result.name).toBe('Ana Pérez')
     expect(result.email).toBe('ana@example.com')
     expect(result.consentedAt).toBeInstanceOf(Date)
@@ -47,6 +48,7 @@ describe('normalización de solicitudes de contacto', () => {
       subject: 'Información',
       deliveryKey: expect.stringMatching(/^contact\/[a-f0-9]{64}$/)
     }))
+    expect(repositoryMocks.createRequest).toHaveBeenCalledWith(expect.objectContaining({ name: 'Ana Pérez', firstNames: 'Ana', lastNames: 'Pérez' }))
   })
 
   it('rechaza el envío cuando no existe un correo oficial activo', async () => {

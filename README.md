@@ -200,10 +200,12 @@ e imagen. Las FK al administrador y archivo usan `ON DELETE RESTRICT` y
 `ON UPDATE CASCADE`.
 
 `EventRegistration` se mapea a `inscripcion_evento`: `id` → `id_inscripcion`,
-`eventId` → `id_evento`, `fullName` → `nombre_completo`, `email` → `correo`, `phone`
+`eventId` → `id_evento`, `fullName` → `nombre_completo` (presentación),
+`firstNames` → `nombres`, `lastNames` → `apellidos`, `email` → `correo`, `phone`
 → `telefono`, `status` → `estado`, `consentedAt` → `consentimiento_en`,
-`privacyVersion` → `version_privacidad` y `registeredAt` → `inscrito_en`. Todos
-son obligatorios. La FK al evento usa las mismas políticas RESTRICT/CASCADE.
+`privacyVersion` → `version_privacidad` y `registeredAt` → `inscrito_en`. La
+aplicación guarda los componentes por separado y conserva el nombre compuesto para
+listados existentes. La FK al evento usa las mismas políticas RESTRICT/CASCADE.
 Los estados son `CONFIRMADA` (default) y `CANCELADA`; el índice `(id_evento, estado)`
 soporta el conteo de confirmadas. Los IDs son enteros autoincrementales y las
 fechas son `TIMESTAMPTZ(3)`; creación e inscripción tienen default de fecha actual.
@@ -231,7 +233,7 @@ fechas son `TIMESTAMPTZ(3)`; creación e inscripción tienen default de fecha ac
 
 `GET /api/v1/contact-methods` devuelve solo medios activos, ordenados de forma estable por `displayOrder` e ID. Las ubicaciones exigen una URL de Google Maps y siempre se entregan después de los demás medios, independientemente de su orden almacenado. Las redes conocidas usan `INSTAGRAM` o `FACEBOOK`; cualquier red futura se registra como `OTRO` con etiqueta, valor y URL HTTPS, sin requerir una migración.
 
-`POST /api/v1/contact-requests` permanece público, exige consentimiento, versión de privacidad y el honeypot vacío, y conserva el rate limit por IP. Ya no persiste una bandeja ni acepta estados internos: normaliza la entrada, selecciona el medio `EMAIL` activo con menor orden y entrega el mensaje mediante la API de Resend. Cada contenido genera una clave de idempotencia por minuto para que reintentos o dobles envíos equivalentes no dupliquen el correo. Responde `202 { "accepted": true }` únicamente cuando el proveedor aceptó el correo. La tabla histórica `solicitud_contacto` se conserva sin uso para evitar una migración destructiva.
+`POST /api/v1/contact-requests` permanece público, exige `firstNames`, `lastNames`, consentimiento, versión de privacidad y el honeypot vacío, y conserva el rate limit por IP. Normaliza la entrada, compone el nombre para el correo y persiste la solicitud con los nombres y apellidos separados después de que Resend acepta el mensaje. Cada contenido genera una clave de idempotencia por minuto para que reintentos o dobles envíos equivalentes no dupliquen el correo. Responde `202 { "accepted": true }` únicamente cuando el correo se entregó y la solicitud quedó guardada. La bandeja histórica no tiene rutas administrativas.
 
 Configura:
 
@@ -239,7 +241,7 @@ Configura:
 - `CONTACT_FROM_EMAIL`: remitente verificado en Resend, por ejemplo `AsoQuimica UVG <contacto@dominio-verificado.gt>`.
 - El destinatario se cambia desde `PUT /api/v1/admin/contact-methods/:id` o desde `/administrador/contacto`, no mediante variables de entorno.
 
-Las rutas administrativas disponibles son `GET`, `POST`, `PUT` y `DELETE /api/v1/admin/contact-methods`. Requieren sesión activa, permiso `CONTACT_MANAGE` y CSRF en escrituras. `PUT /api/v1/admin/contact-methods/order` recibe `{ "orderedIds": [3, 1, 4] }`: debe incluir una sola vez todos los medios que no sean ubicaciones y persiste posiciones únicas en una transacción. Crear un medio lo añade al final y editarlo conserva su posición; si deja de ser ubicación, pasa al final. `DELETE` desactiva el medio, no lo elimina. Las antiguas rutas `/api/v1/admin/contact-requests` fueron retiradas porque el producto no administra solicitudes.
+Las rutas administrativas disponibles son `GET`, `POST`, `PUT` y `DELETE /api/v1/admin/contact-methods`. Requieren sesión activa, permiso `CONTACT_MANAGE` y CSRF en escrituras. `PUT /api/v1/admin/contact-methods/order` recibe `{ "orderedIds": [3, 1, 4] }`: debe incluir una sola vez todos los medios que no sean ubicaciones y persiste posiciones únicas en una transacción. Crear un medio lo añade al final y editarlo conserva su posición; si deja de ser ubicación, pasa al final. `DELETE` desactiva el medio, no lo elimina. Las solicitudes se guardan para persistencia interna, pero no hay rutas administrativas para consultarlas.
 
 Errores propios: `422 INVALID_CONTACT_EMAIL`, `INVALID_CONTACT_PHONE`, `CONTACT_URL_REQUIRED`, `GOOGLE_MAPS_URL_REQUIRED` o `INVALID_CONTACT_ORDER`; `404 CONTACT_METHOD_NOT_FOUND`; `503 CONTACT_RECIPIENT_NOT_CONFIGURED` o `CONTACT_DELIVERY_NOT_CONFIGURED`; `502 CONTACT_DELIVERY_FAILED`.
 
@@ -258,7 +260,7 @@ Ambos endpoints exponen el campo dinámico `availableCapacity` (entero >= 0), ca
 
 `POST /api/v1/events/:id/registrations` permite a estudiantes con sesión activa inscribirse a un evento público. El listado y detalle del evento permanecen públicos; la escritura exige cookies estudiantiles y `X-CSRF-Token`:
 
-- **Campos requeridos:** `fullName` (mínimo 2 caracteres), `email`, `phone` (mínimo 7 caracteres), `consent` (`true` obligatorio) y `privacyVersion` (cadena no vacía). Campo opcional: `website` (honeypot).
+- **Campos requeridos:** `firstNames` y `lastNames` (2–80 caracteres cada uno), `email`, `phone` (mínimo 7 caracteres), `consent` (`true` obligatorio) y `privacyVersion` (cadena no vacía). Campo opcional: `website` (honeypot).
 - **Consentimiento y privacidad:** `consent: true` es obligatorio; el servidor genera y sella `consentedAt` con la fecha y hora de la solicitud y persiste `privacyVersion`. La respuesta pública `{ id, eventId, status, registeredAt }` no expone PII.
 - **Protección anti-spam y rate limit:** incluye campo honeypot invisible `website` (si viene lleno devuelve `400 INVALID_REQUEST`) y límite de tasa (`429 RATE_LIMITED`) de máximo 5 solicitudes por minuto por IP.
 - **Control atómico de cupos:** transacción con bloqueo de fila (`SELECT ... FOR UPDATE`) que decrementa cupos de forma atómica y previene sobreinscripción concurrente. Las inscripciones con estado `CANCELADA` no consumen cupo disponible.
@@ -302,7 +304,7 @@ El contrato de persistencia reside en `prisma/schema.prisma` y en la migración 
 
 `Event` se mapea a `evento`: `id` → `id_evento`, `createdById` → `creado_por`, `imageId` → `id_imagen` (opcional), `name` → `nombre`, `description` → `descripcion`, `startsAt` → `inicia_en`, `location` → `ubicacion`, `maximumCapacity` → `capacidad_maxima`, `additionalInformation` → `informacion_adicional` (opcional), `status` → `estado` y `createdAt` → `creado_en`. Incluye la relación `registrations`. Los estados son `BORRADOR` (default), `PUBLICADO`, `FINALIZADO`, `CANCELADO` y `ARCHIVADO`. PostgreSQL garantiza capacidad positiva con `evento_capacidad_positiva_check`. Los índices cubren `(estado, inicia_en)`, creador e imagen. Las FK al administrador y archivo usan `ON DELETE RESTRICT` y `ON UPDATE CASCADE`.
 
-`EventRegistration` se mapea a `inscripcion_evento`: `id` → `id_inscripcion`, `eventId` → `id_evento`, `fullName` → `nombre_completo`, `email` → `correo`, `phone` → `telefono`, `status` → `estado`, `consentedAt` → `consentimiento_en`, `privacyVersion` → `version_privacidad` y `registeredAt` → `inscrito_en`. Todos son obligatorios. La FK al evento usa las mismas políticas RESTRICT/CASCADE. Los estados son `CONFIRMADA` (default) y `CANCELADA`; el índice `(id_evento, estado)` soporta el conteo de confirmadas. Los IDs son enteros autoincrementales y las fechas son `TIMESTAMPTZ(3)`.
+`EventRegistration` se mapea a `inscripcion_evento`: `id` → `id_inscripcion`, `eventId` → `id_evento`, `fullName` → `nombre_completo` (presentación), `firstNames` → `nombres`, `lastNames` → `apellidos`, `email` → `correo`, `phone` → `telefono`, `status` → `estado`, `consentedAt` → `consentimiento_en`, `privacyVersion` → `version_privacidad` y `registeredAt` → `inscrito_en`. La aplicación guarda ambos componentes y conserva el nombre compuesto para listados existentes. La FK al evento usa las mismas políticas RESTRICT/CASCADE. Los estados son `CONFIRMADA` (default) y `CANCELADA`; el índice `(id_evento, estado)` soporta el conteo de confirmadas. Los IDs son enteros autoincrementales y las fechas son `TIMESTAMPTZ(3)`.
 
 - `UNIQUE(eventId, email)` con `CITEXT` garantiza como máximo un registro por evento y correo, insensible a mayúsculas/minúsculas.
 - Los logs no registran PII (nombres, correos o teléfonos).
@@ -650,6 +652,6 @@ Las operaciones administrativas están bajo `/api/v1/admin`, usan la sesión JWT
 
 `GET /api/v1/board-members` devuelve todos los integrantes con estado `ACTIVO`, no solo el periodo más reciente. La respuesta se ordena por inicio de periodo descendente, etiqueta de periodo, orden público y nombre; el frontend calcula los años comprendidos entre ambas fechas, muestra por defecto el más reciente y replica visualmente al integrante en cada año abarcado.
 
-El panel usa `GET/POST/PUT/DELETE /api/v1/admin/board-members` con el permiso `BOARD_MANAGE` y CSRF en las escrituras. `DELETE` es un retiro lógico: cambia el estado a `INACTIVO` y conserva el registro. El cuerpo de alta/edición acepta nombre, cargo del catálogo permitido, descripción, correo institucional exacto `@uvg.edu.gt`, fechas obligatorias de inicio/fin, orden y estado. El servidor deriva `term` como `AAAA` o `AAAA–AAAA`; no acepta una etiqueta manual ni fotografía en este flujo.
+El panel usa `GET/POST/PUT/DELETE /api/v1/admin/board-members` con el permiso `BOARD_MANAGE` y CSRF en las escrituras. `DELETE` es un retiro lógico: cambia el estado a `INACTIVO` y conserva el registro. El cuerpo de alta/edición acepta `firstNames` y `lastNames` (guardados por separado, además del nombre compuesto de presentación), cargo del catálogo permitido, descripción, correo institucional exacto `@uvg.edu.gt`, fechas obligatorias de inicio/fin, orden y estado. El servidor deriva `term` como `AAAA` o `AAAA–AAAA`; no acepta una etiqueta manual ni fotografía en este flujo.
 
 Errores propios: `422 INVALID_BOARD_CONTENT`, `INVALID_INSTITUTIONAL_EMAIL`, `INVALID_TERM` o `INVALID_BOARD_ORDER`; `404 BOARD_MEMBER_NOT_FOUND`. El dominio institucional del integrante no concede acceso al panel ni crea permisos administrativos.

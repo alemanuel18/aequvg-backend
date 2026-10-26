@@ -5,21 +5,35 @@ import { cleanText, isHttpUrl } from '../../../shared/utils/text'
 import { contactRepository } from '../repositories/contact.repository'
 import { contactEmailService } from './contact-email.service'
 
-export type RequestInput = { name: string; email: string; phone: string; type: ContactRequestType; subject: string; message: string; preferredAt?: string | null; consent: true; privacyVersion: string; website?: string }
+export type RequestInput = { firstNames: string; lastNames: string; email: string; phone: string; type: ContactRequestType; subject: string; message: string; preferredAt?: string | null; consent: true; privacyVersion: string; website?: string }
 export type MethodInput = { type: ContactMethodType; label: string; value: string; url?: string | null; displayOrder?: number; active?: boolean }
 
 export const normalizeContactRequest = (input: RequestInput) => {
   if (!input.consent) throw new AppError(422, 'CONSENT_REQUIRED', 'Debes aceptar el aviso de privacidad.')
   if (input.website) throw new AppError(400, 'INVALID_REQUEST', 'La solicitud no es válida.')
   if (input.type === 'REUNION' && !input.preferredAt) throw new AppError(422, 'PREFERRED_DATE_REQUIRED', 'Indica una fecha tentativa para la reunión.', { preferredAt: 'Campo obligatorio para reuniones.' })
-  const name = cleanText(input.name)
-  const phone = cleanText(input.phone)
-  const subject = cleanText(input.subject)
-  const message = cleanText(input.message)
-  if (name.length < 2 || phone.length < 7 || subject.length < 3 || message.length < 10 || !cleanText(input.privacyVersion)) {
-    throw new AppError(422, 'INVALID_CONTACT_REQUEST', 'Completa los campos obligatorios de la solicitud.')
+  const firstNames = cleanText(input.firstNames)
+  const lastNames = cleanText(input.lastNames)
+  if (firstNames.length < 2 || lastNames.length < 2 || firstNames.length > 80 || lastNames.length > 80) throw new AppError(422, 'INVALID_NAME', 'Escribe nombres y apellidos válidos.')
+  const normalized = {
+    name: `${firstNames} ${lastNames}`,
+    firstNames,
+    lastNames,
+    email: input.email.trim().toLowerCase(),
+    phone: cleanText(input.phone),
+    type: input.type,
+    subject: cleanText(input.subject),
+    message: cleanText(input.message),
+    preferredAt: input.preferredAt ? new Date(input.preferredAt) : null,
+    consentedAt: new Date(),
+    privacyVersion: cleanText(input.privacyVersion)
   }
-  return { name, email: input.email.trim().toLowerCase(), phone, type: input.type, subject, message, preferredAt: input.preferredAt ? new Date(input.preferredAt) : null, consentedAt: new Date(), privacyVersion: cleanText(input.privacyVersion) }
+  const missingField = (['phone', 'subject', 'message', 'privacyVersion'] as const).find(field => !normalized[field])
+  if (missingField || !normalized.email) {
+    const field = missingField ?? 'email'
+    throw new AppError(422, 'VALIDATION_ERROR', 'Completa los campos obligatorios.', { [field]: 'Campo obligatorio.' })
+  }
+  return normalized
 }
 
 const normalizeMethod = (input: MethodInput) => {
@@ -105,6 +119,7 @@ export const contactService = {
     const minuteBucket = Math.floor(Date.now() / 60_000)
     const fingerprint = createHash('sha256').update(JSON.stringify({ ...request, consentedAt: request.consentedAt.toISOString(), preferredAt: request.preferredAt?.toISOString(), minuteBucket })).digest('hex')
     await contactEmailService.send(recipient.value, { ...request, deliveryKey: `contact/${fingerprint}` })
+    await contactRepository.createRequest(request)
     return { accepted: true as const }
   }
 }

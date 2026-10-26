@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client'
 import { prisma } from '../../../shared/database/prisma'
 
 export const contactRepository = {
+  createRequest: (data: Prisma.ContactRequestUncheckedCreateInput) => prisma.contactRequest.create({ data, select: { id: true } }),
   publicMethods: () => prisma.contactMethod.findMany({ where: { active: true }, orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }] }),
   allMethods: () => prisma.contactMethod.findMany({ orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }] }),
   primaryEmailMethod: () => prisma.contactMethod.findFirst({

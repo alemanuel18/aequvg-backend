@@ -27,6 +27,7 @@ databaseDescribe('Integración PostgreSQL del flujo de contacto', () => {
   })
 
   afterAll(async () => {
+    await prisma.contactRequest.deleteMany({ where: { email: `${runId}@example.com` } })
     if (createdMethodIds.length) await prisma.contactMethod.deleteMany({ where: { id: { in: createdMethodIds } } })
     if (userId) {
       await prisma.administrativeSession.deleteMany({ where: { userId } })
@@ -83,17 +84,18 @@ databaseDescribe('Integración PostgreSQL del flujo de contacto', () => {
     expect((await publicAfter.json() as Array<{ id: number }>).some(item => item.id === created.id)).toBe(false)
   })
 
-  it('entrega el POST público al correo configurable sin crear una solicitud persistida', async () => {
+  it('entrega el POST público y persiste nombres y apellidos por separado', async () => {
     const emailMethod = await prisma.contactMethod.create({ data: { type: 'EMAIL', label: `Correo ${runId}`, value: `${runId}@uvg.edu.gt`, displayOrder: 0, active: true } })
     createdMethodIds.push(emailMethod.id)
     const before = await prisma.contactRequest.count()
     const response = await app.handle(new Request('http://localhost/api/v1/contact-requests', {
       method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': runId },
-      body: JSON.stringify({ name: 'Persona prueba', email: 'persona@example.com', phone: '+502 5555 5555', type: 'CONSULTA', subject: 'Información', message: 'Mensaje de integración válido.', consent: true, privacyVersion: '2026-10' })
+      body: JSON.stringify({ firstNames: 'Persona', lastNames: 'Prueba', email: `${runId}@example.com`, phone: '+502 5555 5555', type: 'CONSULTA', subject: 'Información', message: 'Mensaje de integración válido.', consent: true, privacyVersion: '2026-10' })
     }))
     expect(response.status).toBe(202)
     expect(await response.json()).toEqual({ accepted: true })
-    expect(emailMocks.send).toHaveBeenCalledWith(`${runId}@uvg.edu.gt`, expect.objectContaining({ email: 'persona@example.com' }))
-    expect(await prisma.contactRequest.count()).toBe(before)
+    expect(emailMocks.send).toHaveBeenCalledWith(`${runId}@uvg.edu.gt`, expect.objectContaining({ email: `${runId}@example.com` }))
+    expect(await prisma.contactRequest.count()).toBe(before + 1)
+    await expect(prisma.contactRequest.findFirst({ where: { email: `${runId}@example.com` }, orderBy: { sentAt: 'desc' } })).resolves.toMatchObject({ name: 'Persona Prueba', firstNames: 'Persona', lastNames: 'Prueba' })
   })
 })

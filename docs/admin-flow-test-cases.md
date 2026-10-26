@@ -95,9 +95,9 @@ Las rutas de otros módulos no forman parte de la evidencia S3 de anuncios y not
 
 ### Contrato y validaciones
 
-- `POST /contact-requests` es la única excepción pública de escritura. Solo acepta datos del remitente, tipo `CONSULTA|REUNION`, contenido, consentimiento `true`, versión de privacidad y honeypot vacío. No admite estado, asignación ni permisos.
+- `POST /contact-requests` es la única excepción pública de escritura. Acepta nombres y apellidos separados, datos de contacto, tipo `CONSULTA|REUNION`, contenido, consentimiento `true`, versión de privacidad y honeypot vacío. Persiste la solicitud después de que el proveedor acepta el correo; no admite estado, asignación ni permisos, y no hay bandeja administrativa.
 - El destinatario es el medio `EMAIL` activo con menor `displayOrder` (desempate por ID). Si no existe, responde `503 CONTACT_RECIPIENT_NOT_CONFIGURED` sin aceptar el mensaje.
-- El proveedor debe aceptar la entrega para responder `202 { accepted: true }`. Los mensajes no se persisten ni se exponen mediante una bandeja.
+- El proveedor debe aceptar la entrega y la solicitud debe persistirse para responder `202 { accepted: true }`. Los mensajes no se exponen mediante una bandeja administrativa.
 - `EMAIL` valida el correo; `TELEFONO` valida el número; ubicación exige Google Maps; Instagram, Facebook y `OTRO` exigen HTTPS. `OTRO` permite agregar redes futuras sin cambiar el esquema.
 - `PUT /admin/contact-methods/order` guarda atómicamente los IDs de todos los medios no geográficos. Rechaza duplicados, omisiones, IDs ajenos y ubicaciones con `422 INVALID_CONTACT_ORDER`.
 

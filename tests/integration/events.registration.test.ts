@@ -24,7 +24,8 @@ const anonymousRequest = (path: string, options: RequestInit = {}) => new Reques
 let adminHeaders: Record<string, string>
 
 const baseRegistrationPayload = (overrides: Record<string, unknown> = {}) => ({
-  fullName: 'Estudiante Ejemplo',
+  firstNames: 'Estudiante',
+  lastNames: 'Ejemplo',
   email: `${runId}-attendee@uvg.edu.gt`,
   phone: '+502 5555 1234',
   consent: true,
@@ -163,7 +164,7 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
       expect(body.error.code).toBe('VALIDATION_ERROR')
     })
 
-    it('normaliza correo a minúsculas y limpia espacios en el nombre', async () => {
+    it('normaliza correo y nombres por separado antes de componer el nombre de presentación', async () => {
       const event = await createEvent()
       const response = await app.handle(
         request(`/api/v1/events/${event.id}/registrations`, {
@@ -171,7 +172,8 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(
             baseRegistrationPayload({
-              fullName: '  Juan   Pérez  García  ',
+              firstNames: '  Juan   Pérez  ',
+              lastNames: ' García  ',
               email: `${runId.toUpperCase()}-NORMALIZED@UVG.EDU.GT`,
               phone: '  +502  5555  1234  '
             })
@@ -184,6 +186,8 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
 
       const inDb = await prisma.eventRegistration.findUnique({ where: { id: body.id } })
       expect(inDb?.fullName).toBe('Juan Pérez García')
+      expect(inDb?.firstNames).toBe('Juan Pérez')
+      expect(inDb?.lastNames).toBe('García')
       expect(inDb?.email).toBe(`${runId}-normalized@uvg.edu.gt`)
       expect(inDb?.phone).toBe('+502 5555 1234')
     })
@@ -196,7 +200,7 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
         request(`/api/v1/events/${event.id}/registrations`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(baseRegistrationPayload({ fullName: ' ' }))
+          body: JSON.stringify(baseRegistrationPayload({ firstNames: '  ', lastNames: '  ' }))
         })
       )
 
@@ -1072,7 +1076,8 @@ describeDatabase('Inscripción pública a eventos con PostgreSQL (SCRUM-97, SCRU
           method: 'POST',
           headers: { 'content-type': 'application/json', 'x-forwarded-for': '172.16.5.1' },
           body: JSON.stringify(baseRegistrationPayload({
-            fullName: 'Participante Secreto',
+            firstNames: 'Participante',
+            lastNames: 'Secreto',
             email: `${runId}-regresion@uvg.edu.gt`,
             phone: '+502 9999 8888'
           }))
