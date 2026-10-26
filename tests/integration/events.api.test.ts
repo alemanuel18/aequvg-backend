@@ -11,6 +11,7 @@ let authorId = 0
 let inactiveAuthorId = 0
 let imageId = 0
 let nonImageId = 0
+let categoryId = 0
 
 const request = (path: string, options: RequestInit = {}) => new Request(`http://localhost${path}`, options)
 let adminHeaders: Record<string, string>
@@ -67,6 +68,7 @@ describeDatabase('CRUD administrativo de eventos con PostgreSQL', () => {
       }
     })
     nonImageId = pdfFile.id
+    categoryId = (await prisma.eventCategory.create({ data: { name: `${runId}-Taller` } })).id
   })
 
   afterAll(async () => {
@@ -74,6 +76,7 @@ describeDatabase('CRUD administrativo de eventos con PostgreSQL', () => {
       if (roleId) {
         await prisma.eventRegistration.deleteMany({ where: { event: { createdBy: { roleId } } } })
         await prisma.event.deleteMany({ where: { createdBy: { roleId } } })
+        await prisma.eventCategory.deleteMany({ where: { name: `${runId}-Taller` } })
         await prisma.file.deleteMany({ where: { uploadedBy: { roleId } } })
         await prisma.administrativeUser.deleteMany({ where: { roleId } })
         await prisma.rolePermission.deleteMany({ where: { roleId } })
@@ -131,6 +134,24 @@ describeDatabase('CRUD administrativo de eventos con PostgreSQL', () => {
       expect(data.maximumCapacity).toBe(50)
       expect(data.imageId).toBeNull()
       expect(data.createdBy.id).toBe(authorId)
+    })
+
+    it('crea un evento con categoría opcional y expone null cuando no existe', async () => {
+      const categorized = await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Evento categorizado', { categoryId })) }))
+      expect(categorized.status).toBe(201)
+      expect((await categorized.json() as { category: { id: number } }).category.id).toBe(categoryId)
+      const uncategorized = await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Evento sin categoría')) }))
+      expect(uncategorized.status).toBe(201)
+      expect((await uncategorized.json() as { category: null }).category).toBeNull()
+    })
+
+    it.each([
+      ['name', { name: '   ' }],
+      ['description', { description: '          ' }],
+      ['location', { location: '   ' }]
+    ])('rechaza whitespace en %s', async (_field, override) => {
+      const response = await app.handle(request('/api/v1/admin/events', { method: 'POST', headers: adminHeaders, body: JSON.stringify(baseEventPayload('Evento whitespace', override)) }))
+      expect(response.status).toBe(422)
     })
 
     it('crea un evento con imagen asociada y status PUBLICADO', async () => {

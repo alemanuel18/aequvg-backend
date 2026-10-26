@@ -8,6 +8,7 @@ import { eventsRepository } from '../repositories/events.repository'
 export type EventCreateInput = {
   createdById: number
   imageId?: number | null
+  categoryId?: number | null
   name: string
   description: string
   startsAt: string
@@ -19,6 +20,7 @@ export type EventCreateInput = {
 
 export type EventUpdateInput = {
   imageId?: number | null
+  categoryId?: number | null
   name?: string
   description?: string
   startsAt?: string
@@ -58,6 +60,11 @@ const verifyImage = async (imageId: number | null | undefined) => {
   }
 }
 
+const verifyCategory = async (categoryId: number | null | undefined) => {
+  if (categoryId == null) return
+  if (!await eventsRepository.findActiveCategory(categoryId)) throw new AppError(422, 'INVALID_EVENT_CATEGORY', 'La categoría indicada no existe o está inactiva.')
+}
+
 const parseStartsAt = (value: string) => {
   const parsed = new Date(value)
   if (isNaN(parsed.getTime())) {
@@ -66,17 +73,26 @@ const parseStartsAt = (value: string) => {
   return parsed
 }
 
+const requiredText = (value: string, field: string) => {
+  const cleaned = cleanText(value)
+  const limits: Record<string, [number, number]> = { name: [3, 220], description: [10, 10000], location: [3, 255] }
+  const [min, max] = limits[field]!
+  if (cleaned.length < min || cleaned.length > max) throw new AppError(422, 'VALIDATION_ERROR', `El campo ${field} no tiene una longitud válida.`)
+  return cleaned
+}
+
 const createData = async (input: EventCreateInput): Promise<Prisma.EventUncheckedCreateInput> => {
-  await Promise.all([verifyAuthor(input.createdById), verifyImage(input.imageId)])
+  await Promise.all([verifyAuthor(input.createdById), verifyImage(input.imageId), verifyCategory(input.categoryId)])
   const startsAt = parseStartsAt(input.startsAt)
   const status = input.status ?? 'BORRADOR'
   return {
     createdById: input.createdById,
     imageId: input.imageId ?? null,
-    name: cleanText(input.name),
-    description: cleanText(input.description),
+    categoryId: input.categoryId ?? null,
+    name: requiredText(input.name, 'name'),
+    description: requiredText(input.description, 'description'),
     startsAt,
-    location: cleanText(input.location),
+    location: requiredText(input.location, 'location'),
     maximumCapacity: input.maximumCapacity,
     additionalInformation: input.additionalInformation ? cleanText(input.additionalInformation) : null,
     status
@@ -87,10 +103,11 @@ const buildUpdateData = (input: EventUpdateInput): Prisma.EventUncheckedUpdateIn
   const data: Prisma.EventUncheckedUpdateInput = {}
 
   if (input.imageId !== undefined) data.imageId = input.imageId
-  if (input.name !== undefined) data.name = cleanText(input.name)
-  if (input.description !== undefined) data.description = cleanText(input.description)
+  if (input.categoryId !== undefined) data.categoryId = input.categoryId
+  if (input.name !== undefined) data.name = requiredText(input.name, 'name')
+  if (input.description !== undefined) data.description = requiredText(input.description, 'description')
   if (input.startsAt !== undefined) data.startsAt = parseStartsAt(input.startsAt)
-  if (input.location !== undefined) data.location = cleanText(input.location)
+  if (input.location !== undefined) data.location = requiredText(input.location, 'location')
   if (input.maximumCapacity !== undefined) data.maximumCapacity = input.maximumCapacity
   if (input.additionalInformation !== undefined) {
     data.additionalInformation = input.additionalInformation ? cleanText(input.additionalInformation) : null
@@ -170,6 +187,10 @@ export const eventsService = {
     return eventsRepository.create(await createData(input))
   },
 
+  async activeCategories() {
+    return eventsRepository.activeCategories()
+  },
+
   async update(id: number, input: EventUpdateInput) {
     const current = await eventsRepository.findById(id)
     if (!current) throw notFound()
@@ -177,6 +198,7 @@ export const eventsService = {
     if (input.imageId !== undefined) {
       await verifyImage(input.imageId)
     }
+    if (input.categoryId !== undefined) await verifyCategory(input.categoryId)
 
     const data = buildUpdateData(input)
 

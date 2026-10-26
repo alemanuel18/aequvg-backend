@@ -14,6 +14,7 @@ export const idParams = t.Object({
 
 export const eventCreateBody = t.Object({
   imageId: t.Optional(t.Nullable(t.Integer({ minimum: 1 }))),
+  categoryId: t.Optional(t.Nullable(t.Integer({ minimum: 1 }))),
   name: t.String({ minLength: 3, maxLength: 220 }),
   description: t.String({ minLength: 10, maxLength: 10000 }),
   startsAt: t.String({ format: 'date-time' }),
@@ -25,6 +26,7 @@ export const eventCreateBody = t.Object({
 
 export const eventUpdateBody = t.Partial(t.Object({
   imageId: t.Nullable(t.Integer({ minimum: 1 })),
+  categoryId: t.Nullable(t.Integer({ minimum: 1 })),
   name: t.String({ minLength: 3, maxLength: 220 }),
   description: t.String({ minLength: 10, maxLength: 10000 }),
   startsAt: t.String({ format: 'date-time' }),
@@ -57,7 +59,8 @@ export const eventPublicResponse = t.Object({
   availableCapacity: t.Integer({ minimum: 0 }),
   additionalInformation: t.Nullable(t.String()),
   status: eventStatus,
-  image: t.Nullable(t.Object({ id: t.Integer(), originalName: t.String(), mimeType: t.String() }))
+  image: t.Nullable(t.Object({ id: t.Integer(), originalName: t.String(), mimeType: t.String() })),
+  category: t.Nullable(t.Object({ id: t.Integer(), name: t.String() }))
 })
 
 export const eventPublicListResponse = t.Object({
@@ -69,6 +72,7 @@ export const eventResponse = t.Object({
   id: t.Integer(),
   createdById: t.Integer(),
   imageId: t.Nullable(t.Integer()),
+  categoryId: t.Nullable(t.Integer()),
   name: t.String(),
   description: t.String(),
   startsAt: t.Date(),
@@ -78,7 +82,8 @@ export const eventResponse = t.Object({
   status: eventStatus,
   createdAt: t.Date(),
   image: t.Nullable(t.Object({ id: t.Integer(), originalName: t.String(), mimeType: t.String() })),
-  createdBy: t.Object({ id: t.Integer(), name: t.String() })
+  createdBy: t.Object({ id: t.Integer(), name: t.String() }),
+  category: t.Nullable(t.Object({ id: t.Integer(), name: t.String() }))
 })
 
 export const eventListResponse = t.Object({
@@ -92,5 +97,7 @@ export const eventErrorResponse = t.Object({
     message: t.String()
   })
 })
+
+export const eventCategoryListResponse = t.Array(t.Object({ id: t.Integer(), name: t.String() }))
 
 export * from './registration-schemas'

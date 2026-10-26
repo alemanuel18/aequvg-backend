@@ -1843,7 +1843,7 @@
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"name\": \"Taller de Química General\",\n  \"description\": \"Taller práctico sobre técnicas básicas de laboratorio para estudiantes de primer ingreso.\",\n  \"startsAt\": \"2026-11-20T15:00:00.000Z\",\n  \"location\": \"Laboratorio Central, Edificio F\",\n  \"maximumCapacity\": 30,\n  \"status\": \"BORRADOR\"\n}"
+            "body": "{\n  \"name\": \"Taller de Química General\",\n  \"description\": \"Taller práctico sobre técnicas básicas de laboratorio para estudiantes de primer ingreso.\",\n  \"startsAt\": \"2026-11-20T15:00:00.000Z\",\n  \"location\": \"Laboratorio Central, Edificio F\",\n  \"maximumCapacity\": 30,\n  \"categoryId\": 2,\n  \"status\": \"BORRADOR\"\n}"
           }
         },
         {
@@ -1897,7 +1897,7 @@
           },
           "body": {
             "contentType": "application/json",
-            "body": "{\n  \"status\": \"PUBLICADO\",\n  \"maximumCapacity\": 35\n}"
+            "body": "{\n  \"status\": \"PUBLICADO\",\n  \"maximumCapacity\": 35,\n  \"categoryId\": null\n}"
           }
         },
         {
