@@ -12,9 +12,9 @@ describe('modelo de noticias', () => {
     const newsModel = schema.match(/model News \{[\s\S]*?\n\}/)?.[0] ?? ''
 
     expect(schema).toContain('model NewsCategory')
-    expect(newsModel).toContain('categoryId Int')
-    expect(newsModel).toContain('category  NewsCategory')
-    expect(newsModel).toContain('updatedAt  DateTime')
+    expect(newsModel).toMatch(/categoryId\s+Int/)
+    expect(newsModel).toMatch(/category\s+NewsCategory/)
+    expect(newsModel).toMatch(/updatedAt\s+DateTime/)
     expect(newsModel).not.toMatch(/category\s+String/)
     expect(migration).toContain('noticia_id_categoria_noticia_fkey')
     expect(migration).toContain('noticia_estado_publicacion_check')

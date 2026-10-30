@@ -10,7 +10,7 @@ async function main() {
   const contactResponse = await app.handle(jsonRequest('/api/v1/contact-requests', { name: 'Integración automatizada', email: 'integration@example.com', phone: '+502 5555-5555', type: 'CONSULTA', subject: 'Prueba de integración', message: 'Solicitud temporal para validar el flujo.', consent: true, privacyVersion: '2026-09' }))
   const board = await boardResponse.json() as unknown[]
   const methods = await methodsResponse.json() as unknown[]
-  if (boardResponse.status !== 200 || methodsResponse.status !== 200 || contactResponse.status !== 201 || board.length === 0 || methods.length === 0) throw new Error('Falló la integración pública')
+  if (boardResponse.status !== 200 || methodsResponse.status !== 200 || contactResponse.status !== 202 || board.length === 0 || methods.length === 0) throw new Error('Falló la integración pública')
   console.info(JSON.stringify({ boardMembers: board.length, contactMethods: methods.length, contactRequestStatus: contactResponse.status }))
 }
 

@@ -1,30 +1,125 @@
-import type { ContactMethodType, ContactRequestStatus, ContactRequestType } from '@prisma/client'
+import { Prisma, type ContactMethodType, type ContactRequestType } from '@prisma/client'
+import { createHash } from 'node:crypto'
 import { AppError } from '../../../shared/errors/app-error'
 import { cleanText, isHttpUrl } from '../../../shared/utils/text'
 import { contactRepository } from '../repositories/contact.repository'
+import { contactEmailService } from './contact-email.service'
 
-export type RequestInput = { name: string; email: string; phone: string; type: ContactRequestType; subject: string; message: string; preferredAt?: string | null; consent: true; privacyVersion: string; website?: string }
+export type RequestInput = { firstNames: string; lastNames: string; email: string; phone: string; type: ContactRequestType; subject: string; message: string; preferredAt?: string | null; consent: true; privacyVersion: string; website?: string }
 export type MethodInput = { type: ContactMethodType; label: string; value: string; url?: string | null; displayOrder?: number; active?: boolean }
 
 export const normalizeContactRequest = (input: RequestInput) => {
   if (!input.consent) throw new AppError(422, 'CONSENT_REQUIRED', 'Debes aceptar el aviso de privacidad.')
   if (input.website) throw new AppError(400, 'INVALID_REQUEST', 'La solicitud no es válida.')
   if (input.type === 'REUNION' && !input.preferredAt) throw new AppError(422, 'PREFERRED_DATE_REQUIRED', 'Indica una fecha tentativa para la reunión.', { preferredAt: 'Campo obligatorio para reuniones.' })
-  return { name: cleanText(input.name), email: input.email.trim().toLowerCase(), phone: cleanText(input.phone), type: input.type, subject: cleanText(input.subject), message: cleanText(input.message), preferredAt: input.preferredAt ? new Date(input.preferredAt) : null, consentedAt: new Date(), privacyVersion: cleanText(input.privacyVersion) }
+  const firstNames = cleanText(input.firstNames)
+  const lastNames = cleanText(input.lastNames)
+  if (firstNames.length < 2 || lastNames.length < 2 || firstNames.length > 80 || lastNames.length > 80) throw new AppError(422, 'INVALID_NAME', 'Escribe nombres y apellidos válidos.')
+  const normalized = {
+    name: `${firstNames} ${lastNames}`,
+    firstNames,
+    lastNames,
+    email: input.email.trim().toLowerCase(),
+    phone: cleanText(input.phone),
+    type: input.type,
+    subject: cleanText(input.subject),
+    message: cleanText(input.message),
+    preferredAt: input.preferredAt ? new Date(input.preferredAt) : null,
+    consentedAt: new Date(),
+    privacyVersion: cleanText(input.privacyVersion)
+  }
+  const missingField = (['phone', 'subject', 'message', 'privacyVersion'] as const).find(field => !normalized[field])
+  if (missingField || !normalized.email) {
+    const field = missingField ?? 'email'
+    throw new AppError(422, 'VALIDATION_ERROR', 'Completa los campos obligatorios.', { [field]: 'Campo obligatorio.' })
+  }
+  return normalized
 }
 
 const normalizeMethod = (input: MethodInput) => {
-  if (input.url && !isHttpUrl(input.url) && !input.url.startsWith('mailto:') && !input.url.startsWith('tel:')) throw new AppError(422, 'INVALID_CONTACT_URL', 'El enlace del medio de contacto no es válido.')
-  return { ...input, label: cleanText(input.label), value: cleanText(input.value), displayOrder: input.displayOrder ?? 0, active: input.active ?? true }
+  const { displayOrder: _displayOrder, ...method } = input
+  const label = cleanText(input.label)
+  const value = cleanText(input.value)
+  if (label.length < 2 || value.length < 2) throw new AppError(422, 'INVALID_CONTACT_METHOD', 'Completa el nombre y el valor público del medio.')
+  const suppliedUrl = input.url?.trim() || null
+  let url = suppliedUrl
+  let normalizedValue = value
+
+  if (input.type === 'EMAIL') {
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) throw new AppError(422, 'INVALID_CONTACT_EMAIL', 'Ingresa un correo de contacto válido.', { value: 'El correo no es válido.' })
+    url = `mailto:${value.toLowerCase()}`
+  } else if (input.type === 'TELEFONO') {
+    const compactPhone = value.replace(/[\s().-]/g, '')
+    const nationalPhone = compactPhone.startsWith('+502') ? compactPhone.slice(4) : compactPhone
+    if (!/^\d{8}$/.test(nationalPhone)) throw new AppError(422, 'INVALID_CONTACT_PHONE', 'Ingresa los 8 dígitos de un número de Guatemala.', { value: 'Ingresa un número guatemalteco de 8 dígitos, sin +502.' })
+    normalizedValue = `+502 ${nationalPhone.slice(0, 4)} ${nationalPhone.slice(4)}`
+    url = `tel:+502${nationalPhone}`
+  } else {
+    if (!suppliedUrl || !isHttpUrl(suppliedUrl)) throw new AppError(422, 'CONTACT_URL_REQUIRED', 'Este medio requiere un enlace HTTPS válido.', { url: 'Ingresa un enlace válido.' })
+    const parsedUrl = new URL(suppliedUrl)
+    if (parsedUrl.protocol !== 'https:') throw new AppError(422, 'INVALID_CONTACT_URL', 'El enlace del medio de contacto debe usar HTTPS.', { url: 'El enlace debe iniciar con https://.' })
+    if (input.type === 'UBICACION' && !/(^|\.)google\.[a-z.]+$|(^|\.)goo\.gl$|(^|\.)maps\.app\.goo\.gl$/i.test(parsedUrl.hostname)) {
+      throw new AppError(422, 'GOOGLE_MAPS_URL_REQUIRED', 'La ubicación debe enlazar a Google Maps.', { url: 'Usa un enlace de Google Maps.' })
+    }
+  }
+
+  return { ...method, label, value: input.type === 'EMAIL' ? value.toLowerCase() : normalizedValue, url, active: input.active ?? true }
 }
 
+const translateMissingMethod = (error: unknown): never => {
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+    throw new AppError(404, 'CONTACT_METHOD_NOT_FOUND', 'El medio de contacto no existe.')
+  }
+  throw error
+}
+
+const sortMethods = <T extends { id: number; type: ContactMethodType; displayOrder: number }>(methods: T[]) =>
+  [...methods].sort((a, b) =>
+    Number(a.type === 'UBICACION') - Number(b.type === 'UBICACION')
+    || a.displayOrder - b.displayOrder
+    || a.id - b.id
+  )
+
 export const contactService = {
-  publicMethods: contactRepository.publicMethods,
-  allMethods: contactRepository.allMethods,
-  createMethod: (input: MethodInput) => contactRepository.createMethod(normalizeMethod(input)),
-  updateMethod: (id: number, input: MethodInput) => contactRepository.updateMethod(id, normalizeMethod(input)),
-  deactivateMethod: contactRepository.deactivateMethod,
-  createRequest: (input: RequestInput) => contactRepository.createRequest(normalizeContactRequest(input)),
-  async listRequests(page: number, pageSize: number) { const [items, total] = await Promise.all([contactRepository.listRequests((page - 1) * pageSize, pageSize), contactRepository.countRequests()]); return { items, pagination: { page, pageSize, total } } },
-  updateRequest: (id: number, status: ContactRequestStatus, assignedToId?: number | null) => contactRepository.updateRequest(id, { status, assignedTo: assignedToId ? { connect: { id: assignedToId } } : undefined })
+  async publicMethods() { return sortMethods(await contactRepository.publicMethods()) },
+  async allMethods() { return sortMethods(await contactRepository.allMethods()) },
+  createMethod(input: MethodInput) {
+    const method = normalizeMethod(input)
+    return contactRepository.allMethods().then(methods => {
+      const lastOrder = Math.max(-1, ...methods.filter(item => item.type !== 'UBICACION').map(item => item.displayOrder))
+      return contactRepository.createMethod({ ...method, displayOrder: method.type === 'UBICACION' ? 0 : lastOrder + 1 })
+    })
+  },
+  updateMethod(id: number, input: MethodInput) {
+    const method = normalizeMethod(input)
+    return contactRepository.allMethods().then(methods => {
+      const current = methods.find(item => item.id === id)
+      if (!current) throw new AppError(404, 'CONTACT_METHOD_NOT_FOUND', 'El medio de contacto no existe.')
+      const lastOrder = Math.max(-1, ...methods.filter(item => item.type !== 'UBICACION').map(item => item.displayOrder))
+      const displayOrder = method.type === 'UBICACION' ? 0 : current.type === 'UBICACION' ? lastOrder + 1 : current.displayOrder
+      return contactRepository.updateMethod(id, { ...method, displayOrder }).catch(translateMissingMethod)
+    })
+  },
+  deactivateMethod: (id: number) => contactRepository.deactivateMethod(id).catch(translateMissingMethod),
+  async reorderMethods(orderedIds: number[]) {
+    const methods = await contactRepository.allMethods()
+    const reorderableIds = methods.filter(method => method.type !== 'UBICACION').map(method => method.id)
+    const expected = [...reorderableIds].sort((a, b) => a - b)
+    const received = [...orderedIds].sort((a, b) => a - b)
+    if (expected.length !== received.length || expected.some((id, index) => id !== received[index])) {
+      throw new AppError(422, 'INVALID_CONTACT_ORDER', 'El orden debe incluir una sola vez todos los medios que no son ubicaciones.')
+    }
+    await contactRepository.reorderMethods(orderedIds)
+    return sortMethods(await contactRepository.allMethods())
+  },
+  async sendRequest(input: RequestInput) {
+    const request = normalizeContactRequest(input)
+    const recipient = await contactRepository.primaryEmailMethod()
+    if (!recipient) throw new AppError(503, 'CONTACT_RECIPIENT_NOT_CONFIGURED', 'El formulario de contacto no está disponible temporalmente.')
+    const minuteBucket = Math.floor(Date.now() / 60_000)
+    const fingerprint = createHash('sha256').update(JSON.stringify({ ...request, consentedAt: request.consentedAt.toISOString(), preferredAt: request.preferredAt?.toISOString(), minuteBucket })).digest('hex')
+    await contactEmailService.send(recipient.value, { ...request, deliveryKey: `contact/${fingerprint}` })
+    await contactRepository.createRequest(request)
+    return { accepted: true as const }
+  }
 }

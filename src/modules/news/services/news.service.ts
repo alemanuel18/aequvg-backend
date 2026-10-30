@@ -1,4 +1,4 @@
-import type { ContentStatus, Prisma } from '@prisma/client'
+import { Prisma, type ContentStatus } from '@prisma/client'
 import { AppError } from '../../../shared/errors/app-error'
 import { cleanText } from '../../../shared/utils/text'
 import { newsRepository } from '../repositories/news.repository'
@@ -8,6 +8,20 @@ export type NewsUpdateInput = { categoryId?: number; imageId?: number | null; ti
 export type NewsQuery = { q?: string; categoryId?: number; status?: ContentStatus; page?: number; pageSize?: number }
 
 const notFound = () => new AppError(404, 'NEWS_NOT_FOUND', 'La noticia solicitada no existe.')
+
+export const normalizeNewsText = (value: string, field: string, minimum: number) => {
+  const normalized = cleanText(value)
+  if (normalized.length < minimum) {
+    throw new AppError(422, 'INVALID_NEWS_CONTENT', `El campo ${field} debe contener texto válido.`)
+  }
+  return normalized
+}
+
+export const normalizeNewsCategoryName = (value: string) => {
+  const name = cleanText(value)
+  if (name.length < 2 || name.length > 80) throw new AppError(422, 'INVALID_NEWS_CATEGORY_NAME', 'El nombre de la categoría debe tener entre 2 y 80 caracteres.')
+  return name
+}
 
 export const publicationDate = (status: ContentStatus, requested: string | null | undefined, current: Date | null = null) => {
   if (status !== 'PUBLICADO') return null
@@ -22,14 +36,23 @@ const verifyCategory = async (categoryId: number) => {
 const verifyImage = async (imageId: number | null | undefined) => {
   if (!imageId) return
   const image = await newsRepository.findImage(imageId)
-  if (!image || !image.mimeType.startsWith('image/')) throw new AppError(422, 'INVALID_NEWS_IMAGE', 'La imagen indicada no existe o no es válida.')
+  if (!image || !image.mimeType.toLowerCase().startsWith('image/')) throw new AppError(422, 'INVALID_NEWS_IMAGE', 'La imagen indicada no existe o no es válida.')
 }
 
 const createData = async (input: NewsCreateInput): Promise<Prisma.NewsUncheckedCreateInput> => {
   if (!await newsRepository.findActiveUser(input.createdById)) throw new AppError(422, 'INVALID_NEWS_AUTHOR', 'El autor indicado no existe o no está activo.')
   await Promise.all([verifyCategory(input.categoryId), verifyImage(input.imageId)])
   const status = input.status ?? 'BORRADOR'
-  return { createdById: input.createdById, categoryId: input.categoryId, imageId: input.imageId ?? null, title: cleanText(input.title), summary: cleanText(input.summary), content: cleanText(input.content), status, publishedAt: publicationDate(status, input.publishedAt) }
+  return {
+    createdById: input.createdById,
+    categoryId: input.categoryId,
+    imageId: input.imageId ?? null,
+    title: normalizeNewsText(input.title, 'title', 3),
+    summary: normalizeNewsText(input.summary, 'summary', 10),
+    content: normalizeNewsText(input.content, 'content', 20),
+    status,
+    publishedAt: publicationDate(status, input.publishedAt)
+  }
 }
 
 const updateData = async (current: { categoryId: number; imageId: number | null; status: ContentStatus; publishedAt: Date | null }, input: NewsUpdateInput): Promise<Prisma.NewsUncheckedUpdateInput> => {
@@ -40,9 +63,9 @@ const updateData = async (current: { categoryId: number; imageId: number | null;
   return {
     ...(input.categoryId !== undefined ? { categoryId } : {}),
     ...(input.imageId !== undefined ? { imageId } : {}),
-    ...(input.title !== undefined ? { title: cleanText(input.title) } : {}),
-    ...(input.summary !== undefined ? { summary: cleanText(input.summary) } : {}),
-    ...(input.content !== undefined ? { content: cleanText(input.content) } : {}),
+    ...(input.title !== undefined ? { title: normalizeNewsText(input.title, 'title', 3) } : {}),
+    ...(input.summary !== undefined ? { summary: normalizeNewsText(input.summary, 'summary', 10) } : {}),
+    ...(input.content !== undefined ? { content: normalizeNewsText(input.content, 'content', 20) } : {}),
     ...(input.status !== undefined ? { status } : {}),
     publishedAt: publicationDate(status, input.publishedAt, current.publishedAt)
   }
@@ -60,6 +83,16 @@ export const newsService = {
   publicList: (query: NewsQuery) => paginated(query, true),
   adminList: (query: NewsQuery) => paginated(query, false),
   activeCategories: newsRepository.activeCategories,
+  async createCategory(name: string) {
+    try {
+      return await newsRepository.createCategory(normalizeNewsCategoryName(name))
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new AppError(409, 'NEWS_CATEGORY_EXISTS', 'Ya existe una categoría de noticias con ese nombre.')
+      }
+      throw error
+    }
+  },
   async publicById(id: number) { return await newsRepository.findPublicById(id) ?? Promise.reject(notFound()) },
   async adminById(id: number) { return await newsRepository.findById(id) ?? Promise.reject(notFound()) },
   async create(input: NewsCreateInput) { return newsRepository.create(await createData(input)) },

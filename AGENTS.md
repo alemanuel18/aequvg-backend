@@ -6,7 +6,33 @@ Estas reglas aplican a todo `Back/aequvg-backend`. Antes de cambiar un contrato,
 
 ## Estado actual
 
-El backend es un monolito modular para el sitio público de la Asociación de Estudiantes de Química de UVG. En este sprint están implementados `institutional` (contenido de inicio/promoción), `board` (junta directiva) y `contact` (medios y solicitudes). `events`, `news`, `papers`, `projects`, `resources` y `users` solo tienen carpetas reservadas con `.gitkeep`; no agregues endpoints ficticios hasta que exista una tarea y contrato aprobado.
+El backend es un monolito modular para el sitio público de la Asociación de Estudiantes de Química de UVG. Están implementados los módulos de contenido público y administrativo, entre ellos `institutional`, `board`, `contact`, `events`, `news`, `projects`, `resources` y `users`. El módulo `users` contiene dos sistemas de acceso separados: administración y estudiantes normales. Antes de agregar rutas o modelos, verifica el estado real del módulo correspondiente; no agregues endpoints ficticios sin una tarea y contrato aprobado.
+
+### Autenticación administrativa y estudiantil (`users`)
+
+- **Separación obligatoria de perfiles**: las cuentas administrativas viven en `usuario_administrativo` y sus credenciales/sesiones en las tablas administrativas. Los estudiantes normales viven en `usuario_estudiante` y usan `credencial_estudiante` y `sesion_estudiante`. No unifiques estas tablas ni consultes una como respaldo de la otra: un estudiante no debe poder autenticarse en el portal administrativo aunque manipule el payload.
+- **Identidad estudiantil**: el acceso público admite únicamente estudiantes actuales con correo `@uvg.edu.gt`; no contempla aspirantes. `isStudent` es una condición de perfil, no un permiso, y el servidor asigna siempre el rol público fijo `STUDENT`.
+- **Nombres separados**: los contratos de alta, las solicitudes administrativas y los modelos reciben y almacenan `firstNames`/`nombres` y `lastNames`/`apellidos`. `name`/`nombre` se mantiene como valor compuesto de compatibilidad y presentación; no vuelvas a pedirlo como único campo ni lo uses como fuente primaria para editar una cuenta. La migración `20261016120000_separate_account_names` rellena registros anteriores y sincroniza el nombre compuesto.
+- **Rutas independientes**: administración usa `/api/v1/auth/*`; estudiantes usan `/api/v1/student-auth/register`, `/login`, `/me`, `/logout` y `/account`. Las audiencias JWT (`aequvg-admin` y `aequvg-student`), cookies, repositorios y sesiones no son intercambiables.
+- **Seguridad equivalente**: ambos inicios de sesión normalizan el correo, usan una verificación ficticia para no revelar cuentas inexistentes, limitan intentos fallidos, crean JWT HS256 de ocho horas y persisten una sesión revocable vinculada a secreto de dispositivo, contexto del navegador y token CSRF. Las cookies de sesión y dispositivo son `HttpOnly`, `SameSite=Lax` y `Secure` en producción. Las operaciones mutables autenticadas requieren `X-CSRF-Token`.
+- **Contraseñas**: ambos perfiles guardan exclusivamente hashes `scrypt` con sal aleatoria en su tabla de credenciales. Nunca persistas, devuelvas o registres texto plano. Las contraseñas nuevas deben tener 12–128 caracteres e incluir mayúscula, minúscula, número y símbolo. El login admite 1–256 caracteres para procesar intentos de forma uniforme.
+- **Ciclo de sesión y cuenta**: logout, cambio de contraseña, bloqueo y baja revocan sesiones. Las sesiones vencidas, revocadas, con audiencia incorrecta o con vínculo de dispositivo inválido se rechazan. Los estudiantes distinguen `ACTIVO`, `BLOQUEADO_TEMPORAL`, `BLOQUEADO_PERMANENTE` y `ELIMINADO`; la baja propia vuelve a verificar correo, contraseña y confirmación incluso si la cuenta está bloqueada.
+- **Registro y moderación**: el alta estudiantil exige nombres y apellidos, confirmación de estudiante, correo institucional y contraseña fuerte; rechaza asignación de rol y nombres ofensivos antes de crear la cuenta. El alta administrativa crea primero una solicitud revisable y no concede acceso hasta su aprobación.
+- **Datos locales**: la seed crea cuentas de prueba administrativas y estudiantiles solo fuera de producción. Sus credenciales públicas de desarrollo se documentan en `README.md`; no las copies a un despliegue real.
+
+### Módulo de Contenido Institucional (`institutional`)
+
+- **Secciones fijas y bloques promocionales**:
+  - `HERO`: Bloque principal de la página de inicio (título, subtítulo, llamada a la acción y estado).
+  - Bloques de "Conocer la Licenciatura en Química": Soportan 4 categorías (`LABORATORIO`, `TESTIMONIO`, `CAMPO_LABORAL`, `PLAN_ESTUDIOS`).
+  - **Regla estricta de cupo**: Se permite un **máximo de 3 anuncios activos en total** en "Conocer la Licenciatura", independientemente de la categoría (ej. 3 de laboratorio y ninguno de los otros; o uno de cada uno). El servicio valida este límite antes de crear o reactivar anuncios.
+- **Destacados para la página de inicio (`FeaturedItem` / `destacado_inicio`)**:
+  - Permite vincular noticias y eventos existentes como destacados en el home.
+  - **Límites de destacados**: Máximo 3 noticias destacadas y máximo 3 eventos destacados.
+  - Sincronización atómica mediante transacción Prisma en `institutional.repository.ts`.
+- **Rutas asociadas**:
+  - Públicas: `GET /api/v1/institutional-content` y `GET /api/v1/institutional-content/featured`.
+  - Administrativas: `GET/POST /api/v1/admin/institutional-content`, `PUT/DELETE /api/v1/admin/institutional-content/:id`, y `GET/PUT /api/v1/admin/institutional-content/featured`.
 
 ## Arquitectura
 

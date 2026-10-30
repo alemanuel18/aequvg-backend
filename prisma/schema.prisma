@@ -27,6 +27,46 @@ enum AdministrativeUserStatus {
   @@map("estado_usuario_administrativo")
 }
 
+enum AdministrativeRegistrationStatus {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+
+  @@map("estado_solicitud_administrativa")
+}
+
+enum StudentAccountStatus {
+  ACTIVO
+  BLOQUEADO_TEMPORAL
+  BLOQUEADO_PERMANENTE
+  ELIMINADO
+
+  @@map("estado_cuenta_estudiante")
+}
+
+enum ModerationIncidentSource {
+  COMMENT_CREATE
+  COMMENT_EDIT
+  PROFILE_NAME_UPDATE
+
+  @@map("origen_infraccion_moderacion")
+}
+
+enum ModerationSanctionAction {
+  NONE
+  TEMPORARY
+  PERMANENT
+
+  @@map("accion_sancion_moderacion")
+}
+
+enum AuthenticationProvider {
+  PASSWORD
+  MICROSOFT
+
+  @@map("proveedor_autenticacion")
+}
+
 enum PublicationType {
   PAPER_DERIVADO_TESIS
   PROYECTO_INVESTIGACION
@@ -42,6 +82,22 @@ enum PublicationStatus {
   ARCHIVADO
 
   @@map("estado_publicacion_cientifica")
+}
+
+/// Destinos de comentarios habilitados en S4-COM. No incluye tesis, reacciones ni chat.
+enum CommentTargetType {
+  NOTICIA
+  PROYECTO
+  EVENTO
+
+  @@map("tipo_destino_comentario")
+}
+
+enum CommentRevisionAction {
+  EDIT
+  DELETE
+
+  @@map("accion_historial_comentario")
 }
 
 enum ContributionRole {
@@ -163,16 +219,18 @@ model RolePermission {
 }
 
 enum ProjectStatus {
-	NO_APROBADO
-	APROBADO
-	EN_REVISION
-	@@map("estado_proyecto")
+  NO_APROBADO
+  APROBADO
+  EN_REVISION
+
+  @@map("estado_proyecto")
 }
 
 enum ProjectType {
-	TESIS
-	PROYECTO
-	@@map("tipo_proyecto")
+  TESIS
+  PROYECTO
+
+  @@map("tipo_proyecto")
 }
 
 model Project {
@@ -180,6 +238,7 @@ model Project {
   authorId        Int           @map("id_autor")
   reviewerId      Int?          @map("id_revisor")
   coverImageId    Int?          @map("id_imagen_portada")
+  documentFileId  Int?          @map("id_documento")
   title           String        @map("titulo") @db.Citext
   slug            String        @unique @map("slug") @db.VarChar(220)
   description     String        @map("descripcion") @db.Text
@@ -193,9 +252,11 @@ model Project {
   updatedAt       DateTime      @updatedAt @map("actualizado_en") @db.Timestamptz(3)
 
   // Relaciones
-  author     AdministrativeUser  @relation("ProjectAuthor", fields: [authorId], references: [id], onDelete: Restrict)
-  reviewer   AdministrativeUser? @relation("ProjectReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
-  coverImage File?               @relation("ProjectCoverImage", fields: [coverImageId], references: [id], onDelete: Restrict)
+  author       AdministrativeUser   @relation("ProjectAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  reviewer     AdministrativeUser?  @relation("ProjectReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  coverImage   File?                @relation("ProjectCoverImage", fields: [coverImageId], references: [id], onDelete: Restrict)
+  documentFile File?                @relation("ProjectDocument", fields: [documentFileId], references: [id], onDelete: Restrict)
+  comments     PublicationComment[]
 
   // Índices 
   @@index([status, createdAt])
@@ -203,34 +264,74 @@ model Project {
   @@index([authorId])
   @@index([reviewerId])
   @@index([coverImageId])
+  @@index([documentFileId])
   @@map("proyecto")
 }
 
 model AdministrativeUser {
-  id        Int                      @id @default(autoincrement()) @map("id_usuario")
-  roleId    Int                      @map("id_rol")
-  name      String                   @map("nombre") @db.VarChar(160)
-  email     String                   @unique @map("correo") @db.Citext
-  status    AdministrativeUserStatus @default(ACTIVO) @map("estado")
-  createdAt DateTime                 @default(now()) @map("creado_en") @db.Timestamptz(3)
-  updatedAt DateTime                 @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  id         Int                      @id @default(autoincrement()) @map("id_usuario")
+  roleId     Int                      @map("id_rol")
+  name       String                   @map("nombre") @db.VarChar(160)
+  firstNames String                   @default("") @map("nombres") @db.VarChar(80)
+  lastNames  String                   @default("") @map("apellidos") @db.VarChar(80)
+  email      String                   @unique @map("correo") @db.Citext
+  status     AdministrativeUserStatus @default(ACTIVO) @map("estado")
+  createdAt  DateTime                 @default(now()) @map("creado_en") @db.Timestamptz(3)
+  updatedAt  DateTime                 @updatedAt @map("actualizado_en") @db.Timestamptz(3)
 
-  role                    Role                      @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  credential              AdministrativeCredential?
-  uploadedFiles           File[]
-  createdPublications     ScientificPublication[]   @relation("PublicationCreator")
-  publicationApprovals    PublicationApproval[]
-  createdNews             News[]
-  createdEvents           Event[]
-  createdResources        Resource[]
-  assignedContactRequests ContactRequest[]
-
-  @@index([roleId, status])
-  @@map("usuario_administrativo")
+  role                         Role                                @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  credential                   AdministrativeCredential?
+  identities                   AdministrativeIdentity[]
+  sessions                     AdministrativeSession[]
+  uploadedFiles                File[]
+  createdPublications          ScientificPublication[]             @relation("PublicationCreator")
+  publicationApprovals         PublicationApproval[]
+  createdNews                  News[]
+  createdEvents                Event[]
+  createdResources             Resource[]
+  assignedContactRequests      ContactRequest[]
+  reviewedRegistrationRequests AdministrativeRegistrationRequest[] @relation("RegistrationReviewer")
+  studentAccountActions        StudentAccountStatusHistory[]
+  passwordResetRequests        AdministrativePasswordReset[]
 
   // Relaciones con proyectos
   createdProjects  Project[] @relation("ProjectAuthor")
   reviewedProjects Project[] @relation("ProjectReviewer")
+
+  @@index([roleId, status])
+  @@map("usuario_administrativo")
+}
+
+model AdministrativeRegistrationRequest {
+  id           Int                              @id @default(autoincrement()) @map("id_solicitud")
+  name         String                           @map("nombre") @db.VarChar(160)
+  firstNames   String                           @default("") @map("nombres") @db.VarChar(80)
+  lastNames    String                           @default("") @map("apellidos") @db.VarChar(80)
+  email        String                           @map("correo") @db.Citext
+  passwordHash String?                          @map("password_hash") @db.VarChar(255)
+  status       AdministrativeRegistrationStatus @default(PENDIENTE) @map("estado")
+  reviewedById Int?                             @map("id_revisor")
+  reviewedAt   DateTime?                        @map("revisado_en") @db.Timestamptz(3)
+  createdAt    DateTime                         @default(now()) @map("creado_en") @db.Timestamptz(3)
+  reviewer     AdministrativeUser?              @relation("RegistrationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([email, status])
+  @@map("solicitud_cuenta_administrativa")
+}
+
+model AdministrativePasswordReset {
+  id        Int                @id @default(autoincrement()) @map("id_recuperacion")
+  userId    Int                @map("id_usuario")
+  tokenHash String             @unique @map("hash_token") @db.Char(64)
+  expiresAt DateTime           @map("expira_en") @db.Timestamptz(3)
+  usedAt    DateTime?          @map("usado_en") @db.Timestamptz(3)
+  createdAt DateTime           @default(now()) @map("creado_en") @db.Timestamptz(3)
+  user      AdministrativeUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt, expiresAt])
+  @@index([expiresAt, usedAt])
+  @@map("recuperacion_contrasena_administrativa")
 }
 
 model AdministrativeCredential {
@@ -241,6 +342,157 @@ model AdministrativeCredential {
   user AdministrativeUser @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@map("credencial_administrativa")
+}
+
+model AdministrativeIdentity {
+  id              Int                    @id @default(autoincrement()) @map("id_identidad")
+  userId          Int                    @map("id_usuario")
+  provider        AuthenticationProvider @map("proveedor")
+  providerSubject String                 @map("sujeto_proveedor") @db.VarChar(255)
+  createdAt       DateTime               @default(now()) @map("creado_en") @db.Timestamptz(3)
+  updatedAt       DateTime               @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  user AdministrativeUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerSubject])
+  @@unique([userId, provider])
+  @@index([userId])
+  @@map("identidad_administrativa")
+}
+
+model AdministrativeSession {
+  id                  String    @id @default(uuid()) @map("id_sesion") @db.Uuid
+  userId              Int       @map("id_usuario")
+  tokenIdentifierHash String    @unique @map("hash_identificador_token") @db.Char(64)
+  deviceSecretHash    String    @map("hash_secreto_dispositivo") @db.Char(64)
+  browserContextHash  String    @map("hash_contexto_navegador") @db.Char(64)
+  csrfTokenHash       String    @map("hash_token_csrf") @db.Char(64)
+  expiresAt           DateTime  @map("expira_en") @db.Timestamptz(3)
+  lastSeenAt          DateTime  @default(now()) @map("ultima_actividad_en") @db.Timestamptz(3)
+  revokedAt           DateTime? @map("revocada_en") @db.Timestamptz(3)
+  revocationReason    String?   @map("motivo_revocacion") @db.VarChar(80)
+  createdAt           DateTime  @default(now()) @map("creada_en") @db.Timestamptz(3)
+
+  user AdministrativeUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([expiresAt])
+  @@map("sesion_administrativa")
+}
+
+model StudentUser {
+  id            Int                  @id @default(autoincrement()) @map("id_estudiante")
+  name          String               @map("nombre") @db.VarChar(160)
+  firstNames    String               @default("") @map("nombres") @db.VarChar(80)
+  lastNames     String               @default("") @map("apellidos") @db.VarChar(80)
+  email         String               @unique @map("correo") @db.Citext
+  isStudent     Boolean              @default(true) @map("es_estudiante")
+  status        StudentAccountStatus @default(ACTIVO) @map("estado")
+  blockedUntil  DateTime?            @map("bloqueado_hasta") @db.Timestamptz(3)
+  reviewChannel String?              @map("canal_revision") @db.VarChar(255)
+  moderationViolationCount Int        @default(0) @map("contador_infracciones_moderacion")
+  moderationWindowStartedAt DateTime? @map("inicio_ventana_moderacion") @db.Timestamptz(3)
+  deletedAt     DateTime?            @map("eliminado_en") @db.Timestamptz(3)
+  createdAt     DateTime             @default(now()) @map("creado_en") @db.Timestamptz(3)
+  updatedAt     DateTime             @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  credential         StudentCredential?
+  sessions           StudentSession[]
+  statusHistory      StudentAccountStatusHistory[]
+  eventRegistrations EventRegistration[]
+  comments           PublicationComment[]
+  commentRevisions   PublicationCommentRevision[]
+  moderationIncidents ModerationIncident[]
+
+  @@index([status, blockedUntil])
+  @@map("usuario_estudiante")
+}
+
+model StudentCredential {
+  userId       Int      @id @map("id_estudiante")
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  updatedAt    DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  user StudentUser @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("credencial_estudiante")
+}
+
+model StudentSession {
+  id                  String    @id @default(uuid()) @map("id_sesion") @db.Uuid
+  userId              Int       @map("id_estudiante")
+  tokenIdentifierHash String    @unique @map("hash_identificador_token") @db.Char(64)
+  deviceSecretHash    String    @map("hash_secreto_dispositivo") @db.Char(64)
+  browserContextHash  String    @map("hash_contexto_navegador") @db.Char(64)
+  csrfTokenHash       String    @map("hash_token_csrf") @db.Char(64)
+  expiresAt           DateTime  @map("expira_en") @db.Timestamptz(3)
+  lastSeenAt          DateTime  @default(now()) @map("ultima_actividad_en") @db.Timestamptz(3)
+  revokedAt           DateTime? @map("revocada_en") @db.Timestamptz(3)
+  revocationReason    String?   @map("motivo_revocacion") @db.VarChar(80)
+  createdAt           DateTime  @default(now()) @map("creada_en") @db.Timestamptz(3)
+
+  user StudentUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([expiresAt])
+  @@map("sesion_estudiante")
+}
+
+model StudentAccountStatusHistory {
+  id            Int                  @id @default(autoincrement()) @map("id_historial")
+  studentId     Int                  @map("id_estudiante")
+  actorId       Int?                 @map("id_actor_administrativo")
+  fromStatus    StudentAccountStatus @map("estado_anterior")
+  toStatus      StudentAccountStatus @map("estado_nuevo")
+  reason        String               @map("motivo") @db.Text
+  blockedUntil  DateTime?            @map("bloqueado_hasta") @db.Timestamptz(3)
+  reviewChannel String?              @map("canal_revision") @db.VarChar(255)
+  createdAt     DateTime             @default(now()) @map("registrado_en") @db.Timestamptz(3)
+
+  student StudentUser         @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  actor   AdministrativeUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, createdAt])
+  @@index([actorId, createdAt])
+  @@map("historial_estado_cuenta_estudiante")
+}
+
+/// Evidencia mínima de una infracción detectada bajo una política aprobada.
+/// No almacena el texto ofensivo; studentId se conserva como null al anonimizar.
+model ModerationIncident {
+  id                Int                       @id @default(autoincrement()) @map("id_infraccion")
+  studentId         Int?                      @map("id_estudiante")
+  operationKey      String                    @unique @map("clave_operacion") @db.Char(64)
+  source            ModerationIncidentSource  @map("origen")
+  policyVersion     String                    @map("version_politica") @db.VarChar(80)
+  ruleId            String                    @map("id_regla") @db.VarChar(120)
+  evidenceHash      String                    @map("hash_evidencia") @db.Char(64)
+  occurrenceNumber  Int                       @map("numero_infraccion")
+  sanction          ModerationSanctionAction  @map("sancion")
+  blockedUntil      DateTime?                 @map("bloqueado_hasta") @db.Timestamptz(3)
+  reviewChannel     String?                   @map("canal_revision") @db.VarChar(255)
+  countsTowardReincidence Boolean             @default(true) @map("cuenta_reincidencia")
+  createdAt         DateTime                  @default(now()) @map("registrada_en") @db.Timestamptz(3)
+
+  student StudentUser? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, createdAt])
+  @@index([policyVersion, createdAt])
+  @@map("infraccion_moderacion")
+}
+
+model MicrosoftLoginChallenge {
+  id           String    @id @default(uuid()) @map("id_desafio") @db.Uuid
+  stateHash    String    @unique @map("hash_estado") @db.Char(64)
+  verifierHash String    @map("hash_verificador") @db.Char(64)
+  nonce        String    @map("nonce") @db.VarChar(128)
+  returnTo     String?   @map("retorno_a") @db.VarChar(2048)
+  expiresAt    DateTime  @map("expira_en") @db.Timestamptz(3)
+  consumedAt   DateTime? @map("consumido_en") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("creado_en") @db.Timestamptz(3)
+
+  @@index([expiresAt, consumedAt])
+  @@map("desafio_inicio_microsoft")
 }
 
 /// La primera migración debe agregar CHECK (tamano_bytes > 0).
@@ -261,13 +513,13 @@ model File {
   resources    Resource[]              @relation("ResourceFile")
   boardPhotos  BoardMember[]           @relation("BoardPhoto")
 
+  //Relacion con proyecto
+  projectCovers    Project[] @relation("ProjectCoverImage")
+  projectDocuments Project[] @relation("ProjectDocument")
+
   @@index([uploadedById])
   @@index([sha256])
   @@map("archivo")
-  
-  //Relacion con proyecto
-  projectCovers Project[] @relation("ProjectCoverImage")
-
 }
 
 model ScientificPublication {
@@ -360,21 +612,23 @@ model NewsCategory {
 }
 
 model News {
-  id         Int           @id @default(autoincrement()) @map("id_noticia")
+  id          Int           @id @default(autoincrement()) @map("id_noticia")
   createdById Int           @map("creado_por")
-  categoryId Int           @map("id_categoria_noticia")
-  imageId    Int?          @map("id_imagen")
-  title      String        @map("titulo") @db.VarChar(220)
-  summary    String        @map("resumen") @db.Text
-  content    String        @map("contenido") @db.Text
-  status     ContentStatus @default(BORRADOR) @map("estado")
-  createdAt  DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
-  updatedAt  DateTime      @updatedAt @map("actualizado_en") @db.Timestamptz(3)
-  publishedAt DateTime?    @map("publicado_en") @db.Timestamptz(3)
+  categoryId  Int           @map("id_categoria_noticia")
+  imageId     Int?          @map("id_imagen")
+  title       String        @map("titulo") @db.VarChar(220)
+  summary     String        @map("resumen") @db.Text
+  content     String        @map("contenido") @db.Text
+  status      ContentStatus @default(BORRADOR) @map("estado")
+  createdAt   DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  publishedAt DateTime?     @map("publicado_en") @db.Timestamptz(3)
 
-  createdBy AdministrativeUser @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  category  NewsCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  image     File?              @relation("NewsImage", fields: [imageId], references: [id], onDelete: Restrict)
+  createdBy     AdministrativeUser   @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  category      NewsCategory         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  image         File?                @relation("NewsImage", fields: [imageId], references: [id], onDelete: Restrict)
+  featuredItems FeaturedItem[]
+  comments      PublicationComment[]
 
   @@index([status, publishedAt])
   @@index([categoryId, status, publishedAt])
@@ -388,6 +642,7 @@ model Event {
   id                    Int         @id @default(autoincrement()) @map("id_evento")
   createdById           Int         @map("creado_por")
   imageId               Int?        @map("id_imagen")
+  categoryId            Int?        @map("id_categoria_evento")
   name                  String      @map("nombre") @db.VarChar(220)
   description           String      @map("descripcion") @db.Text
   startsAt              DateTime    @map("inicia_en") @db.Timestamptz(3)
@@ -397,20 +652,40 @@ model Event {
   status                EventStatus @default(BORRADOR) @map("estado")
   createdAt             DateTime    @default(now()) @map("creado_en") @db.Timestamptz(3)
 
-  createdBy     AdministrativeUser  @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  image         File?               @relation("EventImage", fields: [imageId], references: [id], onDelete: Restrict)
+  createdBy     AdministrativeUser   @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  image         File?                @relation("EventImage", fields: [imageId], references: [id], onDelete: Restrict)
+  category      EventCategory?       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   registrations EventRegistration[]
+  featuredItems FeaturedItem[]
+  comments      PublicationComment[]
 
   @@index([status, startsAt])
   @@index([createdById])
   @@index([imageId])
+  @@index([categoryId])
   @@map("evento")
+}
+
+model EventCategory {
+  id        Int      @id @default(autoincrement()) @map("id_categoria_evento")
+  name      String   @unique @map("nombre") @db.Citext
+  active    Boolean  @default(true) @map("activa")
+  createdAt DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  events Event[]
+
+  @@index([active, name])
+  @@map("categoria_evento")
 }
 
 model EventRegistration {
   id             Int                     @id @default(autoincrement()) @map("id_inscripcion")
   eventId        Int                     @map("id_evento")
+  studentId      Int?                    @map("id_estudiante")
   fullName       String                  @map("nombre_completo") @db.VarChar(160)
+  firstNames     String                  @default("") @map("nombres") @db.VarChar(80)
+  lastNames      String                  @default("") @map("apellidos") @db.VarChar(80)
   email          String                  @map("correo") @db.Citext
   phone          String                  @map("telefono") @db.VarChar(40)
   status         EventRegistrationStatus @default(CONFIRMADA) @map("estado")
@@ -418,10 +693,12 @@ model EventRegistration {
   privacyVersion String                  @map("version_privacidad") @db.VarChar(40)
   registeredAt   DateTime                @default(now()) @map("inscrito_en") @db.Timestamptz(3)
 
-  event Event @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  event   Event        @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  student StudentUser? @relation(fields: [studentId], references: [id], onDelete: SetNull)
 
   @@unique([eventId, email])
   @@index([eventId, status])
+  @@index([studentId, registeredAt, id])
   @@map("inscripcion_evento")
 }
 
@@ -462,12 +739,12 @@ model Resource {
 }
 
 model ResourceLink {
-  id         Int      @id @default(autoincrement()) @map("id_enlace_recurso")
-  resourceId Int      @map("id_recurso")
-  label      String   @map("etiqueta") @db.VarChar(160)
-  url        String   @map("url") @db.VarChar(2048)
-  displayOrder Int    @default(0) @map("orden")
-  createdAt  DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  id           Int      @id @default(autoincrement()) @map("id_enlace_recurso")
+  resourceId   Int      @map("id_recurso")
+  label        String   @map("etiqueta") @db.VarChar(160)
+  url          String   @map("url") @db.VarChar(2048)
+  displayOrder Int      @default(0) @map("orden")
+  createdAt    DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
 
   resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
@@ -480,12 +757,14 @@ model BoardMember {
   id                 Int               @id @default(autoincrement()) @map("id_miembro")
   photoId            Int?              @map("id_fotografia")
   name               String            @map("nombre") @db.VarChar(160)
+  firstNames         String            @default("") @map("nombres") @db.VarChar(80)
+  lastNames          String            @default("") @map("apellidos") @db.VarChar(80)
   position           String            @map("cargo") @db.VarChar(120)
   description        String?           @map("descripcion") @db.Text
   institutionalEmail String            @map("correo_institucional") @db.Citext
   term               String            @map("periodo") @db.VarChar(80)
-  termStartsAt       DateTime?          @map("periodo_inicio") @db.Date
-  termEndsAt         DateTime?          @map("periodo_fin") @db.Date
+  termStartsAt       DateTime?         @map("periodo_inicio") @db.Date
+  termEndsAt         DateTime?         @map("periodo_fin") @db.Date
   displayOrder       Int               @default(0) @map("orden")
   status             BoardMemberStatus @default(ACTIVO) @map("estado")
 
@@ -501,6 +780,8 @@ model ContactRequest {
   id             Int                  @id @default(autoincrement()) @map("id_solicitud")
   assignedToId   Int?                 @map("atendido_por")
   name           String               @map("nombre") @db.VarChar(160)
+  firstNames     String               @default("") @map("nombres") @db.VarChar(80)
+  lastNames      String               @default("") @map("apellidos") @db.VarChar(80)
   email          String               @map("correo") @db.Citext
   phone          String               @map("telefono") @db.VarChar(40)
   type           ContactRequestType   @default(CONSULTA) @map("tipo")
@@ -538,6 +819,22 @@ model InstitutionalBlock {
   @@map("bloque_institucional")
 }
 
+model FeaturedItem {
+  id           Int      @id @default(autoincrement()) @map("id_destacado")
+  newsId       Int?     @map("id_noticia")
+  eventId      Int?     @map("id_evento")
+  displayOrder Int      @default(0) @map("orden")
+  createdAt    DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+
+  news  News?  @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  event Event? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([newsId])
+  @@unique([eventId])
+  @@index([displayOrder])
+  @@map("destacado_inicio")
+}
+
 model ContactMethod {
   id           Int               @id @default(autoincrement()) @map("id_medio")
   type         ContactMethodType @map("tipo")
@@ -551,4 +848,50 @@ model ContactMethod {
 
   @@index([active, displayOrder])
   @@map("medio_contacto")
+}
+
+/// Comentario de texto plano vinculado a exactamente una noticia, proyecto o evento.
+/// La migración aplica CHECK para que el FK no nulo coincida con targetType.
+/// studentId se vuelve null al anonimizar una cuenta; deletedAt representa retiro lógico.
+model PublicationComment {
+  id         Int               @id @default(autoincrement()) @map("id_comentario")
+  studentId  Int?              @map("id_estudiante")
+  targetType CommentTargetType @map("tipo_destino")
+  newsId     Int?              @map("id_noticia")
+  projectId  Int?              @map("id_proyecto")
+  eventId    Int?              @map("id_evento")
+  content    String            @map("contenido") @db.VarChar(2000)
+  dedupeHash String            @unique(map: "comentario_publicacion_no_duplicado_idx") @map("hash_deduplicacion") @db.Char(64)
+  createdAt  DateTime          @default(now()) @map("creado_en") @db.Timestamptz(3)
+  deletedAt  DateTime?         @map("eliminado_en") @db.Timestamptz(3)
+
+  student   StudentUser?                 @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  news      News?                        @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  project   Project?                     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  event     Event?                       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  revisions PublicationCommentRevision[]
+
+  @@index([targetType, newsId, createdAt], map: "comentario_publicacion_noticia_fecha_idx")
+  @@index([targetType, projectId, createdAt], map: "comentario_publicacion_proyecto_fecha_idx")
+  @@index([targetType, eventId, createdAt], map: "comentario_publicacion_evento_fecha_idx")
+  @@index([studentId, createdAt], map: "comentario_publicacion_estudiante_fecha_idx")
+  @@map("comentario_publicacion")
+}
+
+/// Auditoría privada de edición y retiro; actorStudentId puede quedar null al anonimizar.
+model PublicationCommentRevision {
+  id              Int                   @id @default(autoincrement()) @map("id_historial_comentario")
+  commentId       Int                   @map("id_comentario")
+  actorStudentId  Int?                  @map("id_estudiante_actor")
+  action          CommentRevisionAction @map("accion")
+  previousContent String                @map("contenido_anterior") @db.VarChar(2000)
+  nextContent     String?               @map("contenido_nuevo") @db.VarChar(2000)
+  changedAt       DateTime              @default(now()) @map("cambiado_en") @db.Timestamptz(3)
+
+  comment PublicationComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  actor   StudentUser?       @relation(fields: [actorStudentId], references: [id], onDelete: SetNull)
+
+  @@index([changedAt, id])
+  @@index([commentId, changedAt])
+  @@map("historial_comentario_publicacion")
 }

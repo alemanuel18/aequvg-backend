@@ -1,6 +1,6 @@
 import {Elysia, t} from 'elysia';
 import { ProjectService } from '../services/project.service';
-import { CreateProjectDTO, UpdateProjectDTO, ReviewProjectDTO, projectListQuery } from '../dtos/project.dto';
+import { CreateProjectDTO, UpdateProjectDTO, projectListQuery } from '../dtos/project.dto';
 import { ProjectStatus } from '@prisma/client';
 
 export const projectController =  new Elysia({prefix: '/projects'})
@@ -75,7 +75,7 @@ export const projectController =  new Elysia({prefix: '/projects'})
     }
   }, {
     params: t.Object({ id: t.Numeric() }),
-    body: ReviewProjectDTO
+    body: t.Object({ status: t.Union([t.Literal('EN_REVISION'), t.Literal('APROBADO'), t.Literal('NO_APROBADO')]), reviewerId: t.Numeric(), rejectionReason: t.Optional(t.String()) })
   })
 
   .delete('/:id', async ({ params: { id }, set }) => {

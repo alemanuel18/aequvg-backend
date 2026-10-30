@@ -7,6 +7,7 @@ const select = {
   id: true,
   createdById: true,
   imageId: true,
+  categoryId: true,
   name: true,
   description: true,
   startsAt: true,
@@ -16,6 +17,7 @@ const select = {
   status: true,
   createdAt: true,
   image: { select: { id: true, originalName: true, mimeType: true } },
+  category: { select: { id: true, name: true } },
   createdBy: { select: { id: true, name: true } }
 } satisfies Prisma.EventSelect
 
@@ -29,6 +31,7 @@ const publicSelect = {
   additionalInformation: true,
   status: true,
   image: { select: { id: true, originalName: true, mimeType: true } }
+  ,category: { select: { id: true, name: true } }
 } satisfies Prisma.EventSelect
 
 const whereFor = ({ q, status, publishedOnly }: EventFilters): Prisma.EventWhereInput => {
@@ -82,6 +85,8 @@ export const eventsRepository = {
   remove: (id: number) => prisma.event.delete({ where: { id }, select }),
   findActiveUser: (id: number) => prisma.administrativeUser.findFirst({ where: { id, status: 'ACTIVO' }, select: { id: true } }),
   findImage: (id: number) => prisma.file.findUnique({ where: { id }, select: { id: true, mimeType: true } }),
+  activeCategories: () => prisma.eventCategory.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+  findActiveCategory: (id: number) => prisma.eventCategory.findFirst({ where: { id, active: true }, select: { id: true } }),
   countRegistrations: (eventId: number) => prisma.eventRegistration.count({ where: { eventId } }),
   countConfirmedRegistrations: (eventId: number) =>
     prisma.eventRegistration.count({ where: { eventId, status: 'CONFIRMADA' } }),

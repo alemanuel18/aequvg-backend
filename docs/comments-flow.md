@@ -1,0 +1,70 @@
+# Comentarios e historial personal (S4-COM)
+
+## Contrato
+
+Los únicos destinos habilitados en S4 son una noticia publicada (`NOTICIA`), un registro de tipo `PROYECTO` aprobado o un evento publicado (`EVENTO`). El backend confirma la visibilidad y el tipo del destino antes de aceptar o listar sus comentarios; destinos inexistentes, tesis, registros no aprobados o no publicados responden `404 PUBLICATION_NOT_FOUND`. Tesis, reacciones y chat quedan fuera de este sprint.
+
+| Método | Ruta | Acceso |
+| --- | --- | --- |
+| `GET` | `/api/v1/publications/:targetType/:targetId/comments?page=1&pageSize=20` | Público; solo destino visible |
+| `POST` | `/api/v1/publications/:targetType/:targetId/comments` | Sesión estudiantil activa, `X-CSRF-Token` e `Idempotency-Key` |
+| `GET` | `/api/v1/student-auth/me/comments?page=1&pageSize=20` | Sesión estudiantil activa |
+| `PUT` | `/api/v1/student-auth/me/comments/:id` | Autor del comentario, sesión activa, `X-CSRF-Token` e `Idempotency-Key` |
+| `DELETE` | `/api/v1/student-auth/me/comments/:id` | Autor del comentario, sesión activa y `X-CSRF-Token` |
+| `GET` | `/api/v1/admin/comments/history?page=1&pageSize=20` | Administrador (`ADMIN_ACCESS`) |
+
+El cuerpo documentado de creación contiene `{ "content": "..." }`. El servidor obtiene el autor de la sesión; cualquier identidad de autor añadida por el cliente no se usa. Normaliza Unicode NFC, recorta espacios laterales y admite de 1 a 2000 caracteres. El historial se ordena por fecha descendente y usa páginas de 1 a 100 elementos. Las respuestas no exponen correo ni otros datos de cuenta.
+
+Crear/editar comentarios y cambiar el nombre del perfil requieren `Idempotency-Key`. Genera una clave nueva para cada contenido enviado y conserva la misma si reintentas esa operación tras un error de red; al cambiar el texto genera otra clave. Así, un reintento del mismo contenido ofensivo no suma otra infracción. Una clave faltante o inválida se rechaza con `422`.
+
+Un hash SHA-256 compuesto por autor, destino y texto normalizado permite que PostgreSQL rechace de forma atómica un texto duplicado por el mismo autor en el mismo destino (`409 DUPLICATE_COMMENT`). La moderación se ejecuta después de validar la publicación y antes de persistir; un rechazo responde `422 COMMENT_REJECTED_BY_MODERATION`.
+
+Cada edición vuelve a ejecutar moderación sobre el texto nuevo antes de guardar. Solo el autor puede editar o eliminar un comentario; una edición idéntica no crea una revisión. El borrado es lógico: el comentario sale de las listas públicas y del historial personal, mientras la revisión con texto anterior queda disponible únicamente en la ruta administrativa. Las revisiones son de solo lectura y no se incluyen en respuestas públicas o estudiantiles.
+
+## Moderación y renderizado seguro
+
+El módulo central `moderation` expone `moderationService.isCommentAllowed` como proveedor para los módulos que publican texto. `comments` consulta ese proveedor antes de guardar. Su implementación predeterminada es una política léxica interna: normaliza Unicode, tildes, mayúsculas y separadores, y rechaza como palabra completa insultos directos configurados en español e inglés. No hay un proveedor externo configurado; el contrato `registerCommentProvider` permite conectar uno cuando exista una decisión del equipo. La política es independiente del filtro de nombres.
+
+El filtro es una primera barrera: no interpreta contexto, ironía o amenazas implícitas y no detecta contenido abusivo fuera de su lista. Si no hay moderador disponible, la operación falla de forma segura con `503 COMMENT_MODERATION_UNAVAILABLE`; si el texto es rechazado responde `422 COMMENT_REJECTED_BY_MODERATION`.
+
+El API conserva el comentario como texto plano, sin interpretarlo como HTML. Los clientes deben renderizar `content` mediante interpolación/texto escapado (por ejemplo, `{{ comment.content }}` en Vue) y nunca con `v-html` o `innerHTML`.
+
+OpenAPI se sirve en `/openapi` y `/openapi/json`. El esquema enumera los tres valores de `targetType`, valida `content` de 1 a 2000 caracteres y declara autenticación estudiantil/CSRF para escrituras, sesión para el historial personal y cookie administrativa para auditoría.
+
+## Tipos de publicación y componentes frontend
+
+| `targetType` | Regla de visibilidad para comentar/listar | Ruta de detalle existente |
+| --- | --- | --- |
+| `NOTICIA` | Estado `PUBLICADO`, fecha de publicación alcanzada y categoría activa | `/noticias/:id` |
+| `PROYECTO` | Tipo `PROYECTO` y estado `APROBADO` (los registros `TESIS` se excluyen) | `/investigacion/:id` |
+| `EVENTO` | Estado `PUBLICADO` | `/eventos/:id` |
+
+`<PublicationComments targetType="NOTICIA|PROYECTO|EVENTO" :target-id="id" />` se monta en noticias, proyectos de tipo `PROYECTO` y eventos; no se monta en tesis. Lee comentarios sin iniciar sesión y muestra formulario solo con una sesión estudiantil activa; administra carga, paginación pública, estado de envío, rechazo MOD y sanciones. La publicación de comentarios envía `content` y el token CSRF; no recibe autor como prop.
+
+`<StudentCommentsPanel :comments="items" :loading="loading" :error="error" :on-update="updateComment" :on-delete="deleteComment" @retry="loadComments" />` presenta el historial propio. `comments` usa `StudentComment[]`; las propiedades de estado son boolean/string y los callbacks aceptan ID más texto para editar, ID para retirar y devuelven `Promise<void>`. La vista de cuenta controla la página solicitada. Cada item enlaza al destino vigente usando su tipo/ID. Un autor anonimizado se representa como `Anónimo`; el panel no muestra avatar ni enlace al perfil del autor.
+
+Ambos componentes insertan `content` como texto escapado mediante interpolación de Vue. No se usa `v-html` ni `innerHTML`. Si la publicación se retira o deja de estar visible, el endpoint no devuelve sus comentarios y responde `404 PUBLICATION_NOT_FOUND`.
+
+## Modelo de datos
+
+`PublicationComment` se almacena en `comentario_publicacion`: `targetType` es el enum de tres destinos; solo uno de `newsId`, `projectId` o `eventId` puede tener valor y debe corresponder al tipo. La migración aplica ambos `CHECK`, los tres FK de destino y sus índices por fecha. `studentId` es nullable con `ON DELETE SET NULL` para anonimizar; los FK a publicaciones usan `ON DELETE CASCADE`. `content` limita a 2000 caracteres, `createdAt` conserva la fecha original y `deletedAt` marca retiros lógicos. Un índice único en `dedupeHash` previene duplicados.
+
+`PublicationCommentRevision` guarda acciones `EDIT`/`DELETE`, texto anterior/nuevo, actor opcional y `changedAt`. Las revisiones son privadas para el endpoint administrativo; anonimizar la cuenta elimina la asociación con su actor, no el contenido ni la fecha de auditoría. Los nombres de modelo y las restricciones SQL están descritos junto a los modelos Prisma y en `prisma/migrations/20261024120000_publication_comments/`.
+
+## Casos y evidencia
+
+La matriz reproducible por criterio está en [`comments-test-cases.md`](comments-test-cases.md). Se implementa con pruebas unitarias del servicio/panel, contrato OpenAPI, integración PostgreSQL y E2E del sitio. Los casos verifican creación visible en publicación e historial, paginación, noticias/proyectos/eventos, errores, MOD y anonimización sin perfil/avatar anterior.
+
+## Anonimización del autor
+
+La baja propia anonimiza los comentarios dentro de la misma transacción que elimina la cuenta lógicamente y revoca sus sesiones. Se limpia `id_estudiante` y se rota el hash de deduplicación; se conservan el comentario, su destino y `creado_en`. Los eventos de auditoría también conservan su fecha y contenido anterior, pero no exponen al público ni mantienen la cuenta como actor después de su anonimización. El historial personal previo deja de asociarse a la cuenta y las listas públicas muestran `Anónimo`.
+
+La API entrega el contenido como texto plano. El cliente debe representarlo con interpolación/texto escapado (por ejemplo, `{{ comment.content }}` en Vue) y nunca interpretarlo como HTML (`v-html`). La baja conserva `content`, `targetType`, el ID de publicación y `createdAt`; solo hace nullable la asociación al estudiante y la presentación pública pasa a `Anónimo`.
+
+## Evidencia automatizada
+
+- Unitarias: política central MOD, moderación antes de persistir, rechazo cuando MOD no está disponible o rechaza, destino visible, historial paginado y límites.
+- Contrato HTTP: rutas documentadas en OpenAPI y autenticación requerida para el historial propio.
+- Persistencia: migración con destino único, claves foráneas, autor anulable, índice único de duplicados e índices de consulta. La baja conserva texto, publicación y fecha, elimina la asociación del autor y rota la clave de deduplicación.
+
+La migración requiere PostgreSQL actualizado con `bun run migrate:deploy` en un entorno de prueba; no ejecutar sobre producción como parte de esta tarea.

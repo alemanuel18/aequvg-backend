@@ -1,20 +1,25 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app'
 import { prisma } from '../../src/shared/database/prisma'
+import { createAdminSessionHeaders } from '../helpers/admin-session'
 
 const runDatabaseTests = process.env.NEWS_DATABASE_TEST === 'true'
 const describeDatabase = runDatabaseTests ? describe : describe.skip
 const runId = `news-test-${Date.now()}`
-const adminKey = 'news-integration-test-key'
+let roleId = 0
 let authorId = 0
 let categoryId = 0
 let inactiveCategoryId = 0
 let newsId = 0
+let invalidImageId = 0
+const createdCategoryIds: number[] = []
+let noNewsPermissionRoleId = 0
+let noNewsPermissionAdminId = 0
 
 const request = (path: string, options: RequestInit = {}) => new Request(`http://localhost${path}`, options)
-const adminHeaders = { authorization: `Bearer ${adminKey}`, 'content-type': 'application/json' }
+let adminHeaders: Record<string, string>
+let noNewsPermissionHeaders: Record<string, string>
 const bodyFor = (title: string, overrides: Record<string, unknown> = {}) => ({
-  createdById: authorId,
   categoryId,
   title,
   summary: `Resumen suficiente para ${title}.`,
@@ -25,23 +30,59 @@ const bodyFor = (title: string, overrides: Record<string, unknown> = {}) => ({
 
 describeDatabase('CRUD HTTP de noticias con PostgreSQL', () => {
   beforeAll(async () => {
-    process.env.ADMIN_API_KEY = adminKey
     const role = await prisma.role.create({ data: { name: `${runId}-role`, description: 'Rol temporal para pruebas de noticias.' } })
     const author = await prisma.administrativeUser.create({ data: { roleId: role.id, name: 'Autor de pruebas', email: `${runId}@uvg.edu.gt` } })
     const category = await prisma.newsCategory.create({ data: { name: `${runId}-category` } })
     const inactiveCategory = await prisma.newsCategory.create({ data: { name: `${runId}-inactive`, active: false } })
+    const noPermissionRole = await prisma.role.create({ data: { name: `${runId}-no-news-role`, description: 'Rol sin permisos de noticias para la prueba.' } })
+    const noPermissionAdmin = await prisma.administrativeUser.create({ data: { roleId: noPermissionRole.id, name: 'Editor sin permiso', email: `${runId}-no-news@uvg.edu.gt` } })
     authorId = author.id
+    roleId = role.id
+    adminHeaders = await createAdminSessionHeaders(prisma, author.id, role.id, ['NEWS_MANAGE'])
     categoryId = category.id
     inactiveCategoryId = inactiveCategory.id
+    noNewsPermissionRoleId = noPermissionRole.id
+    noNewsPermissionAdminId = noPermissionAdmin.id
+    noNewsPermissionHeaders = await createAdminSessionHeaders(prisma, noNewsPermissionAdminId, noNewsPermissionRoleId, [])
   })
 
   afterAll(async () => {
     await prisma.news.deleteMany({ where: { createdById: authorId } })
+    if (invalidImageId) await prisma.file.delete({ where: { id: invalidImageId } })
+    if (createdCategoryIds.length) await prisma.newsCategory.deleteMany({ where: { id: { in: createdCategoryIds } } })
     await prisma.newsCategory.deleteMany({ where: { id: inactiveCategoryId } })
     await prisma.newsCategory.deleteMany({ where: { id: categoryId } })
     await prisma.administrativeUser.deleteMany({ where: { id: authorId } })
+    if (noNewsPermissionAdminId) await prisma.administrativeUser.delete({ where: { id: noNewsPermissionAdminId } })
+    await prisma.rolePermission.deleteMany({ where: { roleId } })
     await prisma.role.deleteMany({ where: { name: `${runId}-role` } })
+    if (noNewsPermissionRoleId) await prisma.role.delete({ where: { id: noNewsPermissionRoleId } })
     await prisma.$disconnect()
+  })
+
+  it('crea categorías solo con NEWS_MANAGE, limpia el nombre y rechaza duplicados', async () => {
+    const app = createApp()
+    const unauthenticated = await app.handle(request('/api/v1/admin/news/categories', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Comunidad' }) }))
+    expect(unauthenticated.status).toBe(401)
+
+    const forbidden = await app.handle(request('/api/v1/admin/news/categories', { method: 'POST', headers: noNewsPermissionHeaders, body: JSON.stringify({ name: 'Comunidad' }) }))
+    expect(forbidden.status).toBe(403)
+
+    const created = await app.handle(request('/api/v1/admin/news/categories', { method: 'POST', headers: adminHeaders, body: JSON.stringify({ name: '  <strong>Comunidad</strong>  ' }) }))
+    expect(created.status).toBe(201)
+    const category = await created.json() as { id: number; name: string; active: boolean }
+    expect(category).toMatchObject({ name: 'Comunidad', active: true })
+    createdCategoryIds.push(category.id)
+    const listedCategories = await app.handle(request('/api/v1/news/categories'))
+    expect(listedCategories.status).toBe(200)
+    expect((await listedCategories.json() as { id: number; name: string }[])).toContainEqual({ id: category.id, name: 'Comunidad' })
+
+    const duplicate = await app.handle(request('/api/v1/admin/news/categories', { method: 'POST', headers: adminHeaders, body: JSON.stringify({ name: 'comunidad' }) }))
+    expect(duplicate.status).toBe(409)
+    expect((await duplicate.json() as { error: { code: string } }).error.code).toBe('NEWS_CATEGORY_EXISTS')
+
+    const empty = await app.handle(request('/api/v1/admin/news/categories', { method: 'POST', headers: adminHeaders, body: JSON.stringify({ name: '<p></p>' }) }))
+    expect(empty.status).toBe(422)
   })
 
   it('crea, consulta, edita, archiva y elimina una noticia', async () => {
@@ -68,6 +109,46 @@ describeDatabase('CRUD HTTP de noticias con PostgreSQL', () => {
     const deleted = await app.handle(request(`/api/v1/admin/news/${newsId}`, { method: 'DELETE', headers: adminHeaders }))
     expect(deleted.status).toBe(200)
     newsId = 0
+  })
+
+  it('rechaza contenido vacío o malicioso e imágenes que no son imágenes sin persistirlos', async () => {
+    const app = createApp()
+    const invalidImage = await prisma.file.create({ data: {
+      uploadedById: authorId,
+      originalName: 'documento.pdf',
+      storageKey: `${runId}/documento.pdf`,
+      mimeType: 'application/pdf',
+      sizeBytes: 4n,
+      sha256: '1'.repeat(64)
+    } })
+    invalidImageId = invalidImage.id
+
+    const empty = await app.handle(request('/api/v1/admin/news', {
+      method: 'POST', headers: adminHeaders,
+      body: JSON.stringify(bodyFor('Noticia vacía', { content: '<script>alert(1)</script>' }))
+    }))
+    expect(empty.status).toBe(422)
+    expect((await empty.json() as { error: { code: string } }).error.code).toBe('INVALID_NEWS_CONTENT')
+
+    const invalidImageResponse = await app.handle(request('/api/v1/admin/news', {
+      method: 'POST', headers: adminHeaders,
+      body: JSON.stringify(bodyFor('Noticia con imagen inválida', { imageId: invalidImageId }))
+    }))
+    expect(invalidImageResponse.status).toBe(422)
+    expect((await invalidImageResponse.json() as { error: { code: string } }).error.code).toBe('INVALID_NEWS_IMAGE')
+
+    const safeMarkup = await app.handle(request('/api/v1/admin/news', {
+      method: 'POST', headers: adminHeaders,
+      body: JSON.stringify(bodyFor('<strong>Noticia limpia</strong>', {
+        summary: '<em>Resumen limpio y suficiente.</em>',
+        content: '<p>Contenido limpio y suficiente.</p><script>alert(1)</script>'
+      }))
+    }))
+    expect(safeMarkup.status).toBe(201)
+    const persisted = await safeMarkup.json() as { id: number; title: string; content: string }
+    expect(persisted.title).toBe('Noticia limpia')
+    expect(persisted.content).not.toContain('<script>')
+    await app.handle(request(`/api/v1/admin/news/${persisted.id}`, { method: 'DELETE', headers: adminHeaders }))
   })
 
   it('busca, filtra, pagina y excluye publicaciones programadas', async () => {
