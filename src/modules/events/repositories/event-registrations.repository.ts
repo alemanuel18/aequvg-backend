@@ -23,6 +23,13 @@ export type EventRegistrationAdminFilters = {
   pageSize: number
 }
 
+export type EventRegistrationOwnFilters = {
+  studentId: number
+  status?: EventRegistrationStatus
+  page: number
+  pageSize: number
+}
+
 const adminSelect = {
   id: true,
   fullName: true,
@@ -85,6 +92,16 @@ export const eventRegistrationsRepository = {
     })
   },
 
+  async findExistingForStudent(tx: Prisma.TransactionClient, eventId: number, studentId: number) {
+    return tx.eventRegistration.findFirst({
+      where: { eventId, studentId },
+      select: {
+        id: true,
+        status: true
+      }
+    })
+  },
+
   async countConfirmed(tx: Prisma.TransactionClient, eventId: number) {
     return tx.eventRegistration.count({
       where: {
@@ -103,6 +120,35 @@ export const eventRegistrationsRepository = {
         status: true,
         registeredAt: true
       }
+    })
+  },
+
+  ownList({ studentId, status, page, pageSize }: EventRegistrationOwnFilters) {
+    return prisma.eventRegistration.findMany({
+      where: { studentId, ...(status ? { status } : {}) },
+      select: {
+        id: true,
+        status: true,
+        registeredAt: true,
+        event: {
+          select: {
+            id: true,
+            name: true,
+            startsAt: true,
+            location: true,
+            status: true
+          }
+        }
+      },
+      orderBy: [{ registeredAt: 'desc' }, { id: 'desc' }],
+      skip: (page - 1) * pageSize,
+      take: pageSize
+    })
+  },
+
+  ownCount({ studentId, status }: { studentId: number; status?: EventRegistrationStatus }) {
+    return prisma.eventRegistration.count({
+      where: { studentId, ...(status ? { status } : {}) }
     })
   },
 

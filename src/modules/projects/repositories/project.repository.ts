@@ -11,6 +11,19 @@ export type PublicProjectListOptions = {
 	take: number
 }
 
+export type AdminProjectFilters = { q?: string; status?: ProjectStatus; type?: ProjectType; page: number; pageSize: number }
+const adminWhere = ({ q, status, type }: AdminProjectFilters): Prisma.ProjectWhereInput => ({
+  ...(status ? { status } : {}), ...(type ? { type } : {}),
+  ...(q ? { OR: [{ title: { contains: q, mode: 'insensitive' } }, { description: { contains: q, mode: 'insensitive' } }, { author: { name: { contains: q, mode: 'insensitive' } } }] } : {})
+})
+const adminSelect = {
+  id: true, authorId: true, reviewerId: true, coverImageId: true, documentFileId: true,
+  title: true, slug: true, description: true, repositoryUrl: true, liveUrl: true, type: true, status: true,
+  rejectionReason: true, reviewedAt: true, createdAt: true, updatedAt: true,
+  author: { select: { id: true, name: true, email: true } }, reviewer: { select: { id: true, name: true } },
+  documentFile: { select: { id: true, originalName: true, mimeType: true, sizeBytes: true } }
+} satisfies Prisma.ProjectSelect
+
 export class ProjectRepository {
 	static async findPublicPage(options: PublicProjectListOptions) {
 		const where: Prisma.ProjectWhereInput = { status: ProjectStatus.APROBADO }
@@ -53,33 +66,44 @@ export class ProjectRepository {
 					createdAt: true,
 					author: { select: { id: true, name: true } },
 					coverImage: { select: { id: true, originalName: true, storageKey: true } },
+					documentFile: { select: { id: true, originalName: true, mimeType: true, sizeBytes: true } },
 				},
 			}),
 			prisma.project.count({ where }),
-		])
+		]).then(([items, total]) => [items.map(item => ({
+			...item,
+			documentFile: item.documentFile ? { ...item.documentFile, sizeBytes: Number(item.documentFile.sizeBytes) } : null,
+		})), total] as const)
 	}
 
 	static async findAll() {
-		return await prisma.project.findMany({
-			include: {
-				author: {select: {id: true, name: true, email: true}},
-				reviewer: {select: {id: true, name: true}},
-				coverImage: {select: {id: true, originalName: true, storageKey: true}},
-			},
-			orderBy: {createdAt: 'desc' },
-		});
+		return prisma.project.findMany({ select: adminSelect, orderBy: {createdAt: 'desc' } });
+	}
+
+	static async findAdminPage(filters: AdminProjectFilters) {
+		const where = adminWhere(filters)
+		const [items, total] = await Promise.all([
+			prisma.project.findMany({ where, select: adminSelect, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: (filters.page - 1) * filters.pageSize, take: filters.pageSize }),
+			prisma.project.count({ where })
+		])
+		return { items: items.map(item => ({ ...item, documentFile: item.documentFile ? { ...item.documentFile, sizeBytes: Number(item.documentFile.sizeBytes) } : null })), total }
 	}
 
 	static async findPublicById(id: number) {
-		return prisma.project.findFirst({
+		const project = await prisma.project.findFirst({
 			where: { id, status: ProjectStatus.APROBADO },
 			select: {
 				id: true, title: true, slug: true, description: true,
 				repositoryUrl: true, liveUrl: true, type: true, status: true, createdAt: true,
 				author: { select: { id: true, name: true } },
 				coverImage: { select: { id: true, originalName: true, storageKey: true } },
+				documentFile: { select: { id: true, originalName: true, mimeType: true, sizeBytes: true } },
 			},
 		})
+		return project ? {
+			...project,
+			documentFile: project.documentFile ? { ...project.documentFile, sizeBytes: Number(project.documentFile.sizeBytes) } : null,
+		} : null
 	}
 
 	static async findApprovedOnly(){
@@ -94,15 +118,8 @@ export class ProjectRepository {
 	}
 
 	static async findById(id: number) {
-		return await prisma.project.findUnique({
-			where: {id},
-			include: {
-				author: {select: {id: true, name: true, email: true}},
-				reviewer: {select: {id: true, name: true}},
-				coverImage: true,
-			},
-	
-		});
+		const project = await prisma.project.findUnique({ where: { id }, select: adminSelect })
+		return project ? { ...project, documentFile: project.documentFile ? { ...project.documentFile, sizeBytes: Number(project.documentFile.sizeBytes) } : null } : null
 	}
 
 	static async findBySlug(slug: string){

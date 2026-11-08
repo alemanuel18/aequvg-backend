@@ -1,6 +1,6 @@
 # AEQUVG Backend
 
-API REST de la Asociación de Estudiantes de Química de la Universidad del Valle de Guatemala. Expone contenido institucional, junta directiva y medios de contacto, y recibe consultas o solicitudes de reunión desde el sitio público.
+API REST de la Asociación de Estudiantes de Química de la Universidad del Valle de Guatemala. Expone contenido institucional, junta directiva y medios de contacto, y entrega por correo las consultas o solicitudes de reunión del sitio público.
 
 ## Tecnologías
 
@@ -24,13 +24,12 @@ src/
   modules/
     institutional/       # Inicio y promoción de la carrera
     board/               # Junta directiva
-    contact/             # Medios y solicitudes de contacto
-    events/              # Estructura reservada para eventos
-    news/                # Estructura reservada para noticias
-    papers/              # Estructura reservada para papers
-    projects/            # Estructura reservada para proyectos
-    resources/           # Estructura reservada para recursos
-    users/               # Estructura reservada para usuarios
+    contact/             # Medios oficiales y entrega directa por correo
+    events/              # Eventos e inscripciones
+    news/                # Noticias
+    projects/            # Proyectos y documentos PDF
+    resources/           # Recursos académicos y archivos
+    users/               # Sesión, usuarios, roles y recuperación
   middleware/            # Autorización, rate limit y logs HTTP
   shared/                # Base de datos, errores, logging y utilidades
   app.ts                 # Composición de plugins y módulos
@@ -57,11 +56,107 @@ Cada módulo separa responsabilidades:
 
 La API usa el prefijo `/api/v1`. OpenAPI se publica en `http://localhost:3000/openapi` y el healthcheck en `http://localhost:3000/health`.
 
+## Acceso de estudiantes
+
+El portal estudiantil usa `/api/v1/student-auth/register`, `/login`, `/me`, `/logout` y `/account`. Solo admite estudiantes actuales con correo `@uvg.edu.gt`; no incluye aspirantes. El registro recibe `firstNames` y `lastNames`, que se almacenan en columnas separadas. La lectura y actualización del perfil propio usan `/me`; `PATCH /me` solo permite cambiar nombres y apellidos mediante la sesión y el token CSRF. Las cuentas, credenciales, sesiones, cookies y audiencia JWT estudiantiles están separadas por completo de las administrativas. El servidor asigna siempre `STUDENT`, rechaza campos adicionales como `role`, modera nombres antes del alta y cada edición, y revoca sesiones al cerrar o dar de baja la cuenta.
+
+Los estados son `ACTIVO`, `BLOQUEADO_TEMPORAL`, `BLOQUEADO_PERMANENTE` y `ELIMINADO`. Administración exclusiva (`USERS_MANAGE`) permite buscar, filtrar y paginar, consultar detalle e historial, aplicar bloqueos o desbloqueo con motivo obligatorio y dar de baja cuentas normales. El historial conserva fecha, motivo y transición; las medidas manuales identifican al actor administrativo y las automáticas al sistema. Bloquear revoca sesiones y desbloquear requiere un nuevo login. Un bloqueo temporal vence al siguiente login; el permanente no se levanta automáticamente. Una política ratificada y configurada puede aplicar reincidencias y sanciones automáticamente; con `MODERATION_POLICY_JSON` vacío solo se rechaza el contenido detectado. BAJA propia y administrativa comparten el servicio de baja lógica, que anonimiza datos personales y conserva comentarios e inscripciones. Desbloquear restaura el acceso a una cuenta existente; eliminar la deja `ELIMINADO` y no se puede revertir. Estos endpoints excluyen las cuentas administrativas. Consulta [`docs/student-access-flow.md`](docs/student-access-flow.md) para el flujo y [`docs/student-admin-test-cases.md`](docs/student-admin-test-cases.md) para los escenarios de aceptación/regresión S3. La colección Hoppscotch contiene solicitudes manuales y OpenAPI describe permisos y acciones.
+
+El borrador de política de lenguaje ofensivo, reincidencias, transiciones y decisiones pendientes de ratificación está en [`docs/moderation-policy.md`](docs/moderation-policy.md). La guía [`docs/moderation-operations.md`](docs/moderation-operations.md) describe el mantenimiento propuesto del catálogo, límites del detector, revisión manual de falsos positivos, evidencia mínima, contratos MOD/AUTH/ADMIN y pruebas. Ninguno de estos documentos registra una aprobación de la Asociación.
+
+El motor usa `MODERATION_POLICY_JSON` para cargar la versión ratificada: metadata (`approved`, `version`, `approvedBy`, `approvedAt`), `blockedTerms` y `exceptions` por ámbito `NAME`/`COMMENT`, `recurrenceWindowHours`, pasos `sanctions` (`after`, `TEMPORARY` con `durationHours` o `PERMANENT`), `manualUnlockEffect`, `expiryEffect` y canal de revisión permanente si aplica. No se distribuye una política aprobada por defecto. Con la variable vacía, el detector local sigue rechazando el catálogo candidato actual, pero no registra reincidencias ni aplica sanciones progresivas. JSON inválido falla de forma cerrada para operaciones moderadas. No activar sanciones sin acuerdo firmado y configuración revisada.
+
+### Estudiante local de pruebas
+
+Al ejecutar la seed con `NODE_ENV` distinto de `production`, se crea o restablece esta cuenta estudiantil ficticia:
+
+```text
+Correo: estudiante.pruebas@uvg.edu.gt
+Contraseña: AEQUVG-Estudiante-2026!
+Perfil: Estudiante normal
+```
+
+Estas credenciales son públicas y sirven exclusivamente para desarrollo y pruebas locales. La cuenta se guarda en las tablas estudiantiles, no recibe rol ni permisos administrativos y la seed la restablece con estado `ACTIVO`. No se crea cuando `NODE_ENV=production`; no debe copiarse manualmente ni utilizarse en un despliegue real.
+
+## Comentarios e historial personal
+
+S4-COM expone comentarios por noticias publicadas, proyectos aprobados y eventos publicados, además del historial paginado del estudiante autenticado. La creación consulta el proveedor central interno MOD antes de persistir; actualmente usa una política léxica explícita. El API entrega texto plano y el frontend renderiza el historial mediante interpolación escapada. Contrato, modelo, componentes y anonimización están en [`docs/comments-flow.md`](docs/comments-flow.md); los casos y comandos reproducibles están en [`docs/comments-test-cases.md`](docs/comments-test-cases.md). Tesis, reacciones y chat no forman parte de este sprint.
+
+## Autenticación y perfiles administrativos
+
+Las solicitudes de cuenta se envían desde `POST /api/v1/auth/registration-requests` con `firstNames`, `lastNames`, correo `@uvg.edu.gt` y contraseña. Nombres y apellidos se almacenan en columnas separadas. Se guardan como pendientes y no crean una cuenta ni otorgan acceso. Una persona con `USERS_MANAGE` puede consultarlas en `GET /api/v1/admin/registration-requests` y aprobarlas con un rol o rechazarlas mediante `POST /api/v1/admin/registration-requests/:id/review`. La aprobación crea la cuenta activa y mueve el hash de contraseña a sus credenciales; al resolver la solicitud, el hash se elimina de la solicitud. Los cambios administrativos requieren CSRF. Quien aprueba debe verificar la identidad del solicitante por un canal institucional antes de aprobar.
+
+Los cuatro perfiles definidos en la planificación son:
+
+- `ASSOCIATION_REPRESENTATIVE`: representante de la Asociación.
+- `FACULTY_REPRESENTATIVE`: representante de la Facultad de Química.
+- `CAREER_DIRECTOR`: directora de la carrera.
+- `CAREER_SECRETARY`: secretaria de la carrera.
+
+Los perfiles permanecen separados para poder especializarlos después. Conforme al contrato vigente, los cuatro reciben inicialmente los mismos permisos. La seed crea de forma idempotente los roles, permisos y relaciones. `CONTENT_ADMIN`, el rol provisional anterior, queda inactivo.
+
+### Administrador local de pruebas
+
+Al ejecutar la seed con `NODE_ENV` distinto de `production`, se crea o restablece esta cuenta ficticia:
+
+```text
+Correo: admin.pruebas@uvg.edu.gt
+Contraseña: AEQUVG-Pruebas-2026!
+Rol: ASSOCIATION_REPRESENTATIVE
+```
+
+Estas credenciales son públicas y sirven exclusivamente para desarrollo y pruebas locales. La seed no crea esta cuenta cuando `NODE_ENV=production`; no debe copiarse manualmente ni utilizarse en un despliegue real.
+
+La API admite dos formas de inicio de sesión:
+
+- `POST /api/v1/auth/login`: correo institucional y contraseña. Las contraseñas se almacenan con `scrypt`; el JWT HS256 nunca se devuelve a JavaScript y se guarda en una cookie `HttpOnly`.
+- `GET /api/v1/auth/microsoft`: crea un desafío OpenID Connect con Authorization Code, PKCE, `state` y `nonce`, y devuelve `authorizationUrl`. El callback es `GET /api/v1/auth/microsoft/callback`. Se validan firma RS256, tenant, audiencia, expiración y `nonce` del ID token.
+
+Microsoft no crea administradores automáticamente. La cuenta debe existir en `usuario_administrativo`, estar activa y pertenecer a un rol activo; el primer acceso enlaza su `sub` de Microsoft con el usuario ya aprobado.
+
+Las contraseñas locales de ambos perfiles se procesan con `scrypt` y una sal criptográfica aleatoria antes de persistirse. Solo se almacena el hash codificado en `credencial_administrativa` o `credencial_estudiante`; nunca se guarda ni se registra la contraseña original. Las solicitudes administrativas conservan temporalmente ese mismo hash, no texto plano, hasta ser aprobadas o rechazadas.
+
+Otros endpoints:
+
+```text
+GET  /api/v1/auth/me
+POST /api/v1/auth/logout
+POST /api/v1/auth/registration-requests
+POST /api/v1/auth/password-recovery-requests
+POST /api/v1/auth/password-resets
+GET  /api/v1/admin/roles
+GET  /api/v1/admin/users
+GET  /api/v1/admin/registration-requests
+POST /api/v1/admin/registration-requests/:id/review
+POST /api/v1/admin/users
+PATCH /api/v1/admin/users/:id
+PUT   /api/v1/admin/users/:id/password
+```
+
+La guía operativa del acceso administrativo, sus pantallas disponibles, las brechas de interfaz y los casos de autorización está en [`docs/admin-access-flow.md`](docs/admin-access-flow.md). El contrato de las rutas no cambia con esa guía.
+
+Las rutas administrativas usan cookies y requieren `credentials: "include"` en el frontend. Para `POST`, `PUT`, `PATCH` y `DELETE`, el cliente debe reenviar en `X-CSRF-Token` el `csrfToken` recibido al iniciar sesión. El autor o revisor de una operación se obtiene de la sesión y no puede elegirse en el cuerpo.
+
+Los cambios de rol o estado y el establecimiento administrativo de una contraseña revocan las sesiones afectadas dentro de la misma transacción que guarda el cambio. Las solicitudes de recuperación también invalidan las sesiones al consumir el token.
+
+### Recuperación de contraseña
+
+- `POST /api/v1/auth/password-recovery-requests` acepta un correo y siempre devuelve el mismo mensaje para evitar revelar si hay una cuenta.
+- Si la cuenta está activa, Resend envía un enlace con token aleatorio. Solo se almacena su hash; vence en 30 minutos y las solicitudes nuevas invalidan enlaces anteriores.
+- `POST /api/v1/auth/password-resets` consume el token una sola vez, actualiza la contraseña con scrypt y revoca las sesiones activas.
+- Las solicitudes se limitan a 3 por correo/IP cada 15 minutos. El correo reutiliza `RESEND_API_KEY` y `CONTACT_FROM_EMAIL`.
+
+Cada JWT referencia una sesión persistida y no contiene roles ni permisos. En cada solicitud se consulta el usuario y su rol vigente. Cambiar rol, estado o contraseña revoca sus sesiones. El JWT se vincula además a una cookie secreta de dispositivo y al contexto básico del navegador; una copia incompleta o usada desde otro contexto revoca la sesión. Si un atacante clona todas las cookies y suplanta exactamente el navegador, las cookies por sí solas no permiten distinguir físicamente ambos dispositivos; una garantía superior requiere WebAuthn o una credencial ligada por hardware.
+
+Para configurar Microsoft Entra ID, registra una aplicación de tenant único, agrega exactamente `MICROSOFT_REDIRECT_URI` como redirect URI de tipo Web y crea un secreto de cliente. No configures el tenant `common`: el backend exige el identificador del tenant UVG.
+
 ## Noticias
 
 La API pública expone `GET /api/v1/news`, `GET /api/v1/news/:id` y `GET /api/v1/news/categories`. El listado acepta `q`, `categoryId`, `page` y `pageSize`; solo devuelve publicaciones `PUBLICADO` cuya fecha ya llegó y cuya categoría está activa.
 
-Las rutas administrativas bajo `/api/v1/admin/news` requieren `Authorization: Bearer <ADMIN_API_KEY>` y permiten listar, consultar, crear, actualizar, archivar y eliminar noticias. Los contratos de entrada, respuesta y errores están disponibles en [OpenAPI](http://localhost:3000/openapi) y en `docs/aequvg-hoppscotch.json`.
+Las rutas administrativas bajo `/api/v1/admin/news` requieren una sesión con `NEWS_MANAGE` y permiten listar, consultar, crear, actualizar, archivar y eliminar noticias. Los contratos de entrada, respuesta y errores están disponibles en [OpenAPI](http://localhost:3000/openapi) y en `docs/aequvg-hoppscotch.json`. El flujo completo de pantallas, permisos, validaciones, ejemplos y evidencia está en [`docs/admin-news-institutional-flow.md`](docs/admin-news-institutional-flow.md).
+
+Al crear una noticia son obligatorios la categoría, el título, el resumen y el contenido. La imagen es opcional; el estado se puede omitir en la API y queda como `BORRADOR`, mientras que el panel requiere elegirlo. La fecha de publicación se asigna automáticamente cuando corresponde y el autor se toma de la sesión.
 
 La integración real del módulo se ejecuta únicamente contra una PostgreSQL aislada para no modificar datos locales:
 
@@ -71,15 +166,29 @@ bun run test:integration:news
 
 GitHub Actions ejecuta esa misma prueba contra PostgreSQL 16 en cada pull request, después de aplicar las migraciones. El job se llama `news-postgres`; configúralo como required status check de la rama `develop` desde las reglas de protección del repositorio.
 
+## Recursos para estudiantes
+
+La API pública expone `GET /api/v1/resources/categories`, `GET /api/v1/resources`, `GET /api/v1/resources/:id` y `GET /api/v1/resources/:id/download`; solo devuelve recursos `PUBLICADO`, vigentes y asociados a categorías activas. La descarga exige que el recurso siga publicado y vigente. La administración usa `/api/v1/admin/resources` y requiere `RESOURCES_MANAGE` para listar, consultar, crear, actualizar, archivar o eliminar.
+
+Al crear un recurso son obligatorios la categoría, el título y la descripción. El estado puede omitirse en la API y queda en `BORRADOR`; el panel requiere seleccionar uno. Los borradores no necesitan un destino, pero un recurso `PUBLICADO` necesita un archivo existente (`fileId`) o al menos un enlace HTTP/HTTPS. La fecha se asigna al publicar y el autor se deriva de la sesión. La administración expone `POST /api/v1/admin/files` para cargar multipart en el campo `file` y `DELETE /api/v1/admin/files/:id` para eliminar un archivo no asociado; ambas rutas requieren `RESOURCES_MANAGE` y CSRF. Se aceptan PDF, DOC, DOCX y ZIP de hasta 25 MB. `PUT` permite sustituir el archivo con otro `fileId`, reemplazar todos los enlaces enviando `links` y cambiar el estado. Un archivo asociado a recursos, noticias, eventos, publicaciones, proyectos o fotografías no puede eliminarse y devuelve `409 FILE_IN_USE`.
+
+El servicio limpia título, descripción y etiquetas antes de validar sus mínimos; contenido vacío después de limpiar HTML devuelve `422 INVALID_RESOURCE_CONTENT`. Categorías inactivas, archivos inexistentes o con metadatos inválidos y enlaces repetidos también se rechazan sin persistir cambios. La integración verifica además `401` sin sesión, `403 FORBIDDEN` sin `RESOURCES_MANAGE`, `403 ACCOUNT_DISABLED` para cuenta inactiva y `401 INVALID_SESSION` para sesión expirada.
+
+La integración PostgreSQL se ejecuta con `bun run test:integration:resources`; cubre recursos, carga multipart y eliminación física. Los ejemplos HTTP están en `docs/aequvg-hoppscotch.json` y el contrato completo en [OpenAPI](http://localhost:3000/openapi).
+
+La guía de uso, permisos, validaciones, casos y evidencia reproducible está en [`docs/resources-admin-flow.md`](docs/resources-admin-flow.md) y [`docs/resources-admin-evidence.md`](docs/resources-admin-evidence.md). Adjunta la evidencia actualizada al Pull Request, incluyendo fecha, commits, entorno, comandos, códigos HTTP y resultado.
+
 ### Catálogo público de proyectos
 
-`GET /api/v1/projects` devuelve únicamente proyectos con estado `APROBADO`. Acepta los parámetros opcionales `search` (coincidencia parcial en título o nombre de autor), `year` (año UTC de `createdAt`), `type` (`TESIS` o `PROYECTO`), `sortBy` (`createdAt`, `title` o `author`), `sortOrder` (`asc` o `desc`), `page` (predeterminado `1`) y `pageSize` (predeterminado `12`, máximo `100`).
+`GET /api/v1/projects` devuelve únicamente proyectos con estado `APROBADO`, incluidos los metadatos de su PDF cuando exista. Acepta los parámetros opcionales `search` (coincidencia parcial en título o nombre de autor), `year` (año UTC de `createdAt`), `type` (`TESIS` o `PROYECTO`), `sortBy` (`createdAt`, `title` o `author`), `sortOrder` (`asc` o `desc`), `page` (predeterminado `1`) y `pageSize` (predeterminado `12`, máximo `100`). `GET /api/v1/projects/:id/document` entrega el PDF solo si el proyecto está aprobado; proyectos en revisión o rechazados responden `404`.
 
 La respuesta contiene `{ items, pagination: { page, pageSize, total, totalPages } }`. La búsqueda parcial se apoya en índices trigram de PostgreSQL sobre título y nombre de autor; el filtro de estado y fecha usa el índice compuesto existente.
 
-El CRUD administrativo vive bajo `/api/v1/admin/projects` y requiere `Authorization: Bearer <ADMIN_API_KEY>`. Incluye listar, consultar, crear, actualizar, revisar y eliminar. Al crear, `authorId` identifica al usuario administrativo autor; el proyecto inicia en `EN_REVISION`.
+El CRUD administrativo vive bajo `/api/v1/admin/projects` y requiere una sesión con `PROJECTS_MANAGE` y CSRF en escrituras. Incluye listar, consultar, crear, actualizar, revisar y eliminar. Autor y revisor se obtienen de la sesión; el proyecto inicia en `EN_REVISION`. `POST /api/v1/admin/projects/files` carga un PDF multipart en el campo `file` (máximo 25 MB); valida la cabecera PDF además del MIME declarado. El ID devuelto se asigna mediante `documentFileId`. Al editar un proyecto aprobado, vuelve a `EN_REVISION` y requiere una nueva revisión antes de publicarse. Los slugs duplicados al crear o editar responden `409 PROJECT_SLUG_EXISTS`. La carga y descarga administrativas requieren también `PROJECTS_MANAGE`; los archivos asociados no se pueden eliminar mediante `/api/v1/admin/files/:id`.
 
 La integración del CRUD usa una base PostgreSQL aislada y se habilita con `bun run test:integration:projects`.
+
+La guía de pantallas, carga y revisión está en [`docs/projects-admin-flow.md`](docs/projects-admin-flow.md); la ejecución reproducible y sus resultados se registran en [`docs/admin-flows-evidence.md`](docs/admin-flows-evidence.md).
 
 ## Persistencia de eventos e inscripciones (SCRUM-119 / SCRUM-123)
 
@@ -126,6 +235,22 @@ fechas son `TIMESTAMPTZ(3)`; creación e inscripción tienen default de fecha ac
 - No se agregan IP, user agent ni datos personales adicionales. La retención y
   eliminación quedan pendientes de política UVG. Los logs no deben incluir PII.
 
+## Contacto y entrega por correo
+
+`GET /api/v1/contact-methods` devuelve solo medios activos, ordenados de forma estable por `displayOrder` e ID. Las ubicaciones exigen una URL de Google Maps y siempre se entregan después de los demás medios, independientemente de su orden almacenado. Las redes conocidas usan `INSTAGRAM` o `FACEBOOK`; cualquier red futura se registra como `OTRO` con etiqueta, valor y URL HTTPS, sin requerir una migración.
+
+`POST /api/v1/contact-requests` permanece público, exige consentimiento, versión de privacidad y el honeypot vacío, y conserva el rate limit por IP. Ya no persiste una bandeja ni acepta estados internos: normaliza la entrada, selecciona el medio `EMAIL` activo con menor orden y entrega el mensaje mediante la API de Resend. Cada contenido genera una clave de idempotencia por minuto para que reintentos o dobles envíos equivalentes no dupliquen el correo. Responde `202 { "accepted": true }` únicamente cuando el proveedor aceptó el correo. La tabla histórica `solicitud_contacto` se conserva sin uso para evitar una migración destructiva.
+
+Configura:
+
+- `RESEND_API_KEY`: secreto del proveedor; nunca se expone al frontend.
+- `CONTACT_FROM_EMAIL`: remitente verificado en Resend, por ejemplo `AsoQuimica UVG <contacto@dominio-verificado.gt>`.
+- El destinatario se cambia desde `PUT /api/v1/admin/contact-methods/:id` o desde `/administrador/contacto`, no mediante variables de entorno.
+
+Las rutas administrativas disponibles son `GET`, `POST`, `PUT` y `DELETE /api/v1/admin/contact-methods`. Requieren sesión activa, permiso `CONTACT_MANAGE` y CSRF en escrituras. `PUT /api/v1/admin/contact-methods/order` recibe `{ "orderedIds": [3, 1, 4] }`: debe incluir una sola vez todos los medios que no sean ubicaciones y persiste posiciones únicas en una transacción. Crear un medio lo añade al final y editarlo conserva su posición; si deja de ser ubicación, pasa al final. `DELETE` desactiva el medio, no lo elimina. Las antiguas rutas `/api/v1/admin/contact-requests` fueron retiradas porque el producto no administra solicitudes.
+
+Errores propios: `422 INVALID_CONTACT_EMAIL`, `INVALID_CONTACT_PHONE`, `CONTACT_URL_REQUIRED`, `GOOGLE_MAPS_URL_REQUIRED` o `INVALID_CONTACT_ORDER`; `404 CONTACT_METHOD_NOT_FOUND`; `503 CONTACT_RECIPIENT_NOT_CONFIGURED` o `CONTACT_DELIVERY_NOT_CONFIGURED`; `502 CONTACT_DELIVERY_FAILED`.
+
 ## Eventos e inscripciones
 
 ### API pública de eventos
@@ -137,9 +262,9 @@ La API pública expone:
 
 Ambos endpoints exponen el campo dinámico `availableCapacity` (entero >= 0), calculado como `Math.max(0, maximumCapacity - confirmedRegistrations)`. No exponen contadores internos ni datos personales (`registrations`).
 
-### Inscripción pública
+### Inscripción estudiantil a eventos públicos
 
-`POST /api/v1/events/:id/registrations` permite a los usuarios inscribirse a un evento público:
+`POST /api/v1/events/:id/registrations` permite a estudiantes con sesión activa inscribirse a un evento público. El listado y detalle del evento permanecen públicos; la escritura exige cookies estudiantiles y `X-CSRF-Token`:
 
 - **Campos requeridos:** `fullName` (mínimo 2 caracteres), `email`, `phone` (mínimo 7 caracteres), `consent` (`true` obligatorio) y `privacyVersion` (cadena no vacía). Campo opcional: `website` (honeypot).
 - **Consentimiento y privacidad:** `consent: true` es obligatorio; el servidor genera y sella `consentedAt` con la fecha y hora de la solicitud y persiste `privacyVersion`. La respuesta pública `{ id, eventId, status, registeredAt }` no expone PII.
@@ -148,7 +273,7 @@ Ambos endpoints exponen el campo dinámico `availableCapacity` (entero >= 0), ca
 - **Errores principales:**
   - `400 INVALID_REQUEST`: detección de spam por campo honeypot completado.
   - `404 EVENT_NOT_FOUND`: el evento no existe, o está en estado `BORRADOR` o `ARCHIVADO`.
-  - `409 ALREADY_REGISTERED`: ya existe una inscripción registrada con ese correo (`CITEXT`, insensible a mayúsculas y minúsculas, incluso si estaba `CANCELADA`).
+  - `409 ALREADY_REGISTERED`: ya existe una inscripción con ese correo (`CITEXT`, insensible a mayúsculas y minúsculas, incluso si estaba `CANCELADA`) o el estudiante autenticado ya está inscrito en ese evento.
   - `409 EVENT_FULL`: el evento ha alcanzado su capacidad máxima sin cupos disponibles.
   - `422 EVENT_NOT_OPEN`: el evento está en estado `CANCELADO`, `FINALIZADO` o distinto de `PUBLICADO`.
   - `422 EVENT_ALREADY_STARTED`: el evento ya inició o concluyó en el pasado.
@@ -156,9 +281,27 @@ Ambos endpoints exponen el campo dinámico `availableCapacity` (entero >= 0), ca
   - `422 INVALID_PRIVACY_VERSION`: versión de privacidad vacía o con solo espacios.
   - `429 RATE_LIMITED`: límite de solicitudes por IP excedido.
 
+### Historial propio de inscripciones
+
+`GET /api/v1/student/events/registrations` requiere una sesión estudiantil válida y obtiene el propietario exclusivamente de ella; el cliente no envía `studentId`. Acepta `page`, `pageSize` y, opcionalmente, `status=CONFIRMADA` o `status=CANCELADA`. Devuelve únicamente las inscripciones del estudiante autenticado, con información pública del evento, estado y fechas, junto con `pagination`; no devuelve `studentId`, nombres, correo, teléfono ni datos de consentimiento o privacidad. Las filas históricas sin propietario (`studentId = NULL`) quedan fuera del historial propio.
+
+La respuesta `409 ALREADY_REGISTERED` cubre tanto un correo ya usado en el evento como una inscripción existente del mismo estudiante en ese evento. Se conservan `UNIQUE(eventId, email)` y la garantía parcial para `eventId + studentId`.
+
+### Baja propia y conservación de actividad
+
+`DELETE /api/v1/student-auth/account` requiere sesión estudiantil, CSRF y el siguiente cuerpo de revalidación:
+
+```json
+{ "email": "...", "password": "...", "confirm": true }
+```
+
+La identidad afectada siempre deriva de la sesión; email y contraseña solo revalidan esa identidad. Una baja exitosa responde `204`: la cuenta queda `ELIMINADO`, su PII se anonimiza, se elimina `StudentCredential`, se revocan todas sus sesiones y se limpian las cookies actuales. Las inscripciones permanecen con su `studentId` técnico, estado, fechas y metadatos de consentimiento/privacidad; sus snapshots personales se anonimizan. Comentarios y revisiones permanecen, pero se desvinculan del autor. La actividad histórica necesaria no se elimina físicamente.
+
+Los errores relevantes incluyen `401 UNAUTHORIZED`, `INVALID_SESSION` o `SESSION_REVOKED`; `403 ACCOUNT_DELETED`, `ACCOUNT_TEMPORARILY_BLOCKED` o `ACCOUNT_PERMANENTLY_BLOCKED`; `422 INVALID_CREDENTIALS` o `CSRF_TOKEN_INVALID`; y `429` por límite de autenticación.
+
 ### Administración de eventos y participantes
 
-Las rutas bajo `/api/v1/admin` requieren cabecera `Authorization: Bearer <ADMIN_API_KEY>`:
+Las rutas bajo `/api/v1/admin` requieren una sesión administrativa y el permiso del módulo:
 
 - `GET /api/v1/admin/events`: listado administrativo con soporte de filtros por `status`, búsqueda `q` y paginación.
 - `GET /api/v1/admin/events/:id`: consulta de evento por identificador en cualquier estado.
@@ -226,8 +369,14 @@ cp .env.example .env
 | `BACKEND_PORT` | Puerto público de la API, normalmente `3000`. |
 | `DATABASE_URL` | Cadena de conexión utilizada por Prisma. |
 | `CORS_ORIGIN` | Origen autorizado del frontend. |
-| `SESSION_SECRET` | Secreto reservado para sesiones administrativas. |
-| `ADMIN_API_KEY` | Protección temporal de `/admin`; no usar el ejemplo en producción. |
+| `FRONTEND_URL` | URL base usada al regresar del inicio con Microsoft. |
+| `SESSION_SECRET` | Secreto aleatorio de al menos 32 bytes para firmar JWT y vínculos de sesión. |
+| `COOKIE_SECURE` | Debe ser `true` con HTTPS; producción lo fuerza en Compose. |
+| `SEED_ADMIN_PASSWORD` | Contraseña local opcional para el usuario de desarrollo creado por la seed. |
+| `MICROSOFT_TENANT_ID` | UUID del tenant Microsoft Entra ID de UVG. |
+| `MICROSOFT_CLIENT_ID` | UUID de la aplicación registrada en Entra ID. |
+| `MICROSOFT_CLIENT_SECRET` | Secreto de cliente; nunca debe versionarse. |
+| `MICROSOFT_REDIRECT_URI` | Callback exacto registrado en Entra ID. |
 | `LOG_LEVEL` | Nivel mínimo: `debug`, `info`, `warn`, `error` o `silent`. |
 | `LOG_FORMAT` | `pretty` para desarrollo o `json` para agregadores de producción. |
 | `LOG_HEALTHCHECKS` | Define si `/health` debe aparecer en los logs HTTP. |
@@ -335,9 +484,13 @@ No uses ese último comando con el nombre de tu proyecto de desarrollo habitual.
 
 El seed está en `prisma/seed.ts`. Carga de forma idempotente:
 
-- Rol, permisos y usuario ficticio para contenido de desarrollo.
+- Cuatro roles administrativos y permisos RBAC.
+- Un usuario ficticio de contenido; si se define `SEED_ADMIN_PASSWORD`, recibe credencial local.
+- El administrador local `admin.pruebas@uvg.edu.gt`, con la contraseña documentada en la sección de autenticación, únicamente fuera de producción.
+- El estudiante normal `estudiante.pruebas@uvg.edu.gt`, con la contraseña documentada en la sección de acceso estudiantil, únicamente fuera de producción.
 - Medios de contacto, integrantes y orden de la junta directiva.
 - Bloques institucionales, una noticia y un recurso publicados de ejemplo.
+- Comentarios de muestra aprobados para la noticia, proyecto y evento de desarrollo; no se persisten textos rechazados por moderación.
 - Metadatos de un PDF de ejemplo para comprobar la relación entre recursos y archivos.
 
 Puede ejecutarse varias veces. La junta se busca por correo institucional; si existe, se actualiza. Los medios se buscan por `type` y `value`; una entrada idéntica se actualiza en lugar de duplicarse.
@@ -358,6 +511,8 @@ bun run db:seed
 
 La base debe tener las migraciones aplicadas antes de ejecutar el seed. Los datos de ejemplo están marcados como contenido de desarrollo y no reemplazan contenido institucional aprobado.
 
+Para ver los comentarios, abre los detalles desde las listas públicas de Noticias, Investigación o Eventos. Inicia sesión con `estudiante.pruebas@uvg.edu.gt` para probar el formulario. Un texto como `Eres un idiota` debe ser rechazado por MOD y quedarse sin publicar; la API no conserva comentarios bloqueados.
+
 Fuera de Docker la seed sigue siendo manual. El Compose de desarrollo sí la ejecuta automáticamente; el Compose de producción conserva la seed como herramienta manual.
 
 ### Archivos y PDF
@@ -365,6 +520,8 @@ Fuera de Docker la seed sigue siendo manual. El Compose de desarrollo sí la eje
 PostgreSQL no almacena el contenido de PDFs ni de ningún archivo. La tabla `archivo` conserva únicamente metadatos: nombre original, `storageKey`, MIME type, tamaño, checksum, fecha y usuario que lo cargó. El binario debe vivir en el volumen `storage/` o en el proveedor externo de almacenamiento que se defina; `storageKey` es la referencia persistida en la base. La comprobación `bun run db:verify` detecta columnas binarias (`BYTEA`) en el esquema público.
 
 ### Agregar un integrante
+
+La API administrativa exige `name`, `position`, `institutionalEmail` (`@uvg.edu.gt`), `termStartsAt`, `termEndsAt` y `status` (`ACTIVO` o `INACTIVO`). `description` es opcional y `displayOrder` se calcula cuando no se envía.
 
 Añade una tupla al arreglo `board` de `prisma/seed.ts`:
 
@@ -396,6 +553,8 @@ Añade un objeto al arreglo `methods`:
 Tipos permitidos: `EMAIL`, `TELEFONO`, `UBICACION`, `INSTAGRAM`, `FACEBOOK` y `OTRO`. Para cambiar el valor de un medio existente sin crear otro, usa el CRUD administrativo o adapta la búsqueda del seed para emplear una clave estable.
 
 ### Agregar otra entidad
+
+En contenido institucional, todos los bloques requieren `type`, `title` y `body`. El bloque `HERO` requiere además `actionLabel` y `actionUrl` para su botón principal. En anuncios, estos dos campos son opcionales, pero deben enviarse juntos si se agrega un enlace. `subtitle` e `imageUrl` siguen siendo opcionales.
 
 Usa el mismo patrón repetible: busca una clave estable y luego actualiza o crea.
 
@@ -499,10 +658,11 @@ bun run typecheck     # TypeScript
 bun run test          # Pruebas unitarias e integración HTTP
 bun run build         # Comprobación de compilación
 bun run test:smoke    # Requiere PostgreSQL migrado y con seed
+bun run test:integration:auth # Requiere PostgreSQL migrado
 bun audit --production
 ```
 
-El smoke test consulta junta y medios reales y crea una solicitud de contacto. Ejecútalo únicamente sobre una base local o de pruebas.
+El smoke test consulta junta y medios reales y envía un correo de contacto mediante el proveedor configurado. Ejecútalo únicamente con una dirección receptora de pruebas.
 
 ## Contrato público principal
 
@@ -513,4 +673,12 @@ GET  /api/v1/contact-methods
 POST /api/v1/contact-requests
 ```
 
-Las operaciones administrativas están bajo `/api/v1/admin` y requieren `Authorization: Bearer <ADMIN_API_KEY>` mientras se integra el módulo definitivo de sesiones.
+Las operaciones administrativas están bajo `/api/v1/admin`, usan la sesión JWT en cookie y validan el permiso correspondiente en PostgreSQL.
+
+## Junta Directiva e historial
+
+`GET /api/v1/board-members` devuelve todos los integrantes con estado `ACTIVO`, no solo el periodo más reciente. La respuesta se ordena por inicio de periodo descendente, etiqueta de periodo, orden público y nombre; el frontend calcula los años comprendidos entre ambas fechas, muestra por defecto el más reciente y replica visualmente al integrante en cada año abarcado.
+
+El panel usa `GET/POST/PUT/DELETE /api/v1/admin/board-members` con el permiso `BOARD_MANAGE` y CSRF en las escrituras. `DELETE` es un retiro lógico: cambia el estado a `INACTIVO` y conserva el registro. El cuerpo de alta/edición acepta nombre, cargo del catálogo permitido, descripción, correo institucional exacto `@uvg.edu.gt`, fechas obligatorias de inicio/fin, orden y estado. El servidor deriva `term` como `AAAA` o `AAAA–AAAA`; no acepta una etiqueta manual ni fotografía en este flujo.
+
+Errores propios: `422 INVALID_BOARD_CONTENT`, `INVALID_INSTITUTIONAL_EMAIL`, `INVALID_TERM` o `INVALID_BOARD_ORDER`; `404 BOARD_MEMBER_NOT_FOUND`. El dominio institucional del integrante no concede acceso al panel ni crea permisos administrativos.

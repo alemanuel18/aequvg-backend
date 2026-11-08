@@ -41,7 +41,23 @@ describe('contrato HTTP base', () => {
     const document = await response.json() as { paths: Record<string, Record<string, { responses: Record<string, unknown> }>> }
     expect(document.paths['/api/v1/news']?.get?.responses['200']).toBeTruthy()
     expect(document.paths['/api/v1/admin/news']?.post?.responses['201']).toBeTruthy()
+    expect(document.paths['/api/v1/admin/news']?.get?.responses['403']).toBeTruthy()
+    expect(document.paths['/api/v1/admin/news']?.post?.responses['403']).toBeTruthy()
     expect(document.paths['/api/v1/news/{id}']?.get?.responses['404']).toBeTruthy()
+  })
+
+  it('documenta autenticación, usuarios y protecciones de cookie en OpenAPI', async () => {
+    const response = await app.handle(new Request('http://localhost/openapi/json'))
+    const document = await response.json() as {
+      components: { securitySchemes: Record<string, unknown> }
+      paths: Record<string, Record<string, unknown>>
+    }
+    expect(document.components.securitySchemes.cookieAuth).toBeTruthy()
+    expect(document.components.securitySchemes.csrfToken).toBeTruthy()
+    expect(document.paths['/api/v1/auth/login']?.post).toBeTruthy()
+    expect(document.paths['/api/v1/auth/microsoft']?.get).toBeTruthy()
+    expect(document.paths['/api/v1/admin/users']?.post).toBeTruthy()
+    expect(document.paths['/api/v1/admin/roles']?.get).toBeTruthy()
   })
 
   it('documenta el contrato de recursos en OpenAPI', async () => {
@@ -63,7 +79,7 @@ describe('contrato HTTP base', () => {
     expect(response.status).toBe(200)
     const document = await response.json() as {
       tags: Array<{ name: string }>
-      paths: Record<string, Record<string, { responses: Record<string, unknown> }>>
+      paths: Record<string, Record<string, { parameters?: Array<{ name: string }>; responses: Record<string, unknown>; security?: unknown[] }>>
     }
     expect(document.tags.some((tag) => tag.name === 'Eventos')).toBe(true)
     expect(document.paths['/api/v1/events']?.get?.responses['200']).toBeTruthy()
@@ -71,8 +87,74 @@ describe('contrato HTTP base', () => {
     expect(document.paths['/api/v1/events/{id}']?.get?.responses['404']).toBeTruthy()
     expect(document.paths['/api/v1/events/{id}/registrations']?.post?.responses['201']).toBeTruthy()
     expect(document.paths['/api/v1/events/{id}/registrations']?.post?.responses['409']).toBeTruthy()
+    const ownRegistrations = document.paths['/api/v1/student/events/registrations']?.get
+    expect(ownRegistrations?.responses['200']).toBeTruthy()
+    expect(ownRegistrations?.responses['401']).toBeTruthy()
+    expect(ownRegistrations?.responses['403']).toBeTruthy()
+    expect(ownRegistrations?.parameters?.map((parameter) => parameter.name)).toEqual(expect.arrayContaining(['page', 'pageSize', 'status']))
+    const responseSchema = JSON.stringify(ownRegistrations?.responses['200'])
+    expect(responseSchema).not.toContain('studentId')
+    expect(responseSchema).not.toContain('fullName')
+    expect(responseSchema).not.toContain('email')
+    expect(responseSchema).not.toContain('phone')
     expect(document.paths['/api/v1/admin/events']?.get?.responses['200']).toBeTruthy()
     expect(document.paths['/api/v1/admin/events/{id}/registrations']?.get?.responses['200']).toBeTruthy()
+  })
+
+  it('documenta comentarios por publicación e historial estudiantil', async () => {
+    const response = await app.handle(new Request('http://localhost/openapi/json'))
+    const document = await response.json() as { paths: Record<string, Record<string, { responses: Record<string, unknown> }>> }
+    expect(document.paths['/api/v1/publications/{targetType}/{targetId}/comments']?.get?.responses['200']).toBeTruthy()
+    expect(document.paths['/api/v1/publications/{targetType}/{targetId}/comments']?.post?.responses['201']).toBeTruthy()
+    expect(document.paths['/api/v1/student-auth/me/comments']?.get?.responses['200']).toBeTruthy()
+  })
+
+  it('publica en OpenAPI el alcance y cuerpo vigente de S4-COM', async () => {
+    const response = await app.handle(new Request('http://localhost/openapi/json'))
+    const document = await response.json() as {
+      paths: Record<string, Record<string, {
+        description?: string
+        security?: Array<Record<string, string[]>>
+        parameters?: Array<{ name: string; required?: boolean; schema?: { enum?: string[] } }>
+        requestBody?: { content?: { 'application/json'?: { schema?: { properties?: Record<string, { minLength?: number; maxLength?: number }> } } } }
+      }>>
+    }
+    const publicationPath = document.paths['/api/v1/publications/{targetType}/{targetId}/comments']
+    const targetType = publicationPath?.get?.parameters?.find(parameter => parameter.name === 'targetType')
+    const idempotencyKey = publicationPath?.post?.parameters?.find(parameter => parameter.name === 'idempotency-key')
+    expect(targetType?.schema?.enum).toEqual(['NOTICIA', 'PROYECTO', 'EVENTO'])
+    expect(idempotencyKey?.required).toBe(true)
+    expect(publicationPath?.get?.description).toContain('registro PROYECTO de tipo PROYECTO aprobado (TESIS excluida)')
+    expect(publicationPath?.post?.requestBody?.content?.['application/json']?.schema?.properties).toEqual({
+      content: expect.objectContaining({ minLength: 1, maxLength: 2000 })
+    })
+    expect(publicationPath?.post?.description).toContain('el autor siempre se deriva de la sesión')
+    expect(publicationPath?.post?.security).toEqual([{ studentCookieAuth: [], csrfToken: [] }])
+    expect(publicationPath?.post?.description).toContain('TESIS excluida')
+    expect(publicationPath?.post?.description).not.toMatch(/reacciones|chat/i)
+
+    const history = document.paths['/api/v1/student-auth/me/comments']?.get
+    expect(history?.description).toContain('no hay parámetro para consultar el historial de otra cuenta')
+    expect(history?.parameters?.some(parameter => parameter.name.toLowerCase().includes('student'))).toBe(false)
+    expect(history?.security).toEqual([{ studentCookieAuth: [] }])
+    const profileUpdate = document.paths['/api/v1/student-auth/me']?.patch
+    expect(profileUpdate?.parameters?.find(parameter => parameter.name === 'idempotency-key')?.required).toBe(true)
+    expect(document.paths['/api/v1/admin/comments/history']?.get?.security).toEqual([{ cookieAuth: [] }])
+  })
+
+  it('protege la consulta del historial de comentarios propios', async () => {
+    const response = await app.handle(new Request('http://localhost/api/v1/student-auth/me/comments'))
+    expect(response.status).toBe(401)
+    expect(await response.json()).toMatchObject({ error: { code: 'UNAUTHORIZED' } })
+  })
+
+  it('rechaza que un visitante publique comentarios aunque envíe un autor', async () => {
+    const response = await app.handle(new Request('http://localhost/api/v1/publications/EVENTO/1/comments', {
+      method: 'POST', headers: { 'content-type': 'application/json', 'idempotency-key': 'visitor-attempt-1' },
+      body: JSON.stringify({ content: 'Intento anónimo', studentId: 1, authorId: 1 })
+    }))
+    expect(response.status).toBe(401)
+    expect(await response.json()).toMatchObject({ error: { code: 'UNAUTHORIZED' } })
   })
 
   it('devuelve un error público estable cuando el cuerpo no es válido', async () => {
@@ -108,5 +190,22 @@ describe('contrato HTTP base', () => {
     expect(operation?.parameters?.map(parameter => parameter.name)).toEqual(expect.arrayContaining(['search', 'year', 'type', 'sortBy', 'sortOrder', 'page', 'pageSize']))
     expect(operation?.responses['200']).toBeTruthy()
     expect(operation?.responses['422']).toBeTruthy()
+  })
+
+  it('documenta el contenido institucional y destacados en OpenAPI', async () => {
+    const response = await app.handle(new Request('http://localhost/openapi/json'))
+    expect(response.status).toBe(200)
+    const document = await response.json() as { paths: Record<string, Record<string, { responses: Record<string, unknown> }>> }
+    expect(document.paths['/api/v1/institutional-content']?.get).toBeTruthy()
+    expect(document.paths['/api/v1/institutional-content/featured']?.get).toBeTruthy()
+    expect(document.paths['/api/v1/admin/institutional-content']?.get).toBeTruthy()
+    expect(document.paths['/api/v1/admin/institutional-content/featured']?.put).toBeTruthy()
+    expect(document.paths['/api/v1/admin/institutional-content']?.post).toBeTruthy()
+    expect(document.paths['/api/v1/admin/institutional-content/{id}']?.put).toBeTruthy()
+  })
+
+  it('deniega la modificación administrativa de contenido institucional sin credencial', async () => {
+    const response = await app.handle(new Request('http://localhost/api/v1/admin/institutional-content'))
+    expect([401, 503]).toContain(response.status)
   })
 })

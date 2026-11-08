@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { verifyPassword } from '../src/shared/utils/auth-crypto'
 
 const prisma = new PrismaClient()
 
@@ -6,7 +7,8 @@ const expectedTables = [
   'rol', 'permiso', 'rol_permiso', 'usuario_administrativo', 'credencial_administrativa', 'archivo',
   'publicacion_cientifica', 'persona_autora', 'publicacion_contribuyente', 'aprobacion_publicacion',
   'noticia', 'evento', 'inscripcion_evento', 'categoria_recurso', 'enlace_recurso', 'recurso', 'miembro_junta', 'solicitud_contacto',
-  'bloque_institucional', 'medio_contacto', 'proyecto'
+  'bloque_institucional', 'medio_contacto', 'proyecto', 'identidad_administrativa', 'sesion_administrativa',
+  'desafio_inicio_microsoft'
 ]
 
 const expectedConstraints = [
@@ -15,7 +17,8 @@ const expectedConstraints = [
   'categoria_recurso_nombre_no_vacio_check', 'recurso_publicado_destino_check', 'enlace_recurso_publicado_destino_check',
   'archivo_tamano_positivo_check', 'evento_capacidad_positiva_check',
   'reunion_fecha_preferida_check', 'proyecto_id_autor_fkey', 'proyecto_id_revisor_fkey',
-  'proyecto_id_imagen_portada_fkey'
+  'proyecto_id_imagen_portada_fkey', 'identidad_administrativa_id_usuario_fkey',
+  'sesion_administrativa_id_usuario_fkey'
 ]
 
 const expectedIndexes = [
@@ -24,7 +27,8 @@ const expectedIndexes = [
   'categoria_recurso_nombre_key', 'categoria_recurso_activa_nombre_idx', 'enlace_recurso_id_recurso_url_key',
   'enlace_recurso_id_recurso_orden_idx', 'miembro_junta_estado_orden_idx', 'solicitud_contacto_estado_atencion_enviado_en_idx',
   'proyecto_slug_key', 'proyecto_estado_creado_en_idx', 'proyecto_id_autor_idx', 'proyecto_id_revisor_idx',
-  'proyecto_id_imagen_portada_idx'
+  'proyecto_id_imagen_portada_idx', 'sesion_administrativa_hash_identificador_token_key',
+  'identidad_administrativa_proveedor_sujeto_proveedor_key', 'desafio_inicio_microsoft_hash_estado_key'
 ]
 
 const requireAll = (actual: string[], expected: string[], label: string) => {
@@ -55,16 +59,22 @@ async function main() {
   `
   if (binaryColumns.length) throw new Error(`No se permiten binarios en PostgreSQL: ${binaryColumns.map(column => `${column.table_name}.${column.column_name}`).join(', ')}`)
 
-  const [boardMembers, contactMethods, blocks, news, resources, projects, pdfMetadata] = await Promise.all([
+  const [boardMembers, contactMethods, blocks, news, resources, projects, pdfMetadata, administrativeRoles, testAdministrator] = await Promise.all([
     prisma.boardMember.count(),
     prisma.contactMethod.count(),
     prisma.institutionalBlock.count(),
     prisma.news.count(),
     prisma.resource.count(),
     prisma.project.count(),
-    prisma.file.findUnique({ where: { storageKey: 'development/resources/guia-seguridad-laboratorio.pdf' } })
+    prisma.file.findUnique({ where: { storageKey: 'development/resources/guia-seguridad-laboratorio.pdf' } }),
+    prisma.role.count({ where: { active: true, name: { in: ['ASSOCIATION_REPRESENTATIVE', 'FACULTY_REPRESENTATIVE', 'CAREER_DIRECTOR', 'CAREER_SECRETARY'] } } }),
+    prisma.administrativeUser.findUnique({ where: { email: 'admin.pruebas@uvg.edu.gt' }, include: { credential: true } })
   ])
-  if (!boardMembers || !contactMethods || !blocks || !news || !resources || !projects || !pdfMetadata) throw new Error('Faltan datos de desarrollo después de ejecutar la seed.')
+  if (!boardMembers || !contactMethods || !blocks || !news || !resources || !projects || !pdfMetadata || administrativeRoles !== 4) throw new Error('Faltan datos de desarrollo después de ejecutar la seed.')
+  if (process.env.NODE_ENV !== 'production') {
+    if (!testAdministrator || !testAdministrator.credential || testAdministrator.status !== 'ACTIVO') throw new Error('Falta el administrador de pruebas después de ejecutar la seed.')
+    if (!await verifyPassword('AEQUVG-Pruebas-2026!', testAdministrator.credential.passwordHash)) throw new Error('La credencial del administrador de pruebas no coincide con la documentación.')
+  }
   if (pdfMetadata.mimeType !== 'application/pdf' || !pdfMetadata.storageKey || pdfMetadata.sizeBytes <= 0n) throw new Error('Los metadatos del PDF de desarrollo son inválidos.')
 
   console.info(JSON.stringify({ tables: tables.length, boardMembers, contactMethods, blocks, news, resources, projects, pdfStorage: pdfMetadata.storageKey }))

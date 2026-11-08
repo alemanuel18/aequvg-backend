@@ -1,7 +1,8 @@
 import { type Static, t } from 'elysia'
 
 export const eventRegistrationBody = t.Object({
-  fullName: t.String({ minLength: 2, maxLength: 160 }),
+  firstNames: t.String({ minLength: 2, maxLength: 80 }),
+  lastNames: t.String({ minLength: 2, maxLength: 80 }),
   email: t.String({ format: 'email', maxLength: 320 }),
   phone: t.String({ minLength: 7, maxLength: 40 }),
   consent: t.Literal(true),
@@ -57,3 +58,39 @@ export const eventRegistrationAdminListResponse = t.Object({
 })
 
 export type EventRegistrationAdminListResponse = Static<typeof eventRegistrationAdminListResponse>
+
+export const eventRegistrationOwnQuery = t.Object({
+  page: t.Optional(t.Integer({ minimum: 1 })),
+  pageSize: t.Optional(t.Integer({ minimum: 1, maximum: 50 })),
+  status: t.Optional(eventRegistrationStatus)
+})
+
+export type EventRegistrationOwnQuery = Static<typeof eventRegistrationOwnQuery>
+
+export const eventRegistrationOwnItemResponse = t.Object({
+  id: t.Integer(),
+  status: eventRegistrationStatus,
+  registeredAt: t.Date(),
+  event: t.Object({
+    id: t.Integer(),
+    name: t.String(),
+    startsAt: t.Date(),
+    location: t.String(),
+    status: t.Union([
+      t.Literal('BORRADOR'),
+      t.Literal('PUBLICADO'),
+      t.Literal('FINALIZADO'),
+      t.Literal('CANCELADO'),
+      t.Literal('ARCHIVADO')
+    ])
+  })
+})
+
+export const eventRegistrationOwnListResponse = t.Object({
+  items: t.Array(eventRegistrationOwnItemResponse),
+  pagination: t.Object({
+    page: t.Integer(),
+    pageSize: t.Integer(),
+    total: t.Integer()
+  })
+})
