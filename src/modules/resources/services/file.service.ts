@@ -7,7 +7,8 @@ import { fileRepository } from '../repositories/file.repository'
 import { resourceRepository } from '../repositories/resource.repository'
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024
-const allowedMimeTypes = new Set(['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip', 'application/x-zip-compressed'])
+const allowedDocumentMimeTypes = new Set(['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip', 'application/x-zip-compressed'])
+const allowedImageMimeTypes = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
 const storageRoot = () => path.resolve(process.env.STORAGE_ROOT ?? path.resolve(process.cwd(), 'storage'))
 
 const responseFile = (file: { id: number; uploadedById: number; originalName: string; mimeType: string; sizeBytes: bigint; sha256: string; createdAt: Date }) => ({
@@ -21,9 +22,10 @@ const safeName = (name: string) => {
 }
 
 export const fileService = {
-  async upload(uploadedById: number, input: File) {
+  async upload(uploadedById: number, input: File, kind: 'document' | 'image' = 'document') {
     if (!input || input.size <= 0) throw new AppError(422, 'INVALID_FILE', 'Debes enviar un archivo no vacío.')
     if (input.size > MAX_FILE_BYTES) throw new AppError(422, 'FILE_TOO_LARGE', 'El archivo supera el límite de 25 MB.')
+    const allowedMimeTypes = kind === 'image' ? allowedImageMimeTypes : allowedDocumentMimeTypes
     if (!allowedMimeTypes.has(input.type)) throw new AppError(422, 'UNSUPPORTED_FILE_TYPE', 'El tipo de archivo no está permitido.')
 
     const originalName = safeName(input.name)
@@ -31,8 +33,15 @@ export const fileService = {
     if (input.type === 'application/pdf' && !bytes.subarray(0, 1024).includes(Buffer.from('%PDF-'))) {
       throw new AppError(422, 'INVALID_PDF_CONTENT', 'El archivo no contiene una cabecera PDF válida.')
     }
+    if (kind === 'image') {
+      const validSignature = input.type === 'image/png' && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+        || input.type === 'image/jpeg' && bytes.subarray(0, 3).equals(Buffer.from([255, 216, 255]))
+        || input.type === 'image/gif' && bytes.subarray(0, 6).toString('ascii').startsWith('GIF8')
+        || input.type === 'image/webp' && bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP'
+      if (!validSignature) throw new AppError(422, 'INVALID_IMAGE_CONTENT', 'El archivo no contiene una imagen válida.')
+    }
     const sha256 = createHash('sha256').update(bytes).digest('hex')
-    const storageKey = `resources/${randomUUID()}/${originalName}`
+    const storageKey = `${kind === 'image' ? 'images' : 'resources'}/${randomUUID()}/${originalName}`
     const root = storageRoot()
     const absolutePath = path.resolve(root, storageKey)
     if (!absolutePath.startsWith(`${root}${path.sep}`)) throw new AppError(422, 'INVALID_FILE_NAME', 'El nombre del archivo no es válido.')
@@ -46,6 +55,29 @@ export const fileService = {
       await unlink(absolutePath).catch(() => undefined)
       throw error
     }
+  },
+
+  async listImages() {
+    return (await fileRepository.listImages()).map(file => ({
+      id: file.id,
+      originalName: file.originalName,
+      mimeType: file.mimeType,
+      sizeBytes: Number(file.sizeBytes),
+      createdAt: file.createdAt,
+      previewUrl: `/api/v1/admin/news/images/${file.id}/preview`
+    }))
+  },
+
+  async uploadImage(uploadedById: number, input: File) {
+    const file = await this.upload(uploadedById, input, 'image')
+    return { ...file, previewUrl: `/api/v1/admin/news/images/${file.id}/preview` }
+  },
+
+  async previewImage(id: number) {
+    const file = await fileRepository.findImageById(id)
+    if (!file) throw new AppError(404, 'IMAGE_NOT_FOUND', 'La imagen solicitada no existe.')
+    const bytes = await readFile(path.resolve(storageRoot(), file.storageKey))
+    return { bytes, mimeType: file.mimeType, originalName: file.originalName }
   },
 
   async remove(id: number) {

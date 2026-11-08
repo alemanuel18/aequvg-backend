@@ -1,7 +1,9 @@
 import { Elysia, t } from 'elysia'
 import { requireAdmin } from '../../../middleware/admin'
-import { newsAdminQuery, newsCategoryCreateBody, newsCategoryListResponse, newsCategoryResponse, newsCreateBody, newsErrorResponse, newsListResponse, newsPublicQuery, newsResponse, newsUpdateBody } from '../dtos/schemas'
+import { newsAdminQuery, newsCategoryCreateBody, newsCategoryListResponse, newsCategoryResponse, newsCreateBody, newsErrorResponse, newsImageListResponse, newsImageResponse, newsListResponse, newsPublicQuery, newsResponse, newsUpdateBody } from '../dtos/schemas'
 import { newsService } from '../services/news.service'
+import { fileService } from '../../resources/services/file.service'
+import { AppError } from '../../../shared/errors/app-error'
 
 const idParams = t.Object({ id: t.Integer({ minimum: 1 }) })
 
@@ -33,6 +35,33 @@ export const newsRoutes = new Elysia({ prefix: '/api/v1' })
     query: newsAdminQuery,
     response: { 200: newsListResponse, 401: newsErrorResponse, 403: newsErrorResponse, 422: newsErrorResponse, 503: newsErrorResponse },
     detail: { tags: ['Administración'], summary: 'Busca noticias administrativas', description: 'Incluye todos los estados. Requiere una sesión con NEWS_MANAGE.' }
+  })
+  .get('/admin/news/images', async ({ request }) => { await requireAdmin(request, 'NEWS_MANAGE'); return fileService.listImages() }, {
+    response: { 200: newsImageListResponse, 401: newsErrorResponse, 403: newsErrorResponse, 503: newsErrorResponse },
+    detail: { tags: ['Administración'], summary: 'Lista imágenes disponibles para noticias', description: 'Devuelve únicamente imágenes raster almacenadas y requiere NEWS_MANAGE.' }
+  })
+  .get('/admin/news/images/:id/preview', async ({ request, params, set }) => {
+    await requireAdmin(request, 'NEWS_MANAGE')
+    const image = await fileService.previewImage(params.id)
+    set.headers['content-type'] = image.mimeType
+    set.headers['content-disposition'] = `inline; filename*=UTF-8''${encodeURIComponent(image.originalName)}`
+    set.headers['x-content-type-options'] = 'nosniff'
+    return image.bytes
+  }, {
+    params: idParams,
+    response: { 200: t.Any(), 401: newsErrorResponse, 403: newsErrorResponse, 404: newsErrorResponse, 503: newsErrorResponse },
+    detail: { tags: ['Administración'], summary: 'Previsualiza una imagen de noticia' }
+  })
+  .post('/admin/news/images', async ({ request, set }) => {
+    const authenticated = await requireAdmin(request, 'NEWS_MANAGE')
+    const input = (await request.formData()).get('file')
+    if (!input || typeof input !== 'object' || typeof (input as File).arrayBuffer !== 'function' || typeof (input as File).name !== 'string') throw new AppError(422, 'FILE_REQUIRED', 'Debes enviar el campo multipart `file`.')
+    set.status = 201
+    return fileService.uploadImage(authenticated.user.id, input as File)
+  }, {
+    parse: 'none',
+    response: { 201: newsImageResponse, 401: newsErrorResponse, 403: newsErrorResponse, 422: newsErrorResponse, 503: newsErrorResponse },
+    detail: { tags: ['Administración'], summary: 'Carga una imagen para noticias', description: 'Acepta únicamente JPEG, PNG, GIF o WebP y requiere NEWS_MANAGE.' }
   })
   .get('/admin/news/:id', async ({ request, params }) => { await requireAdmin(request, 'NEWS_MANAGE'); return newsService.adminById(params.id) }, {
     params: idParams,
