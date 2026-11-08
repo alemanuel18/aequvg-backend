@@ -46,7 +46,7 @@ describe('servicio de sesiones administrativas', () => {
     for (const key of ['SESSION_SECRET', 'MICROSOFT_TENANT_ID', 'MICROSOFT_CLIENT_ID', 'MICROSOFT_CLIENT_SECRET', 'MICROSOFT_REDIRECT_URI']) delete process.env[key]
   })
 
-  it('vincula la sesión al dispositivo y revoca la cookie reutilizada en otro navegador', async () => {
+  it('vincula la sesión a la cookie de dispositivo sin romper la emulación responsive', async () => {
     const passwordHash = await hashPassword('Clave-segura-123!')
     const user = { ...baseUser, credential: { userId: baseUser.id, passwordHash, updatedAt: new Date() } }
     repositoryMocks.findUserByEmail.mockResolvedValue(user)
@@ -72,8 +72,8 @@ describe('servicio de sesiones administrativas', () => {
     const copiedRequest = new Request('http://localhost/api/v1/auth/me', {
       headers: { cookie: `aequvg_session=${result.accessToken}; aequvg_device=${result.deviceSecret}`, 'user-agent': 'Otro-Navegador/2.0', 'sec-ch-ua-platform': '"Windows"' }
     })
-    await expect(authService.authenticate(copiedRequest, 'ADMIN_ACCESS')).rejects.toMatchObject({ code: 'SESSION_REVOKED' })
-    expect(repositoryMocks.revokeSession).toHaveBeenCalledWith(persisted.id, 'DEVICE_BINDING_MISMATCH')
+    await expect(authService.authenticate(copiedRequest, 'ADMIN_ACCESS')).resolves.toMatchObject({ user: { id: 7 } })
+    expect(repositoryMocks.revokeSession).not.toHaveBeenCalled()
   })
 
   it('no incorpora roles en el JWT y consulta los permisos vigentes en cada solicitud', async () => {

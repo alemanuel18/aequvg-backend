@@ -155,8 +155,7 @@ export const authService = {
       throw new AppError(401, 'INVALID_SESSION', 'La sesión no es válida o ya expiró.')
     }
     const validDevice = deviceSecret && secureEqual(session.deviceSecretHash, sha256(deviceSecret))
-    const validContext = secureEqual(session.browserContextHash, hmacSha256(browserContext(request.headers), sessionSecret()))
-    if (!validDevice || !validContext) {
+    if (!validDevice) {
       await authRepository.revokeSession(session.id, 'DEVICE_BINDING_MISMATCH')
       throw new AppError(401, 'SESSION_REVOKED', 'La sesión fue revocada por un cambio de dispositivo.')
     }
