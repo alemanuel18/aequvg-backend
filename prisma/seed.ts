@@ -31,7 +31,6 @@ const board = [
 
 async function main() {
   let developmentStudentId: number | null = null
-  let developmentThesisId: number | null = null
   const permissions = [
     { code: 'ADMIN_ACCESS', description: 'Acceder al panel administrativo.' },
     { code: 'USERS_MANAGE', description: 'Crear y administrar usuarios administrativos.' },
@@ -131,24 +130,6 @@ async function main() {
       }
     })
     developmentStudentId = student.id
-    const developmentThesis = await prisma.thesisLink.upsert({
-      where: { sourceIdentifier: 'DEMO-QUIMICA-2026-001' },
-      update: {
-        title: 'Evaluación de adsorbentes naturales para la remoción de colorantes en aguas residuales',
-        author: 'Estudiante de prueba', publicationYear: 2026,
-        summary: 'Este trabajo evalúa materiales naturales disponibles en Guatemala como alternativa de bajo costo para remover colorantes presentes en aguas residuales. Se comparan condiciones de pH, tiempo de contacto y concentración inicial mediante ensayos de laboratorio, y se discuten oportunidades para optimizar el tratamiento de efluentes.',
-        url: 'https://repositorio.uvg.edu.gt/handle/123456789/99999', publishedAt: developmentPublishedAt
-      },
-      create: {
-        sourceIdentifier: 'DEMO-QUIMICA-2026-001',
-        title: 'Evaluación de adsorbentes naturales para la remoción de colorantes en aguas residuales',
-        author: 'Estudiante de prueba', publicationYear: 2026,
-        summary: 'Este trabajo evalúa materiales naturales disponibles en Guatemala como alternativa de bajo costo para remover colorantes presentes en aguas residuales. Se comparan condiciones de pH, tiempo de contacto y concentración inicial mediante ensayos de laboratorio, y se discuten oportunidades para optimizar el tratamiento de efluentes.',
-        url: 'https://repositorio.uvg.edu.gt/handle/123456789/99999', publishedAt: developmentPublishedAt,
-        createdById: user.id
-      }
-    })
-    developmentThesisId = developmentThesis.id
     const studentPasswordHash = await hashPassword(testStudent.password)
     await prisma.studentCredential.upsert({
       where: { userId: student.id },
@@ -301,8 +282,7 @@ async function main() {
       { targetType: 'NOTICIA' as const, targetId: demoNews.id, content: 'Gracias por compartir la convocatoria; me interesa participar.' },
       { targetType: 'NOTICIA' as const, targetId: demoNews.id, content: '¿Podrían publicar también los requisitos de inscripción?' },
       { targetType: 'PROYECTO' as const, targetId: demoProject.id, content: 'La explicación del análisis está muy clara. ¡Buen trabajo!' },
-      { targetType: 'EVENTO' as const, targetId: demoEvent.id, content: '¿La actividad requiere inscripción previa?' },
-      ...(developmentThesisId ? [{ targetType: 'TESIS' as const, targetId: developmentThesisId, content: 'Interesante enfoque. ¿Podrían compartir qué condiciones experimentales dieron los mejores resultados?' }] : [])
+      { targetType: 'EVENTO' as const, targetId: demoEvent.id, content: '¿La actividad requiere inscripción previa?' }
     ]
     for (const comment of sampleComments) {
       const hash = sampleCommentHash(developmentStudentId, comment.targetType, comment.targetId, comment.content)
@@ -316,8 +296,7 @@ async function main() {
           dedupeHash: hash,
           ...(comment.targetType === 'NOTICIA' ? { newsId: comment.targetId } : {}),
           ...(comment.targetType === 'PROYECTO' ? { projectId: comment.targetId } : {}),
-          ...(comment.targetType === 'EVENTO' ? { eventId: comment.targetId } : {}),
-          ...(comment.targetType === 'TESIS' ? { thesisId: comment.targetId } : {})
+          ...(comment.targetType === 'EVENTO' ? { eventId: comment.targetId } : {})
         }
       })
     }
