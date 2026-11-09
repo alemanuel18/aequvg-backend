@@ -2,6 +2,7 @@ import { cors } from '@elysiajs/cors'
 import { openapi } from '@elysiajs/openapi'
 import { Elysia } from 'elysia'
 import { boardRoutes } from './modules/board/controllers/routes'
+import { blogRoutes } from './modules/blog/controllers/routes'
 import { contactRoutes } from './modules/contact/controllers/routes'
 import { commentsRoutes } from './modules/comments/controllers/routes'
 import { eventsRoutes } from './modules/events/controllers/routes'
@@ -29,6 +30,7 @@ export const createApp = () => new Elysia()
   .use(studentAuthRoutes)
   .use(usersRoutes)
   .use(institutionalRoutes)
+  .use(blogRoutes)
   .use(newsRoutes)
   .use(resourceRoutes)
   .use(projectRoutes)
