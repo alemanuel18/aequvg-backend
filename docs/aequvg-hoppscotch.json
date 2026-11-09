@@ -2709,6 +2709,374 @@
     },
     {
       "v": 3,
+      "name": "Blog ACS — SCRUM-299",
+      "folders": [],
+      "requests": [
+        {
+          "v": "1",
+          "name": "ACS — Listar entradas públicas",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/blog?page=1&pageSize=12",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "ACS — Consultar detalle público",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/blog/<<blogSlug>>",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "ACS — Consultar entrada inexistente (404)",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/blog/entrada-inexistente-acs",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "ACS — Descargar portada pública",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/blog/<<blogSlug>>/image",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "ACS — Listar imágenes del contenido público",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/blog/<<blogSlug>>/images/<<imageId>>",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "ACS — Listar entradas administrativas (BLOG_MANAGE)",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/blog?page=1&pageSize=20",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "ACS — Listar imágenes administrativas",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/blog/images",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "ACS — Previsualizar imagen administrativa",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/blog/images/<<imageId>>/preview",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "ACS — Cargar imagen",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/blog/images",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "multipart/form-data",
+            "body": "file=@portada.jpg"
+          }
+        },
+        {
+          "v": "1",
+          "name": "ACS — Crear borrador",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/blog",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"title\": \"Experiencias de AsoQuímica en ACS\",\n  \"slug\": \"experiencias-asoquimica-acs\",\n  \"summary\": \"Una historia de colaboración y aprendizaje de nuestra comunidad química.\",\n  \"content\": \"<h2>Una comunidad conectada</h2><p>Contenido editorial autorizado de al menos veinte caracteres.</p>\",\n  \"status\": \"BORRADOR\",\n  \"imageId\": null\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "ACS — Crear entrada inválida (422)",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/blog",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"title\": \"x\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "ACS — Consultar entrada para editar",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/blog/<<blogPostId>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "ACS — Actualizar y publicar entrada",
+          "method": "PUT",
+          "endpoint": "<<baseUrl>>/admin/blog/<<blogPostId>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"title\": \"Experiencias de AsoQuímica en ACS (actualizada)\",\n  \"status\": \"PUBLICADO\",\n  \"content\": \"<h2>Una comunidad conectada</h2><p>Contenido editorial actualizado y validado para su publicación.</p>\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "ACS — Archivar entrada",
+          "method": "PATCH",
+          "endpoint": "<<baseUrl>>/admin/blog/<<blogPostId>>/archive",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "ACS — Eliminar entrada",
+          "method": "DELETE",
+          "endpoint": "<<baseUrl>>/admin/blog/<<blogPostId>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "ACS — Sin sesión administrativa (401)",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/blog",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        }
+      ]
+    },
+    {
+      "v": 3,
       "name": "Consulta pública de tesis",
       "folders": [],
       "requests": [
@@ -3066,6 +3434,18 @@
         {
           "key": "adminWithoutUsersManageCookie",
           "value": "aequvg_session=copy-from-restricted-admin-login; aequvg_device=copy-from-restricted-admin-login"
+        },
+        {
+          "key": "blogPostId",
+          "value": "1"
+        },
+        {
+          "key": "blogSlug",
+          "value": "entrada-acs-publicada"
+        },
+        {
+          "key": "imageId",
+          "value": "1"
         },
         {
           "key": "thesisId",

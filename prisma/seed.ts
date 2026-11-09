@@ -39,6 +39,7 @@ async function main() {
     { code: 'BOARD_MANAGE', description: 'Gestionar la junta directiva.' },
     { code: 'CONTACT_MANAGE', description: 'Gestionar medios y solicitudes de contacto.' },
     { code: 'NEWS_MANAGE', description: 'Gestionar noticias.' },
+    { code: 'BLOG_MANAGE', description: 'Gestionar entradas del blog ACS.' },
     { code: 'RESOURCES_MANAGE', description: 'Gestionar recursos.' },
     { code: 'PROJECTS_MANAGE', description: 'Gestionar proyectos.' },
     { code: 'EVENTS_MANAGE', description: 'Gestionar eventos e inscripciones.' },
