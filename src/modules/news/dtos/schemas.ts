@@ -76,3 +76,14 @@ export const newsListResponse = t.Object({
 })
 
 export const newsCategoryListResponse = t.Array(t.Object({ id: t.Integer(), name: t.String() }))
+
+export const newsImageResponse = t.Object({
+  id: t.Integer(),
+  originalName: t.String(),
+  mimeType: t.String(),
+  sizeBytes: t.Integer(),
+  createdAt: t.Date(),
+  previewUrl: t.String()
+})
+
+export const newsImageListResponse = t.Array(newsImageResponse)

@@ -138,14 +138,13 @@ describeDatabase('autenticación y RBAC con PostgreSQL', () => {
     expect(revoked.every(session => session.revokedAt && session.revocationReason === 'ACCOUNT_AUTHORIZATION_CHANGED')).toBe(true)
   })
 
-  it('revoca una cookie reutilizada desde otro contexto de dispositivo', async () => {
+  it('conserva la sesión al cambiar el contexto del navegador responsive', async () => {
     const copied = await app.handle(request('/api/v1/auth/me', {
       headers: { cookie: cookieHeader, 'user-agent': 'Navegador-robado/9.0' }
     }))
-    expect(copied.status).toBe(401)
-    expect((await copied.json() as { error: { code: string } }).error.code).toBe('SESSION_REVOKED')
+    expect(copied.status).toBe(200)
+    expect((await copied.json() as { user: { id: number } }).user.id).toBe(userId)
     const session = await prisma.administrativeSession.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' } })
-    expect(session?.revokedAt).toBeTruthy()
-    expect(session?.revocationReason).toBe('DEVICE_BINDING_MISMATCH')
+    expect(session?.revokedAt).toBeNull()
   })
 })
