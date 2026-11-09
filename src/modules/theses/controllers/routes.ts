@@ -13,7 +13,7 @@ const thesisBody = t.Object({
   url: t.String({ format: 'uri', maxLength: 2048 }),
   publishedAt: t.Optional(t.Nullable(t.String({ format: 'date-time' })))
 })
-const listQuery = t.Object({ page: t.Optional(t.Integer({ minimum: 1 })), pageSize: t.Optional(t.Integer({ minimum: 1, maximum: 100 })) })
+const listQuery = t.Object({ page: t.Optional(t.Integer({ minimum: 1 })), pageSize: t.Optional(t.Integer({ minimum: 1, maximum: 100 })), q: t.Optional(t.String({ minLength: 1, maxLength: 160 })) })
 const errorResponse = t.Object({ error: t.Object({ code: t.String(), message: t.String() }) })
 
 const assertHttpUrl = (value: string) => {
@@ -25,6 +25,28 @@ const assertHttpUrl = (value: string) => {
 }
 
 export const thesisRoutes = new Elysia({ prefix: '/api/v1' })
+  .get('/theses', async ({ query }) => {
+    const page = query.page ?? 1, pageSize = query.pageSize ?? 20
+    const search = query.q?.trim()
+    const where = {
+      publishedAt: { not: null, lte: new Date() },
+      ...(search ? { OR: [
+        { title: { contains: search, mode: 'insensitive' as const } },
+        { author: { contains: search, mode: 'insensitive' as const } },
+        { summary: { contains: search, mode: 'insensitive' as const } }
+      ] } : {})
+    }
+    const [items, total] = await Promise.all([
+      prisma.thesisLink.findMany({ where, orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }], skip: (page - 1) * pageSize, take: pageSize, select: { id: true, sourceIdentifier: true, title: true, author: true, publicationYear: true, summary: true, url: true, publishedAt: true } }),
+      prisma.thesisLink.count({ where })
+    ])
+    return { items, pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } }
+  }, { query: listQuery, response: { 200: t.Any() }, detail: { tags: ['Tesis'], summary: 'Lista tesis publicadas', description: 'Consulta pública paginada. Solo devuelve enlaces publicados; no descarga archivos ni consulta el repositorio externo.' } })
+  .get('/theses/:id', async ({ params }) => {
+    const thesis = await prisma.thesisLink.findFirst({ where: { id: params.id, publishedAt: { not: null, lte: new Date() } }, select: { id: true, sourceIdentifier: true, title: true, author: true, publicationYear: true, summary: true, url: true, publishedAt: true } })
+    if (!thesis) throw new AppError(404, 'THESIS_NOT_FOUND', 'La tesis no existe o no está publicada.')
+    return thesis
+  }, { params: idParams, response: { 200: t.Any(), 404: errorResponse }, detail: { tags: ['Tesis'], summary: 'Consulta una tesis publicada', description: 'Devuelve los metadatos públicos y el enlace de origen de una tesis publicada.' } })
   .get('/admin/theses', async ({ request, query }) => {
     await requireAdmin(request, 'PAPERS_MANAGE')
     const page = query.page ?? 1, pageSize = query.pageSize ?? 20
