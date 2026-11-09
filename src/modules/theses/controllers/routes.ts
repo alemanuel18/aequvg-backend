@@ -16,6 +16,14 @@ const thesisBody = t.Object({
 const listQuery = t.Object({ page: t.Optional(t.Integer({ minimum: 1 })), pageSize: t.Optional(t.Integer({ minimum: 1, maximum: 100 })) })
 const errorResponse = t.Object({ error: t.Object({ code: t.String(), message: t.String() }) })
 
+const assertHttpUrl = (value: string) => {
+  let parsed: URL
+  try { parsed = new URL(value) } catch { throw new AppError(422, 'INVALID_THESIS_URL', 'Ingresa una URL válida que comience con http:// o https://.') }
+  if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || !parsed.hostname) {
+    throw new AppError(422, 'INVALID_THESIS_URL', 'Ingresa una URL válida que comience con http:// o https://.')
+  }
+}
+
 export const thesisRoutes = new Elysia({ prefix: '/api/v1' })
   .get('/admin/theses', async ({ request, query }) => {
     await requireAdmin(request, 'PAPERS_MANAGE')
@@ -28,6 +36,7 @@ export const thesisRoutes = new Elysia({ prefix: '/api/v1' })
   }, { query: listQuery, response: { 200: t.Any(), 401: errorResponse, 403: errorResponse }, detail: { tags: ['Administración'], summary: 'Lista enlaces de tesis', description: 'Requiere sesión administrativa con PAPERS_MANAGE. No consulta ni almacena documentos.' } })
   .post('/admin/theses', async ({ request, body, set }) => {
     const admin = await requireAdmin(request, 'PAPERS_MANAGE')
+    assertHttpUrl(body.url)
     set.status = 201
     try {
       return await prisma.thesisLink.create({ data: { ...body, publishedAt: body.publishedAt ? new Date(body.publishedAt) : null, createdById: admin.user.id } })
@@ -38,6 +47,7 @@ export const thesisRoutes = new Elysia({ prefix: '/api/v1' })
   }, { body: thesisBody, response: { 201: t.Any(), 401: errorResponse, 403: errorResponse, 409: errorResponse, 422: errorResponse }, detail: { tags: ['Administración'], summary: 'Agrega un enlace de tesis', description: 'El autor del registro se deriva de la sesión. Solo se guarda el enlace y sus metadatos; no admite archivos.' } })
   .put('/admin/theses/:id', async ({ request, params, body }) => {
     await requireAdmin(request, 'PAPERS_MANAGE')
+    if (body.url !== undefined) assertHttpUrl(body.url)
     try {
       return await prisma.thesisLink.update({ where: { id: params.id }, data: { ...body, ...(body.publishedAt !== undefined ? { publishedAt: body.publishedAt ? new Date(body.publishedAt) : null } : {}) } })
     } catch (error) {
