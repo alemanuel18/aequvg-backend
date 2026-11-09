@@ -9,20 +9,22 @@ export const commentHash = (studentId: number, targetType: CommentTargetType, ta
   .digest('hex')
 
 const select = {
-  id: true, studentId: true, targetType: true, newsId: true, projectId: true, eventId: true,
+  id: true, studentId: true, targetType: true, newsId: true, projectId: true, eventId: true, thesisId: true,
   content: true, createdAt: true,
   student: { select: { firstNames: true, lastNames: true } }
 } satisfies Prisma.PublicationCommentSelect
 
 const targetWhere = (targetType: CommentTargetType, targetId: number) => targetType === 'NOTICIA'
   ? { targetType, newsId: targetId }
-  : targetType === 'PROYECTO' ? { targetType, projectId: targetId } : { targetType, eventId: targetId }
+  : targetType === 'PROYECTO' ? { targetType, projectId: targetId }
+    : targetType === 'EVENTO' ? { targetType, eventId: targetId } : { targetType, thesisId: targetId }
 
 export const commentsRepository = {
   findVisibleTarget: async (targetType: CommentTargetType, targetId: number) => {
     if (targetType === 'NOTICIA') return prisma.news.findFirst({ where: { id: targetId, status: 'PUBLICADO', publishedAt: { lte: new Date() }, category: { active: true } }, select: { id: true } })
     if (targetType === 'PROYECTO') return prisma.project.findFirst({ where: { id: targetId, type: 'PROYECTO', status: 'APROBADO' }, select: { id: true } })
-    return prisma.event.findFirst({ where: { id: targetId, status: 'PUBLICADO' }, select: { id: true } })
+    if (targetType === 'EVENTO') return prisma.event.findFirst({ where: { id: targetId, status: 'PUBLICADO' }, select: { id: true } })
+    return prisma.thesisLink.findFirst({ where: { id: targetId, publishedAt: { not: null, lte: new Date() } }, select: { id: true } })
   },
   create: (data: {
     studentId: number; targetType: CommentTargetType; targetId: number; content: string; dedupeHash: string
@@ -31,14 +33,15 @@ export const commentsRepository = {
       studentId: data.studentId, targetType: data.targetType, content: data.content, dedupeHash: data.dedupeHash,
       ...(data.targetType === 'NOTICIA' ? { newsId: data.targetId } : {}),
       ...(data.targetType === 'PROYECTO' ? { projectId: data.targetId } : {}),
-      ...(data.targetType === 'EVENTO' ? { eventId: data.targetId } : {})
+      ...(data.targetType === 'EVENTO' ? { eventId: data.targetId } : {}),
+      ...(data.targetType === 'TESIS' ? { thesisId: data.targetId } : {})
     }, select
   }),
   updateOwned: (studentId: number, commentId: number, content: string) => prisma.$transaction(async tx => {
     const current = await tx.publicationComment.findFirst({ where: { id: commentId, studentId, deletedAt: null }, select })
     if (!current) return null
     if (current.content === content) return { comment: current, changed: false }
-    const targetId = current.newsId ?? current.projectId ?? current.eventId!
+    const targetId = current.newsId ?? current.projectId ?? current.eventId ?? current.thesisId!
     const dedupeHash = commentHash(studentId, current.targetType, targetId, content)
     await tx.publicationComment.update({ where: { id: commentId }, data: { content, dedupeHash } })
     await tx.publicationCommentRevision.create({ data: {
@@ -53,7 +56,7 @@ export const commentsRepository = {
     await tx.publicationCommentRevision.create({ data: {
       commentId, actorStudentId: studentId, action: 'DELETE', previousContent: current.content, nextContent: null
     } })
-    const targetId = current.newsId ?? current.projectId ?? current.eventId!
+    const targetId = current.newsId ?? current.projectId ?? current.eventId ?? current.thesisId!
     await tx.publicationComment.update({
       where: { id: commentId },
       data: { deletedAt: new Date(), dedupeHash: commentHash(studentId, current.targetType, targetId, `deleted:${commentId}:${Date.now()}`) }
@@ -81,7 +84,7 @@ export const commentsRepository = {
       prisma.publicationCommentRevision.findMany({
         include: {
           actor: { select: { firstNames: true, lastNames: true } },
-          comment: { select: { id: true, targetType: true, newsId: true, projectId: true, eventId: true } }
+          comment: { select: { id: true, targetType: true, newsId: true, projectId: true, eventId: true, thesisId: true } }
         },
         orderBy: [{ changedAt: 'desc' }, { id: 'desc' }],
         skip: (page - 1) * pageSize,

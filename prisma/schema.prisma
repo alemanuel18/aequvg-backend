@@ -84,11 +84,12 @@ enum PublicationStatus {
   @@map("estado_publicacion_cientifica")
 }
 
-/// Destinos de comentarios habilitados en S4-COM. No incluye tesis, reacciones ni chat.
+/// Destinos de comentarios habilitados. No incluye reacciones ni chat.
 enum CommentTargetType {
   NOTICIA
   PROYECTO
   EVENTO
+  TESIS
 
   @@map("tipo_destino_comentario")
 }
@@ -570,6 +571,7 @@ model ThesisLink {
   publishedAt       DateTime? @map("publicado_en") @db.Timestamptz(3)
 
   createdBy AdministrativeUser @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  comments  PublicationComment[]
 
   @@index([publishedAt, createdAt])
   @@index([createdById])
@@ -872,7 +874,7 @@ model ContactMethod {
   @@map("medio_contacto")
 }
 
-/// Comentario de texto plano vinculado a exactamente una noticia, proyecto o evento.
+/// Comentario de texto plano vinculado a exactamente una noticia, proyecto, evento o tesis.
 /// La migración aplica CHECK para que el FK no nulo coincida con targetType.
 /// studentId se vuelve null al anonimizar una cuenta; deletedAt representa retiro lógico.
 model PublicationComment {
@@ -882,6 +884,7 @@ model PublicationComment {
   newsId     Int?              @map("id_noticia")
   projectId  Int?              @map("id_proyecto")
   eventId    Int?              @map("id_evento")
+  thesisId   Int?              @map("id_tesis")
   content    String            @map("contenido") @db.VarChar(2000)
   dedupeHash String            @unique(map: "comentario_publicacion_no_duplicado_idx") @map("hash_deduplicacion") @db.Char(64)
   createdAt  DateTime          @default(now()) @map("creado_en") @db.Timestamptz(3)
@@ -891,11 +894,13 @@ model PublicationComment {
   news      News?                        @relation(fields: [newsId], references: [id], onDelete: Cascade)
   project   Project?                     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   event     Event?                       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  thesis    ThesisLink?                  @relation(fields: [thesisId], references: [id], onDelete: Cascade)
   revisions PublicationCommentRevision[]
 
   @@index([targetType, newsId, createdAt], map: "comentario_publicacion_noticia_fecha_idx")
   @@index([targetType, projectId, createdAt], map: "comentario_publicacion_proyecto_fecha_idx")
   @@index([targetType, eventId, createdAt], map: "comentario_publicacion_evento_fecha_idx")
+  @@index([targetType, thesisId, createdAt], map: "comentario_publicacion_tesis_fecha_idx")
   @@index([studentId, createdAt], map: "comentario_publicacion_estudiante_fecha_idx")
   @@map("comentario_publicacion")
 }
