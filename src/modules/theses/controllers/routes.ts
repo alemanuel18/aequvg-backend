@@ -42,6 +42,11 @@ export const thesisRoutes = new Elysia({ prefix: '/api/v1' })
     ])
     return { items, pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } }
   }, { query: listQuery, response: { 200: t.Any() }, detail: { tags: ['Tesis'], summary: 'Lista tesis publicadas', description: 'Consulta pública paginada. Solo devuelve enlaces publicados; no descarga archivos ni consulta el repositorio externo.' } })
+  .get('/theses/:id', async ({ params }) => {
+    const thesis = await prisma.thesisLink.findFirst({ where: { id: params.id, publishedAt: { not: null, lte: new Date() } }, select: { id: true, sourceIdentifier: true, title: true, author: true, publicationYear: true, summary: true, url: true, publishedAt: true } })
+    if (!thesis) throw new AppError(404, 'THESIS_NOT_FOUND', 'La tesis no existe o no está publicada.')
+    return thesis
+  }, { params: idParams, response: { 200: t.Any(), 404: errorResponse }, detail: { tags: ['Tesis'], summary: 'Consulta una tesis publicada', description: 'Devuelve los metadatos públicos y el enlace de origen de una tesis publicada.' } })
   .get('/admin/theses', async ({ request, query }) => {
     await requireAdmin(request, 'PAPERS_MANAGE')
     const page = query.page ?? 1, pageSize = query.pageSize ?? 20
