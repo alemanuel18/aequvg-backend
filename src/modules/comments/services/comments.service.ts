@@ -4,12 +4,12 @@ import { commentHash, commentsRepository, normalizeComment } from '../repositori
 import { commentModerationService } from './comment-moderation.service'
 
 const formatComment = (comment: {
-  id: number; studentId: number | null; targetType: CommentTargetType; newsId: number | null; projectId: number | null; eventId: number | null;
+  id: number; studentId: number | null; targetType: CommentTargetType; newsId: number | null; projectId: number | null; eventId: number | null; thesisId: number | null;
   content: string; createdAt: Date; student: { firstNames: string; lastNames: string } | null
 }) => ({
   id: comment.id,
   targetType: comment.targetType,
-  targetId: comment.newsId ?? comment.projectId ?? comment.eventId!,
+  targetId: comment.newsId ?? comment.projectId ?? comment.eventId ?? comment.thesisId!,
   content: comment.content,
   authorName: comment.studentId === null ? 'Anónimo' : `${comment.student?.firstNames ?? ''} ${comment.student?.lastNames ?? ''}`.trim(),
   createdAt: comment.createdAt.toISOString()
@@ -24,7 +24,7 @@ const adminHistoryResult = (result: Awaited<ReturnType<typeof commentsRepository
     id: item.id,
     commentId: item.comment.id,
     targetType: item.comment.targetType,
-    targetId: item.comment.newsId ?? item.comment.projectId ?? item.comment.eventId!,
+    targetId: item.comment.newsId ?? item.comment.projectId ?? item.comment.eventId ?? item.comment.thesisId!,
     action: item.action,
     previousContent: item.previousContent,
     nextContent: item.nextContent,
