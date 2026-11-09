@@ -19,7 +19,7 @@ El modelo Prisma `ThesisLink` se almacena en `enlace_tesis` y está definido en 
 | `createdAt`, `updatedAt` | `creado_en`, `actualizado_en` | Fechas de creación y modificación. |
 | `publishedAt` | `publicado_en` | Nulo para borrador; con fecha no futura para aparecer en consulta pública. |
 
-Los índices únicos impiden repetir URL e identificador de origen. No hay un campo de archivo. Retirar el enlace elimina el registro local; no llama al repositorio UVG. Los comentarios que estén ligados a ese enlace usan una relación con borrado en cascada local, según la migración [`20261108140000_comment_thesis_relation`](../prisma/migrations/20261108140000_comment_thesis_relation/migration.sql).
+Los índices únicos impiden repetir URL e identificador de origen. No hay un campo de archivo ni una relación entre tesis y comentarios; el contrato de comentarios de S4 excluye las tesis. Retirar el enlace elimina el registro local; no llama al repositorio UVG.
 
 ## Permisos y operaciones
 
