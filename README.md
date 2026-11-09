@@ -190,6 +190,16 @@ La integración del CRUD usa una base PostgreSQL aislada y se habilita con `bun 
 
 La guía de pantallas, carga y revisión está en [`docs/projects-admin-flow.md`](docs/projects-admin-flow.md); la ejecución reproducible y sus resultados se registran en [`docs/admin-flows-evidence.md`](docs/admin-flows-evidence.md).
 
+## Enlaces de tesis de Química
+
+`ThesisLink` se persiste en `enlace_tesis` con URL, metadatos, autor administrativo, fechas e identificador opcional del repositorio. La URL y el identificador de origen son únicos. No se guarda ningún archivo de tesis. El detalle del esquema, relaciones y migración está en [`docs/thesis-links.md`](docs/thesis-links.md).
+
+La consulta pública usa `GET /api/v1/theses` y `GET /api/v1/theses/:id`; la administración ofrece listar, crear, editar y eliminar en `/api/v1/admin/theses` con `PAPERS_MANAGE`. Las escrituras requieren sesión administrativa y CSRF. La API exige título y URL al crear; autor es opcional en el contrato, aunque la interfaz actual también lo exige. La URL debe ser HTTP/HTTPS; duplicados devuelven `409 THESIS_LINK_EXISTS`, enlaces inválidos `422 INVALID_THESIS_URL`, y los errores usan el esquema `{ error: { code, message } }`.
+
+OpenAPI en [http://localhost:3000/openapi](http://localhost:3000/openapi); ejemplos de consulta, alta, edición, retiro y errores en [`docs/aequvg-hoppscotch.json`](docs/aequvg-hoppscotch.json). El resumen de DSpace, límites y tareas futuras está en [`docs/thesis-repository-research.md`](docs/thesis-repository-research.md). La integración manual existente no representa una sincronización automática. Guías con capturas y evidencias E2E están enlazadas desde el [frontend](https://github.com/alemanuel18/aequvg-frontend/blob/docs/thesis-documentation/docs/guides/thesis-students.md).
+
+La documentación de aceptación pide URL como único campo obligatorio; la implementación actual todavía requiere título y URL en API, y título, URL y autor en la interfaz. No se documenta la condición de URL única como comportamiento disponible.
+
 ## Persistencia de eventos e inscripciones (SCRUM-119 / SCRUM-123)
 
 El contrato de persistencia ya está en `prisma/schema.prisma` y en la migración

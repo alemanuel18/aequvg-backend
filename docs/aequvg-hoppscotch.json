@@ -2706,6 +2706,288 @@
           }
         }
       ]
+    },
+    {
+      "v": 3,
+      "name": "Consulta pública de tesis",
+      "folders": [],
+      "requests": [
+        {
+          "v": "1",
+          "name": "Listar tesis publicadas",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/theses?page=1&pageSize=20",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Buscar tesis por título o autor",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/theses?q=química&page=1&pageSize=20",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Consultar detalle público",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/theses/<<thesisId>>",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        }
+      ]
+    },
+    {
+      "v": 3,
+      "name": "Administración - Tesis (PAPERS_MANAGE)",
+      "folders": [],
+      "requests": [
+        {
+          "v": "1",
+          "name": "Listar todos los enlaces (requiere PAPERS_MANAGE)",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/theses?page=1&pageSize=20",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Administración sin sesión (401)",
+          "method": "GET",
+          "endpoint": "<<baseUrl>>/admin/theses?page=1&pageSize=20",
+          "params": [],
+          "headers": [],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Crear tesis publicada",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/theses",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"sourceIdentifier\": \"123456789/HOPPSCOTCH-DEMO\",\n  \"title\": \"Tesis de ejemplo para Hoppscotch\",\n  \"author\": \"Autora de ejemplo\",\n  \"publicationYear\": 2025,\n  \"summary\": \"Registro demostrativo. Sustituye URL e identificador por datos autorizados antes de crear.\",\n  \"url\": \"https://repositorio.uvg.edu.gt/handle/123456789/000000\",\n  \"publishedAt\": \"2026-01-01T00:00:00.000Z\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "URL con protocolo inseguro (422 INVALID_THESIS_URL)",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/theses",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"sourceIdentifier\": \"123456789/INVALID-URL-DEMO\",\n  \"title\": \"Tesis de ejemplo para Hoppscotch\",\n  \"author\": \"Autora de ejemplo\",\n  \"publicationYear\": 2025,\n  \"summary\": \"Registro demostrativo. Sustituye URL e identificador por datos autorizados antes de crear.\",\n  \"url\": \"ftp://repositorio.uvg.edu.gt/tesis.pdf\",\n  \"publishedAt\": \"2026-01-01T00:00:00.000Z\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "URL duplicada (409 THESIS_LINK_EXISTS)",
+          "method": "POST",
+          "endpoint": "<<baseUrl>>/admin/theses",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"sourceIdentifier\": \"123456789/HOPPSCOTCH-DUPLICATE\",\n  \"title\": \"Tesis de ejemplo para Hoppscotch\",\n  \"author\": \"Autora de ejemplo\",\n  \"publicationYear\": 2025,\n  \"summary\": \"Registro demostrativo. Sustituye URL e identificador por datos autorizados antes de crear.\",\n  \"url\": \"https://repositorio.uvg.edu.gt/handle/123456789/000000\",\n  \"publishedAt\": \"2026-01-01T00:00:00.000Z\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Editar metadatos (requiere PAPERS_MANAGE)",
+          "method": "PUT",
+          "endpoint": "<<baseUrl>>/admin/theses/<<thesisId>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": "application/json",
+            "body": "{\n  \"title\": \"Tesis de ejemplo editada\",\n  \"author\": \"Autora de ejemplo\",\n  \"publicationYear\": 2025,\n  \"summary\": \"Resumen editado desde Hoppscotch.\",\n  \"url\": \"https://repositorio.uvg.edu.gt/handle/123456789/000001\",\n  \"publishedAt\": \"2026-01-01T00:00:00.000Z\"\n}"
+          }
+        },
+        {
+          "v": "1",
+          "name": "Eliminar enlace local (no borra archivo UVG)",
+          "method": "DELETE",
+          "endpoint": "<<baseUrl>>/admin/theses/<<thesisId>>",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        },
+        {
+          "v": "1",
+          "name": "Eliminar ID inexistente (404 THESIS_NOT_FOUND)",
+          "method": "DELETE",
+          "endpoint": "<<baseUrl>>/admin/theses/999999",
+          "params": [],
+          "headers": [
+            {
+              "key": "Cookie",
+              "value": "<<adminSessionCookie>>",
+              "active": true
+            },
+            {
+              "key": "X-CSRF-Token",
+              "value": "<<csrfToken>>",
+              "active": true
+            }
+          ],
+          "auth": {
+            "authType": "none",
+            "authActive": true
+          },
+          "body": {
+            "contentType": null,
+            "body": null
+          }
+        }
+      ]
     }
   ],
   "requests": [],
@@ -2784,6 +3066,10 @@
         {
           "key": "adminWithoutUsersManageCookie",
           "value": "aequvg_session=copy-from-restricted-admin-login; aequvg_device=copy-from-restricted-admin-login"
+        },
+        {
+          "key": "thesisId",
+          "value": "1"
         }
       ]
     }
