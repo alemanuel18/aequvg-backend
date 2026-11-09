@@ -25,6 +25,15 @@ const assertHttpUrl = (value: string) => {
 }
 
 export const thesisRoutes = new Elysia({ prefix: '/api/v1' })
+  .get('/theses', async ({ query }) => {
+    const page = query.page ?? 1, pageSize = query.pageSize ?? 20
+    const where = { publishedAt: { not: null, lte: new Date() } }
+    const [items, total] = await Promise.all([
+      prisma.thesisLink.findMany({ where, orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }], skip: (page - 1) * pageSize, take: pageSize, select: { id: true, sourceIdentifier: true, title: true, author: true, publicationYear: true, summary: true, url: true, publishedAt: true } }),
+      prisma.thesisLink.count({ where })
+    ])
+    return { items, pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } }
+  }, { query: listQuery, response: { 200: t.Any() }, detail: { tags: ['Tesis'], summary: 'Lista tesis publicadas', description: 'Consulta pública paginada. Solo devuelve enlaces publicados; no descarga archivos ni consulta el repositorio externo.' } })
   .get('/admin/theses', async ({ request, query }) => {
     await requireAdmin(request, 'PAPERS_MANAGE')
     const page = query.page ?? 1, pageSize = query.pageSize ?? 20
