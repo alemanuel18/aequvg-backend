@@ -288,6 +288,7 @@ model AdministrativeUser {
   createdThesisLinks            ThesisLink[]
   publicationApprovals         PublicationApproval[]
   createdNews                  News[]
+  createdBlogPosts              BlogPost[]
   createdEvents                Event[]
   createdResources             Resource[]
   assignedContactRequests      ContactRequest[]
@@ -510,6 +511,7 @@ model File {
   uploadedBy   AdministrativeUser      @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
   publications ScientificPublication[] @relation("PublicationFile")
   newsImages   News[]                  @relation("NewsImage")
+  blogImages   BlogPost[]              @relation("BlogPostImage")
   eventImages  Event[]                 @relation("EventImage")
   resources    Resource[]              @relation("ResourceFile")
   boardPhotos  BoardMember[]           @relation("BoardPhoto")
@@ -657,6 +659,29 @@ model News {
   @@index([createdById])
   @@index([imageId])
   @@map("noticia")
+}
+
+/// Entradas editoriales sobre el trabajo y la relación de la asociación con ACS.
+model BlogPost {
+  id          Int           @id @default(autoincrement()) @map("id_entrada_blog")
+  createdById Int           @map("creado_por")
+  imageId     Int?          @map("id_imagen")
+  title       String        @map("titulo") @db.VarChar(220)
+  slug        String        @unique @map("slug") @db.VarChar(240)
+  summary     String        @map("resumen") @db.Text
+  content     String        @map("contenido") @db.Text
+  status      ContentStatus @default(BORRADOR) @map("estado")
+  createdAt   DateTime      @default(now()) @map("creado_en") @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  publishedAt DateTime?     @map("publicado_en") @db.Timestamptz(3)
+
+  createdBy AdministrativeUser @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  image     File?              @relation("BlogPostImage", fields: [imageId], references: [id], onDelete: Restrict)
+
+  @@index([status, publishedAt])
+  @@index([createdById])
+  @@index([imageId])
+  @@map("entrada_blog")
 }
 
 /// La primera migración debe agregar CHECK (capacidad_maxima > 0).
