@@ -285,6 +285,7 @@ model AdministrativeUser {
   sessions                     AdministrativeSession[]
   uploadedFiles                File[]
   createdPublications          ScientificPublication[]             @relation("PublicationCreator")
+  createdThesisLinks            ThesisLink[]
   publicationApprovals         PublicationApproval[]
   createdNews                  News[]
   createdEvents                Event[]
@@ -552,6 +553,27 @@ model ScientificPublication {
   @@index([fileId])
   @@index([originalPublicationId])
   @@map("publicacion_cientifica")
+}
+
+/// Enlaces y metadatos de tesis alojadas en repositorios externos. No almacena archivos.
+model ThesisLink {
+  id               Int      @id @default(autoincrement()) @map("id_enlace_tesis")
+  sourceIdentifier String?  @unique @map("identificador_origen") @db.VarChar(255)
+  title            String   @map("titulo") @db.VarChar(300)
+  author            String?  @map("autor") @db.VarChar(300)
+  publicationYear   Int?     @map("anio_publicacion") @db.SmallInt
+  summary           String?  @map("resumen") @db.Text
+  url               String   @unique @map("url") @db.VarChar(2048)
+  createdById       Int      @map("creado_por")
+  createdAt         DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+  publishedAt       DateTime? @map("publicado_en") @db.Timestamptz(3)
+
+  createdBy AdministrativeUser @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([publishedAt, createdAt])
+  @@index([createdById])
+  @@map("enlace_tesis")
 }
 
 model AuthorPerson {

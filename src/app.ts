@@ -9,6 +9,7 @@ import { institutionalRoutes } from './modules/institutional/controllers/routes'
 import { newsRoutes } from './modules/news/controllers/routes'
 import { projectRoutes } from './modules/projects/controllers/routes'
 import { resourceRoutes } from './modules/resources/controllers/routes'
+import { thesisRoutes } from './modules/theses/controllers/routes'
 import { authRoutes } from './modules/users/controllers/auth.routes'
 import { studentAuthRoutes } from './modules/users/controllers/student-auth.routes'
 import { usersRoutes } from './modules/users/controllers/users.routes'
@@ -31,6 +32,7 @@ export const createApp = () => new Elysia()
   .use(institutionalRoutes)
   .use(newsRoutes)
   .use(resourceRoutes)
+  .use(thesisRoutes)
   .use(projectRoutes)
   .use(eventsRoutes)
   .use(boardRoutes)
