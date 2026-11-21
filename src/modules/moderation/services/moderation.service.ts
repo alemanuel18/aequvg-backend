@@ -106,8 +106,11 @@ export const moderationService = {
   }) {
     const result = await this.inspectText(content, scope, context)
     if (result.allowed) return
-    if (scope === 'COMMENT') throw new AppError(422, 'COMMENT_REJECTED_BY_MODERATION', 'El comentario no cumple las reglas de publicación.')
-    throw new AppError(422, 'OFFENSIVE_NAME', 'Los nombres o apellidos contienen términos no permitidos.')
+    const details = 'occurrenceNumber' in result && result.occurrenceNumber
+      ? { occurrenceNumber: String(result.occurrenceNumber), firstWarning: result.occurrenceNumber === 1 ? 'true' : 'false' }
+      : undefined
+    if (scope === 'COMMENT') throw new AppError(422, 'COMMENT_REJECTED_BY_MODERATION', 'El comentario no cumple las reglas de publicación.', details)
+    throw new AppError(422, 'OFFENSIVE_NAME', 'Los nombres o apellidos contienen términos no permitidos.', details)
   },
 
   operationKey(studentId: number, source: ModerationViolationSource, idempotencyKey?: string) {

@@ -2,17 +2,17 @@
 
 ## Estado de aprobación
 
-La política continúa **pendiente de aprobación por la Asociación**. Este documento describe el comportamiento técnico, un procedimiento operativo propuesto y el contrato compartido por MOD, AUTH y ADMIN; no aprueba términos, excepciones, plazos, umbrales ni efectos de contador. El registro de decisiones y aprobación sigue en [`moderation-policy.md`](moderation-policy.md).
+La Asociación comunicó la política inicial documentada en [`moderation-policy.md`](moderation-policy.md). La versión técnica `aeq-2026-11-21` cuenta faltas durante 12 meses, advierte en la primera, bloquea 7 días en la segunda y aplica bloqueo permanente en la tercera. Las apelaciones se reciben en `asoquimica@uvg.edu.gt` después de seis meses; la revisión y el desbloqueo son administrativos.
 
-No activar sanciones progresivas hasta conservar fuera del repositorio la evidencia de aprobación de la Asociación y desplegar el JSON revisado. El motor valida que `approved` sea `true` y que `approvedBy` y `approvedAt` tengan formato, pero **no autentica ni verifica la autoridad de esa aprobación**. La revisión y la autorización de despliegue son controles operativos.
+El motor carga esta versión por defecto; se puede sustituir con `MODERATION_POLICY_JSON`. El motor valida formato, pero **no autentica ni verifica la autoridad de la aprobación**. El catálogo inicial de términos se debe revisar conforme aparezcan falsos positivos o nuevas expresiones.
 
 ## Configuración y cambios del catálogo
 
-`MODERATION_POLICY_JSON` está vacío en ambos ejemplos de entorno. Vacío significa que el detector léxico local todavía puede rechazar nombres y comentarios, pero MOD no registra reincidencias ni aplica sanciones progresivas. Una configuración no vacía se valida al usarse; si es inválida, la operación moderada falla cerrada con `503 MODERATION_POLICY_INVALID`.
+Cuando `MODERATION_POLICY_JSON` está vacío, el backend carga la política versionada `aeq-2026-11-21` incluida en el código. Un JSON no vacío la sustituye y se valida al usarse; si es inválido, la operación moderada falla cerrada con `503 MODERATION_POLICY_INVALID`.
 
 La configuración debe incluir `approved`, `version`, `approvedBy`, `approvedAt`, `recurrenceWindowHours`, `blockedTerms`, `sanctions`, `manualUnlockEffect` y `expiryEffect`. `exceptions` puede omitirse; `permanentReviewChannel` es obligatorio si existe un paso permanente. Las reglas usan `scope: NAME | COMMENT`; cada sanción temporal contiene `after`, `action: TEMPORARY` y `durationHours`; la permanente contiene `after` y `action: PERMANENT`. El parser exige identificadores de regla únicos, umbrales y valores positivos, severidad no decreciente y duración creciente entre pasos temporales.
 
-No hay una interfaz para editar el catálogo: la fuente de operación es la configuración de entorno. El siguiente proceso es **propuesta operativa pendiente de asignar y ratificar**:
+No hay una interfaz para editar el catálogo: se actualiza el arreglo versionado en código o se sustituye mediante configuración de entorno. Al ampliarlo, agregar casos positivos y ejemplos inocuos de regresión.
 
 1. La Asociación designa responsable titular y suplente del catálogo, aprobadores y canal para revisar falsos positivos.
 2. El responsable prepara un cambio versionado con regla, ámbito, justificación, ejemplos que deben rechazarse y casos inocuos que deben permitirse. No agrega reglas solo por coincidencia de subcadena.
@@ -42,7 +42,7 @@ Flujo operativo propuesto:
 4. El responsable del catálogo propone una corrección; la excepción o cambio de regla solo se despliega después de la aprobación aplicable. Se agregan un caso detectado y uno inocuo a la suite para evitar regresiones.
 5. Si la detección fue correcta, se comunica el estado y canal de revisión aprobado sin repetir públicamente el contenido ni compartir evidencia con terceros.
 
-El endpoint administrativo valida motivo, actor y CSRF, y deja historial de estado. La herramienta no registra la conversación de contacto ni el resultado de una apelación como entidad propia; ese registro externo y su retención siguen pendientes de definición.
+El endpoint administrativo valida motivo, actor y CSRF, y deja historial de estado. Una apelación ordinaria solo se puede resolver tras seis meses del incidente permanente; una corrección de falso positivo puede desbloquearse antes si el motivo administrativo lo identifica expresamente. La conversación y resolución de apelación no se guardan como entidad propia.
 
 ## Evidencia mínima, privacidad y auditoría
 
@@ -78,6 +78,8 @@ Contrato de errores de contenido y cuenta:
 
 ADMIN gestiona el estado con `PATCH /api/v1/admin/student-users/{id}/status`, sesión administrativa, permiso `USERS_MANAGE` y `X-CSRF-Token`. El cuerpo contiene `status` y `reason` (5–1000 caracteres); temporal agrega `blockedUntil` futuro y permanente agrega `reviewChannel`. Para desbloquear se envían `status: ACTIVO` y motivo. El detalle `GET /api/v1/admin/student-users/{id}` devuelve contador, historial e incidentes, incluido `evidenceHash`; nunca debe exponerse fuera del panel autorizado.
 
+El panel obtiene los umbrales vigentes desde `GET /api/v1/admin/moderation-policy`; por eso ventana, versión y sanciones se muestran con los valores efectivos del backend. Para excluir un falso positivo, ADMIN usa `PATCH /api/v1/admin/student-users/{id}/moderation-incidents/{incidentId}/review` con `{ "reason": "..." }`. Se conserva la incidencia con `countsTowardReincidence=false`, revisor, fecha y motivo; el contador vigente se recalcula en la misma transacción. La operación no revoca por sí sola una sanción ya aplicada. La migración `20261121120000_moderation_incident_reviews` agrega los campos de auditoría.
+
 ## Pruebas y evidencia reproducible
 
 Ejecutar desde el backend:
@@ -92,4 +94,4 @@ Las integraciones PostgreSQL requieren una base migrada y variables de conexión
 
 ## Decisiones aún necesarias para cerrar la tarea madre
 
-La Asociación debe registrar el catálogo y excepciones aprobados, normalización, definición de infracción, canal/plazo/responsable de falsos positivos, ventana/umbrales/duraciones, efectos de desbloqueo y expiración, y aprobadores/operadores del catálogo. Hasta entonces este documento es contrato operativo y lista de pendientes, no una política acordada.
+Pendiente operativo: designar quién mantiene el catálogo y cómo se registra externamente el resultado de las apelaciones. La política de sanciones y el correo de revisión están incorporados en la versión inicial; el vocabulario puede ampliarse en versiones posteriores.

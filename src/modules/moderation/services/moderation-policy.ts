@@ -20,6 +20,52 @@ export type ApprovedModerationPolicy = {
   permanentReviewChannel?: string
 }
 
+// Acuerdo comunicado por la Asociación de Estudiantes de Química UVG.
+// Catálogo inicial amplio en español de Guatemala y expresiones frecuentes en inglés.
+// Las coincidencias son por término completo; no se guardan los textos marcados.
+const vulgarityTerms = [
+  'puta', 'puto', 'putas', 'putos', 'putita', 'putito', 'puton', 'putona', 'putear', 'puteria',
+  'mierda', 'mierdas', 'mierdero', 'mierdoso', 'mierdosa', 'mrd',
+  'cerote', 'cerota', 'cerotes', 'cerotas', 'cerotada',
+  'culero', 'culera', 'culeros', 'culeras', 'culear', 'culeada', 'culeado',
+  'pendejo', 'pendeja', 'pendejos', 'pendejas', 'pendejada', 'pendejear',
+  'huevon', 'huevona', 'huevones', 'huevonada', 'huevada', 'huevadas',
+  'verga', 'vergas', 'vergazo', 'vergazos', 'vergona', 'vergudo', 'verguda',
+  'chingar', 'chingada', 'chingado', 'chingadera', 'chingaderas', 'chingue', 'chinguen', 'chingon', 'chingona',
+  'cabrón', 'cabron', 'cabrona', 'cabrones', 'cabronada',
+  'marica', 'maricas', 'maricón', 'maricon', 'maricona', 'maricones',
+  'mamón', 'mamon', 'mamona', 'mamones', 'mamadas', 'mamador', 'mamadora',
+  'coño', 'cono', 'coñazo', 'conazo', 'joder', 'jodido', 'jodida', 'jodidos', 'jodidas', 'jodete',
+  'carajo', 'carajos', 'carajear', 'cagada', 'cagado', 'cagada', 'cagar', 'cago', 'cagaste', 'caguen',
+  'pija', 'pijas', 'pijazo', 'pijudo', 'pijuda', 'pichinga', 'pichingas', 'pichazo',
+  'zorra', 'zorras', 'zorro', 'zorras', 'prostituta', 'prostitutas',
+  'imbecil', 'idiota', 'estupido', 'estupida', 'estupidos', 'estupidas', 'tarado', 'tarada', 'tonto', 'tonta',
+  'fuck', 'fucking', 'fucker', 'motherfucker', 'shit', 'bullshit', 'bitch', 'bitches', 'bitchy',
+  'asshole', 'assholes', 'bastard', 'bastards', 'dick', 'dickhead', 'dickheads', 'pussy', 'pussies',
+  'damn', 'damned', 'goddamn', 'crap', 'crappy', 'piss', 'pissed', 'pissing', 'whore', 'whores', 'slut', 'sluts',
+  'motherfucking', 'cunt', 'cunts', 'twat', 'prick', 'pricks', 'wanker', 'wankers', 'shitty', 'fucker'
+]
+const associationPolicy: ApprovedModerationPolicy = {
+  approved: true,
+  version: 'aeq-2026-11-21',
+  approvedBy: 'Asociación de Estudiantes de Química UVG',
+  approvedAt: '2026-11-21T00:00:00.000Z',
+  recurrenceWindowHours: 8760,
+  blockedTerms: [
+    ...vulgarityTerms.map((term, index) => ({ id: `vulgarity-${index + 1}`, scope: 'COMMENT' as const, term })),
+    ...vulgarityTerms.filter(term => ['puta', 'puto', 'cerote', 'cerota', 'culero', 'culera', 'pendejo', 'pendeja', 'marica', 'maricon', 'imbecil', 'idiota'].includes(term))
+      .map((term, index) => ({ id: `name-${index + 1}`, scope: 'NAME' as const, term }))
+  ],
+  exceptions: [],
+  sanctions: [
+    { after: 2, action: 'TEMPORARY', durationHours: 168 },
+    { after: 3, action: 'PERMANENT' }
+  ],
+  manualUnlockEffect: 'PRESERVE',
+  expiryEffect: 'PRESERVE',
+  permanentReviewChannel: 'Apelaciones después de 6 meses: asoquimica@uvg.edu.gt'
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const isPositiveInteger = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) > 0 && Number(value) <= 24 * 365 * 50
 const isScope = (value: unknown): value is ModerationScope => value === 'NAME' || value === 'COMMENT'
@@ -82,7 +128,7 @@ const parseApprovedPolicy = (input: unknown): ApprovedModerationPolicy => {
 
 /** Empty configuration intentionally means that progressive sanctions are inactive pending policy approval. */
 export const loadApprovedModerationPolicy = (raw = process.env.MODERATION_POLICY_JSON) => {
-  if (!raw?.trim()) return null
+  if (!raw?.trim()) return associationPolicy
   try {
     return parseApprovedPolicy(JSON.parse(raw))
   } catch (error) {

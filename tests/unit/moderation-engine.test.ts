@@ -36,11 +36,15 @@ describe('motor de moderación configurable', () => {
     vi.clearAllMocks()
   })
 
-  it('no activa reincidencias con la política candidata local', async () => {
+  it('carga la política acordada por defecto y registra la primera advertencia', async () => {
+    repository.recordViolation.mockResolvedValue({ duplicate: false, occurrenceNumber: 1, sanction: 'NONE', blockedUntil: null })
     await expect(moderationService.inspectText('cerote', 'COMMENT', {
       studentId: 7, source: 'COMMENT_CREATE', idempotencyKey: 'operation-1'
-    })).resolves.toMatchObject({ allowed: false, sanction: null })
-    expect(repository.recordViolation).not.toHaveBeenCalled()
+    })).resolves.toMatchObject({ allowed: false, sanction: 'NONE', occurrenceNumber: 1 })
+    expect(repository.recordViolation).toHaveBeenCalledWith(expect.objectContaining({
+      policy: expect.objectContaining({ version: 'aeq-2026-11-21', recurrenceWindowHours: 8760 }),
+      source: 'COMMENT_CREATE', studentId: 7
+    }))
   })
 
   it('aplica excepciones exactas y detecta evasiones en política aprobada', async () => {

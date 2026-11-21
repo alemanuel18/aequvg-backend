@@ -52,10 +52,43 @@ export const studentAuthRepository = {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         select: {
           id: true, source: true, policyVersion: true, ruleId: true, evidenceHash: true,
-          occurrenceNumber: true, sanction: true, blockedUntil: true, reviewChannel: true, createdAt: true
+          occurrenceNumber: true, sanction: true, blockedUntil: true, reviewChannel: true, createdAt: true,
+          countsTowardReincidence: true, reviewedAt: true, reviewReason: true,
+          reviewedBy: { select: { id: true, name: true } }
         }
       }
     }
+  }),
+
+  findLatestPermanentModerationIncident: (studentId: number) => prisma.moderationIncident.findFirst({
+    where: { studentId, sanction: 'PERMANENT' },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    select: { createdAt: true }
+  }),
+
+  reviewModerationIncident: async (input: { studentId: number; incidentId: number; actorId: number; reason: string; recurrenceWindowHours: number }) => prisma.$transaction(async tx => {
+    const students = await tx.$queryRaw<Array<{ id: number }>>`SELECT "id_estudiante" AS "id" FROM "usuario_estudiante" WHERE "id_estudiante" = ${input.studentId} FOR UPDATE`
+    if (!students[0]) return null
+    const incident = await tx.moderationIncident.findFirst({ where: { id: input.incidentId, studentId: input.studentId } })
+    if (!incident) return null
+    if (!incident.countsTowardReincidence) return { alreadyExcluded: true as const, incident }
+
+    const now = new Date()
+    const reviewed = await tx.moderationIncident.update({
+      where: { id: incident.id },
+      data: { countsTowardReincidence: false, reviewedAt: now, reviewedById: input.actorId, reviewReason: input.reason }
+    })
+    const windowStart = new Date(now.getTime() - input.recurrenceWindowHours * 60 * 60 * 1000)
+    const where = { studentId: input.studentId, countsTowardReincidence: true, createdAt: { gte: windowStart } }
+    const [count, oldest] = await Promise.all([
+      tx.moderationIncident.count({ where }),
+      tx.moderationIncident.findFirst({ where, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { createdAt: true } })
+    ])
+    await tx.studentUser.update({ where: { id: input.studentId }, data: {
+      moderationViolationCount: count,
+      moderationWindowStartedAt: oldest?.createdAt ?? null
+    } })
+    return { alreadyExcluded: false as const, incident: reviewed, count }
   }),
 
   updateProfile: (id: number, data: { name: string; firstNames: string; lastNames: string }) => prisma.studentUser.update({
