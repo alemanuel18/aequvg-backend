@@ -1,6 +1,6 @@
 # S6-05: modelo de autor principal y coautores
 
-Estado: investigación documentada. Las reglas de modelo, principal, orden, migración, edición y compatibilidad fueron confirmadas en esta conversación. Falta cerrar cómo distinguir identidades de autoría; no se implementaron cambios de esquema ni del contrato en esta tarea.
+Estado: investigación documentada y reglas aprobadas por confirmación recibida en esta conversación. No se implementaron cambios de esquema ni del contrato en esta tarea; esta tarea cierra la decisión previa a implementación.
 
 Responsable: Luis. Tarea: S6-05, vinculada a SCRUM-320. La autoría estructurada quedó fuera de S6-04; la implementación espera cerrar la regla de identidad indicada abajo.
 
@@ -78,12 +78,9 @@ Las siguientes decisiones funcionales fueron confirmadas en esta conversación:
 4. La junta podrá agregar, quitar, seleccionar y reordenar autores desde el panel; el reemplazo de la lista será atómico.
 5. En la migración, cada valor actual de `author` se toma completo como una autora principal. No se separan automáticamente cadenas por comas o conjunciones; valores vacíos o que contengan varias personas requieren revisión manual.
 6. La API mantiene temporalmente `author` como alias del nombre de la autora principal mientras agrega la lista estructurada `contributors`; el alias se retira luego de migrar a todos los consumidores.
+7. La autoría se mantiene independiente de las cuentas `StudentUser` y `AdministrativeUser`. Se permiten homónimos como personas distintas; no se fusionan automáticamente por nombre, la junta selecciona explícitamente una persona existente para reutilizarla y ORCID queda fuera de este alcance.
 
-## Identidad de personas: propuesta pendiente de confirmación
-
-Los modelos de usuarios no sirven como registro de autores: incluyen cuentas y controles de acceso que no son necesarios para atribuir una tesis. La recomendación es mantener `AuthorPerson` independiente de `StudentUser` y `AdministrativeUser`.
-
-`AuthorPerson` no tiene ORCID ni otro identificador externo; su ID es único dentro de AEQUV, pero no verifica la identidad civil o académica. La propuesta es permitir homónimos como registros distintos, reutilizar una persona solo cuando la junta la seleccione explícitamente, impedir asociar el mismo `personId` dos veces a una tesis y dejar ORCID fuera del alcance actual. No se fusionan nombres automáticamente. Esta regla de duplicados e identidad aún requiere confirmación.
+La confirmación de la regla 7 se recibió después de revisar el esquema de cuentas y personas del repositorio. `AuthorPerson` no tiene correo ni credenciales; su ID es interno a AEQUV y no verifica por sí solo la identidad académica. No se vincula una autoría a una cuenta solo porque coincidan los nombres.
 
 ## Migración de datos existentes
 
@@ -99,11 +96,11 @@ Los modelos de usuarios no sirven como registro de autores: incluyen cuentas y c
 - La búsqueda por nombre debe recorrer la relación persona → contribuciones → tesis y conservar el permiso y la visibilidad pública existentes.
 - La edición debe recibir y reemplazar la lista ordenada dentro de una transacción. Para evitar conflictos temporales con la restricción única de orden al reordenar, se puede borrar y recrear solo las asociaciones de esa tesis en la transacción, preservando las filas `AuthorPerson`.
 - La respuesta incluirá `author` como alias de compatibilidad durante la transición y además entregará `contributors`, conforme a la regla confirmada.
+- Al eliminar una tesis, se eliminan sus filas de `ThesisContributor`, no la fila de `AuthorPerson`; una persona reutilizada debe sobrevivir al retiro de una tesis. Esta es una regla técnica de integridad referencial.
 
-## Pendientes antes de implementar
+## Previo a la migración de datos
 
-- Confirmar la regla de identidad pendiente: personas académicas separadas de cuentas, homónimos permitidos sin fusión automática, misma persona no repetida dentro de una tesis y ORCID fuera del alcance por ahora.
-- Revisar datos existentes: autores vacíos, nombres largos y cadenas que puedan contener más de una persona. La confirmación recibida indica revisión manual, no división automática.
-- Confirmar como regla técnica de borrado que se eliminen las asociaciones de una tesis, pero se conserve `AuthorPerson` si se usa en otros trabajos.
+- Auditar autores vacíos, nombres largos y cadenas que puedan contener más de una persona. La regla aprobada indica revisión manual, no división automática.
+- Resolver los registros que requieran corrección con la Asociación y ensayar el backfill antes de retirar `ThesisLink.author`.
 
 Referencias: [`schema.prisma`](../prisma/schema.prisma), migración de autoría de publicaciones [`20260922170000_sprint_2_public_content`](../prisma/migrations/20260922170000_sprint_2_public_content/migration.sql), y matriz de campos S6-04 en el [estado de alcance del frontend](https://github.com/alemanuel18/aequvg-frontend/blob/feature/thesis-required-fields/docs/thesis-scope-status.md).
