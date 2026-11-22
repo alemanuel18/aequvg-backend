@@ -52,6 +52,8 @@ La decisión aprobada para estructurar autor principal y coautores de tesis, jun
 
 S6-07 agrega categorías múltiples y editables para tesis. El catálogo inicial, persistencia, reglas de desactivación y filtros públicos están descritos en [`docs/thesis-categories.md`](docs/thesis-categories.md).
 
+Para S6-08, la Asociación reportó que prefiere mantener el ingreso manual con intervención humana. La procedencia y los límites de verificación del extracto compartido están en [`docs/thesis-automation-contract.md`](docs/thesis-automation-contract.md); el registro no activa ni autoriza consultas automáticas al repositorio UVG.
+
 Cada módulo separa responsabilidades:
 
 1. `controllers`: rutas, parámetros, códigos HTTP y serialización.
