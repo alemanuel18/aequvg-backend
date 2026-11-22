@@ -1,14 +1,23 @@
 # S6-05: modelo de autor principal y coautores
 
-Estado: investigación documentada; propuesta técnica pendiente de aprobación de la Asociación. No se implementaron cambios de esquema ni del contrato en esta tarea.
+Estado: investigación documentada. Las reglas de modelo, principal, orden, migración, edición y compatibilidad fueron confirmadas en esta conversación. Falta cerrar cómo distinguir identidades de autoría; no se implementaron cambios de esquema ni del contrato en esta tarea.
 
-Responsable: Luis. Tarea: S6-05, vinculada a SCRUM-320. La autoría estructurada quedó fuera de S6-04 y debe aprobarse antes de iniciar implementación.
+Responsable: Luis. Tarea: S6-05, vinculada a SCRUM-320. La autoría estructurada quedó fuera de S6-04; la implementación espera cerrar la regla de identidad indicada abajo.
 
 ## Hallazgo en el repositorio
 
 `ThesisLink` guarda actualmente un solo texto `author` de hasta 300 caracteres. Ese valor permite mostrar el autor principal como texto, pero no representa personas separadas, coautoría, orden ni identidad reutilizable.
 
 El modelo de publicaciones científicas ya incluye `AuthorPerson` y `PublicationContributor`. La tabla intermedia relaciona una persona con una publicación, asigna rol y orden; evita repetir una persona en la misma publicación mediante su clave compuesta, y evita repetir un orden en esa publicación. `AuthorPerson.name` admite 160 caracteres. Las restricciones de orden positivo están expresadas en migración SQL porque Prisma no las declara directamente.
+
+## Cómo se manejan hoy las cuentas y las personas
+
+- Las cuentas administrativas (`AdministrativeUser`) y estudiantiles (`StudentUser`) son modelos separados. Cada una administra correo, estado, sesiones y credenciales; las identidades de inicio de sesión pertenecen a la cuenta administrativa.
+- Una cuenta administrativa puede ser responsable de crear una publicación científica o un enlace de tesis (`createdById`). Ese campo registra quién administra o carga el contenido, no quién escribió el trabajo.
+- La autoría científica se guarda aparte: `ScientificPublication.createdById` identifica a la cuenta que registró el trabajo, mientras `PublicationContributor` apunta a `AuthorPerson` para sus autores y colaboradores.
+- `AuthorPerson` es un registro académico simple con ID y nombre; no tiene correo, contraseña, sesión ni relación con una cuenta. Una persona autora no necesita tener cuenta AEQUV ni debe vincularse automáticamente a una cuenta estudiantil o administrativa.
+
+Conclusión: reutilizar `AuthorPerson` mantiene la misma separación entre autoría académica y cuentas de acceso que ya aplica el módulo de publicaciones. Su ID permite seleccionar y reutilizar el mismo registro; el nombre por sí solo no demuestra identidad.
 
 ## Comparación de esquemas
 
@@ -57,18 +66,24 @@ model ThesisContributor {
 }
 ```
 
-La migración SQL debe agregar `CHECK (orden_autoria > 0)` y un índice único parcial sobre `id_enlace_tesis` para `rol_autoria = 'PRINCIPAL'`. Prisma no expresa ese índice parcial en el modelo. La clave compuesta impide asociar dos veces a la misma persona a una tesis; el índice parcial impide dos personas principales en una tesis.
+La migración SQL debe agregar `CHECK (orden_autoria > 0)` y una restricción que permita `PRINCIPAL` solo en el orden 1 y `COAUTOR` solo en órdenes mayores que 1. `@@unique([thesisId, authorOrder])` y esa regla garantizan como máximo una persona principal; la clave compuesta impide asociar dos veces a la misma persona a una tesis. La aplicación valida que siempre exista una principal.
 
-## Reglas propuestas para aprobación
+## Reglas confirmadas
 
-Estas reglas son una propuesta, no un acuerdo confirmado. No implementar el modelo ni cambiar el contrato hasta registrar la aprobación de la Asociación.
+Las siguientes decisiones funcionales fueron confirmadas en esta conversación:
 
-1. Cada tesis debe tener al menos una persona y exactamente una persona con rol `PRINCIPAL`; las demás tendrán rol `COAUTOR`.
-2. `authorOrder` define el orden de presentación y crédito, inicia en 1, es único y no tiene saltos al guardar la lista completa. El rol principal es explícito; no se deduce solo del orden.
-3. Una misma persona no puede aparecer dos veces en una tesis. El mismo `AuthorPerson` sí puede participar en distintas tesis.
-4. Dos personas con el mismo nombre pueden ser distintas. No se deben combinar registros ni rechazar personas solo por igualdad de nombre. Para reutilizar una persona existente, la junta debe seleccionarla explícitamente. No se agregará ORCID u otro identificador externo sin aprobarlo como alcance.
-5. La lista de autoría de una tesis se edita completa y atómicamente. El backend valida que quede un principal, que los órdenes sean válidos y que no haya personas repetidas; si algo falla, conserva íntegra la lista anterior.
-6. Al eliminar una tesis se eliminan sus vínculos de autoría; no se elimina automáticamente una persona reutilizada en otras publicaciones o tesis.
+1. Usar relación muchos a muchos entre tesis y `AuthorPerson` mediante `ThesisContributor`.
+2. Cada tesis tendrá al menos una persona y exactamente una persona con rol `PRINCIPAL`; las demás serán `COAUTOR`.
+3. La persona principal siempre ocupa el orden 1. Las coautoras siguen en el orden aprobado por la junta, sin espacios, desde 2.
+4. La junta podrá agregar, quitar, seleccionar y reordenar autores desde el panel; el reemplazo de la lista será atómico.
+5. En la migración, cada valor actual de `author` se toma completo como una autora principal. No se separan automáticamente cadenas por comas o conjunciones; valores vacíos o que contengan varias personas requieren revisión manual.
+6. La API mantiene temporalmente `author` como alias del nombre de la autora principal mientras agrega la lista estructurada `contributors`; el alias se retira luego de migrar a todos los consumidores.
+
+## Identidad de personas: propuesta pendiente de confirmación
+
+Los modelos de usuarios no sirven como registro de autores: incluyen cuentas y controles de acceso que no son necesarios para atribuir una tesis. La recomendación es mantener `AuthorPerson` independiente de `StudentUser` y `AdministrativeUser`.
+
+`AuthorPerson` no tiene ORCID ni otro identificador externo; su ID es único dentro de AEQUV, pero no verifica la identidad civil o académica. La propuesta es permitir homónimos como registros distintos, reutilizar una persona solo cuando la junta la seleccione explícitamente, impedir asociar el mismo `personId` dos veces a una tesis y dejar ORCID fuera del alcance actual. No se fusionan nombres automáticamente. Esta regla de duplicados e identidad aún requiere confirmación.
 
 ## Migración de datos existentes
 
@@ -83,12 +98,12 @@ Estas reglas son una propuesta, no un acuerdo confirmado. No implementar el mode
 - Listas y detalles pueden traer `contributors` con `person` y ordenar por `authorOrder`; agregar el índice por persona permite buscar las tesis de una persona sin escanear todas las asociaciones.
 - La búsqueda por nombre debe recorrer la relación persona → contribuciones → tesis y conservar el permiso y la visibilidad pública existentes.
 - La edición debe recibir y reemplazar la lista ordenada dentro de una transacción. Para evitar conflictos temporales con la restricción única de orden al reordenar, se puede borrar y recrear solo las asociaciones de esa tesis en la transacción, preservando las filas `AuthorPerson`.
-- La respuesta puede incluir `author` como alias de compatibilidad durante la transición y además entregar `contributors`. El cliente debe confirmar si ese alias temporal es aceptable.
+- La respuesta incluirá `author` como alias de compatibilidad durante la transición y además entregará `contributors`, conforme a la regla confirmada.
 
-## Decisiones que faltan antes de implementar
+## Pendientes antes de implementar
 
-- Aprobación de las seis reglas propuestas y de la representación de una persona compartida con publicaciones científicas.
-- Confirmar si el campo de compatibilidad `author` se mantiene durante una transición o se cambia de una vez junto con todos los consumidores.
-- Revisar datos existentes: autores vacíos, nombres largos, cadenas que puedan contener más de una persona y posible reutilización de autores.
+- Confirmar la regla de identidad pendiente: personas académicas separadas de cuentas, homónimos permitidos sin fusión automática, misma persona no repetida dentro de una tesis y ORCID fuera del alcance por ahora.
+- Revisar datos existentes: autores vacíos, nombres largos y cadenas que puedan contener más de una persona. La confirmación recibida indica revisión manual, no división automática.
+- Confirmar como regla técnica de borrado que se eliminen las asociaciones de una tesis, pero se conserve `AuthorPerson` si se usa en otros trabajos.
 
 Referencias: [`schema.prisma`](../prisma/schema.prisma), migración de autoría de publicaciones [`20260922170000_sprint_2_public_content`](../prisma/migrations/20260922170000_sprint_2_public_content/migration.sql), y matriz de campos S6-04 en el [estado de alcance del frontend](https://github.com/alemanuel18/aequvg-frontend/blob/feature/thesis-required-fields/docs/thesis-scope-status.md).
