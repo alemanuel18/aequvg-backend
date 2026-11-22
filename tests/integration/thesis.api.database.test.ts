@@ -23,7 +23,6 @@ let thesisSequence = 0
 const request = (path: string, options: RequestInit = {}) => new Request(`http://localhost${path}`, options)
 const uniqueUrl = () => `https://repositorio.uvg.edu.gt/handle/${runId}-${++thesisSequence}`
 const thesisPayload = (overrides: Record<string, unknown> = {}) => ({
-  sourceIdentifier: `${runId}-${thesisSequence}`,
   title: `${runId} tesis de Química`,
   author: 'Autora de integración',
   publicationYear: 2026,
@@ -57,6 +56,8 @@ describeDatabase('permisos y flujo de tesis con PostgreSQL', () => {
   afterAll(async () => {
     try {
       if (createdThesisIds.length) await prisma.thesisLink.deleteMany({ where: { id: { in: createdThesisIds } } })
+      if (boardAdminId) await prisma.thesisLink.deleteMany({ where: { createdById: boardAdminId } })
+      if (limitedAdminId) await prisma.thesisLink.deleteMany({ where: { createdById: limitedAdminId } })
       if (boardAdminId) await prisma.administrativeSession.deleteMany({ where: { userId: boardAdminId } })
       if (limitedAdminId) await prisma.administrativeSession.deleteMany({ where: { userId: limitedAdminId } })
       if (studentId) await prisma.studentSession.deleteMany({ where: { userId: studentId } })
@@ -80,12 +81,13 @@ describeDatabase('permisos y flujo de tesis con PostgreSQL', () => {
     const sourceUrl = uniqueUrl()
     const createdResponse = await app.handle(request('/api/v1/admin/theses', {
       method: 'POST', headers: boardHeaders,
-      body: JSON.stringify(thesisPayload({ url: sourceUrl, sourceIdentifier: `${runId}-full-flow` }))
+      body: JSON.stringify(thesisPayload({ url: sourceUrl }))
     }))
     expect(createdResponse.status).toBe(201)
     const created = await createdResponse.json() as { id: number; title: string; url: string; publishedAt: string | null; createdById: number }
     createdThesisIds.push(created.id)
     expect(created).toMatchObject({ title: `${runId} tesis de Química`, url: sourceUrl, createdById: boardAdminId })
+    expect(created).not.toHaveProperty('sourceIdentifier')
     expect(created.publishedAt).toBeTruthy()
     expect(created).not.toHaveProperty('fileId')
 
@@ -112,7 +114,7 @@ describeDatabase('permisos y flujo de tesis con PostgreSQL', () => {
     expect(sourceUrl).toContain('repositorio.uvg.edu.gt/handle/')
   })
 
-  it('rechaza URL vacía, mal formada e insegura, y reporta URL o identificadores duplicados', async () => {
+  it('rechaza URL vacía, mal formada o que no use HTTPS, y reporta URLs duplicadas', async () => {
     const blankUrl = await app.handle(request('/api/v1/admin/theses', { method: 'POST', headers: boardHeaders, body: JSON.stringify(thesisPayload({ url: '' })) }))
     expect(blankUrl.status).toBe(422)
 
@@ -123,22 +125,86 @@ describeDatabase('permisos y flujo de tesis con PostgreSQL', () => {
     expect(insecureUrl.status).toBe(422)
     expect((await insecureUrl.json()).error.code).toBe('INVALID_THESIS_URL')
 
+    const httpUrl = await app.handle(request('/api/v1/admin/theses', { method: 'POST', headers: boardHeaders, body: JSON.stringify(thesisPayload({ url: 'http://repositorio.uvg.edu.gt/tesis.pdf' })) }))
+    expect(httpUrl.status).toBe(422)
+    expect((await httpUrl.json()).error.code).toBe('INVALID_THESIS_URL')
+
     const duplicateUrl = uniqueUrl()
-    const first = await app.handle(request('/api/v1/admin/theses', { method: 'POST', headers: boardHeaders, body: JSON.stringify(thesisPayload({ url: duplicateUrl, sourceIdentifier: `${runId}-duplicate-source-a` })) }))
+    const first = await app.handle(request('/api/v1/admin/theses', { method: 'POST', headers: boardHeaders, body: JSON.stringify(thesisPayload({ url: duplicateUrl })) }))
     expect(first.status).toBe(201)
     const firstRecord = await first.json() as { id: number }
     createdThesisIds.push(firstRecord.id)
-    const repeatedUrl = await app.handle(request('/api/v1/admin/theses', { method: 'POST', headers: boardHeaders, body: JSON.stringify(thesisPayload({ url: duplicateUrl, sourceIdentifier: `${runId}-duplicate-source-b` })) }))
+    const repeatedUrl = await app.handle(request('/api/v1/admin/theses', { method: 'POST', headers: boardHeaders, body: JSON.stringify(thesisPayload({ url: duplicateUrl })) }))
     expect(repeatedUrl.status).toBe(409)
     expect((await repeatedUrl.json()).error.code).toBe('THESIS_LINK_EXISTS')
 
-    const repeatedSource = await app.handle(request('/api/v1/admin/theses', { method: 'POST', headers: boardHeaders, body: JSON.stringify(thesisPayload({ sourceIdentifier: `${runId}-duplicate-source-a` })) }))
-    expect(repeatedSource.status).toBe(409)
-    expect((await repeatedSource.json()).error.code).toBe('THESIS_LINK_EXISTS')
+  })
+
+  it('exige autor en la API y evita duplicados tras normalizar espacio, esquema y host', async () => {
+    const withRemovedIdentifier: Record<string, unknown> = thesisPayload({ url: uniqueUrl() })
+    withRemovedIdentifier.sourceIdentifier = `${runId}-removed-identifier`
+    const ignoredIdentifierResponse = await app.handle(request('/api/v1/admin/theses', { method: 'POST', headers: boardHeaders, body: JSON.stringify(withRemovedIdentifier) }))
+    expect(ignoredIdentifierResponse.status).toBe(201)
+    const ignoredIdentifierRecord = await ignoredIdentifierResponse.json() as { id: number }
+    createdThesisIds.push(ignoredIdentifierRecord.id)
+    expect(ignoredIdentifierRecord).not.toHaveProperty('sourceIdentifier')
+
+    const withoutAuthor: Record<string, unknown> = thesisPayload({ url: uniqueUrl() })
+    delete withoutAuthor.author
+    const missingAuthor = await app.handle(request('/api/v1/admin/theses', { method: 'POST', headers: boardHeaders, body: JSON.stringify(withoutAuthor) }))
+    expect(missingAuthor.status).toBe(422)
+
+    const blankAuthor = await app.handle(request('/api/v1/admin/theses', { method: 'POST', headers: boardHeaders, body: JSON.stringify(thesisPayload({ author: '   ', url: uniqueUrl() })) }))
+    expect(blankAuthor.status).toBe(422)
+    expect((await blankAuthor.json()).error.code).toBe('THESIS_AUTHOR_REQUIRED')
+
+    const withoutYear: Record<string, unknown> = thesisPayload({ url: uniqueUrl() })
+    delete withoutYear.publicationYear
+    expect((await app.handle(request('/api/v1/admin/theses', { method: 'POST', headers: boardHeaders, body: JSON.stringify(withoutYear) }))).status).toBe(422)
+
+    const withoutSummary: Record<string, unknown> = thesisPayload({ url: uniqueUrl() })
+    delete withoutSummary.summary
+    expect((await app.handle(request('/api/v1/admin/theses', { method: 'POST', headers: boardHeaders, body: JSON.stringify(withoutSummary) }))).status).toBe(422)
+
+    const blankSummary = await app.handle(request('/api/v1/admin/theses', { method: 'POST', headers: boardHeaders, body: JSON.stringify(thesisPayload({ summary: '   ', url: uniqueUrl() })) }))
+    expect(blankSummary.status).toBe(422)
+    expect((await blankSummary.json()).error.code).toBe('THESIS_SUMMARY_REQUIRED')
+
+    const canonicalUrl = uniqueUrl()
+    const normalizedVariant = `  ${canonicalUrl.replace('https://', 'HTTPS://').replace('repositorio.uvg.edu.gt', 'REPOSITORIO.UVG.EDU.GT')}  `
+    const first = await app.handle(request('/api/v1/admin/theses', { method: 'POST', headers: boardHeaders, body: JSON.stringify(thesisPayload({ url: normalizedVariant })) }))
+    expect(first.status).toBe(201)
+    const firstRecord = await first.json() as { id: number; url: string }
+    createdThesisIds.push(firstRecord.id)
+    expect(firstRecord.url).toBe(canonicalUrl)
+
+    const duplicate = await app.handle(request('/api/v1/admin/theses', { method: 'POST', headers: boardHeaders, body: JSON.stringify(thesisPayload({ url: canonicalUrl })) }))
+    expect(duplicate.status).toBe(409)
+    expect((await duplicate.json()).error.code).toBe('THESIS_LINK_EXISTS')
+
+    const second = await app.handle(request('/api/v1/admin/theses', { method: 'POST', headers: boardHeaders, body: JSON.stringify(thesisPayload({ url: uniqueUrl() })) }))
+    expect(second.status).toBe(201)
+    const secondRecord = await second.json() as { id: number }
+    createdThesisIds.push(secondRecord.id)
+    const duplicateUpdate = await app.handle(request(`/api/v1/admin/theses/${secondRecord.id}`, { method: 'PUT', headers: boardHeaders, body: JSON.stringify({ url: normalizedVariant }) }))
+    expect(duplicateUpdate.status).toBe(409)
+    expect((await duplicateUpdate.json()).error.code).toBe('THESIS_LINK_EXISTS')
+
+    const concurrentCanonicalUrl = uniqueUrl()
+    const concurrentVariants = [
+      `  ${concurrentCanonicalUrl.replace('https://', 'HTTPS://').replace('repositorio.uvg.edu.gt', 'REPOSITORIO.UVG.EDU.GT')}  `,
+      concurrentCanonicalUrl
+    ]
+    const concurrentResponses = await Promise.all(concurrentVariants.map((url) => app.handle(request('/api/v1/admin/theses', {
+      method: 'POST', headers: boardHeaders, body: JSON.stringify(thesisPayload({ url }))
+    }))))
+    expect(concurrentResponses.map((response) => response.status).sort()).toEqual([201, 409])
+    const concurrentCreated = await Promise.all(concurrentResponses.filter((response) => response.status === 201).map((response) => response.json() as Promise<{ id: number }>))
+    createdThesisIds.push(...concurrentCreated.map(({ id }) => id))
   })
 
   it('permite lectura pública a visitantes y estudiantes, y bloquea escrituras directas sin PAPERS_MANAGE', async () => {
-    const payload = thesisPayload({ sourceIdentifier: `${runId}-permissions`, url: uniqueUrl() })
+    const payload = thesisPayload({ url: uniqueUrl() })
     const create = await app.handle(request('/api/v1/admin/theses', { method: 'POST', headers: boardHeaders, body: JSON.stringify(payload) }))
     expect(create.status).toBe(201)
     const thesis = await create.json() as { id: number }
