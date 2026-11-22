@@ -48,6 +48,8 @@ docs/
   aequvg-hoppscotch.json # Colección para Hoppscotch
 ```
 
+La propuesta y las reglas pendientes de aprobación para estructurar autor principal y coautores de tesis están documentadas en [`docs/thesis-authorship-decision.md`](docs/thesis-authorship-decision.md). La propuesta reutiliza el patrón de contribuyentes de publicaciones científicas; S6-05 todavía no cambia el esquema ni el contrato de tesis.
+
 Cada módulo separa responsabilidades:
 
 1. `controllers`: rutas, parámetros, códigos HTTP y serialización.
