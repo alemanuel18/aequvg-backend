@@ -11,6 +11,7 @@ const runId = `thesis-test-${Date.now()}`
 const app = createApp()
 const createdThesisIds: number[] = []
 const createdAuthorPersonIds: number[] = []
+const createdCategoryIds: number[] = []
 let migratedThesisSnapshots: Array<{ id: number; author: string | null }> = []
 let boardRoleId = 0
 let limitedRoleId = 0
@@ -59,6 +60,7 @@ describeDatabase('permisos y flujo de tesis con PostgreSQL', () => {
   afterAll(async () => {
     try {
       if (createdThesisIds.length) await prisma.thesisLink.deleteMany({ where: { id: { in: createdThesisIds } } })
+      if (createdCategoryIds.length) await prisma.thesisCategory.deleteMany({ where: { id: { in: createdCategoryIds } } })
       if (boardAdminId) await prisma.thesisLink.deleteMany({ where: { createdById: boardAdminId } })
       if (limitedAdminId) await prisma.thesisLink.deleteMany({ where: { createdById: limitedAdminId } })
       if (createdAuthorPersonIds.length) await prisma.authorPerson.deleteMany({ where: { id: { in: createdAuthorPersonIds } } })
@@ -288,6 +290,81 @@ describeDatabase('permisos y flujo de tesis con PostgreSQL', () => {
     const reusedThesis = await reusedPersonResponse.json() as { id: number; contributors: Array<{ personId: number }> }
     createdThesisIds.push(reusedThesis.id)
     expect(reusedThesis.contributors[0]?.personId).toBe(created.contributors[2]!.personId)
+  })
+
+  it('crea y desactiva categorías, asigna varias a una tesis y permite filtrar y editar', async () => {
+    const publicCategoriesResponse = await app.handle(request('/api/v1/theses/categories'))
+    expect(publicCategoriesResponse.status).toBe(200)
+    const publicCategories = await publicCategoriesResponse.json() as Array<{ id: number; name: string }>
+    const analytical = publicCategories.find(({ name }) => name === 'Química analítica')!
+
+    const categoryName = `${runId} Tema de prueba`
+    const createCategory = await app.handle(request('/api/v1/admin/theses/categories', {
+      method: 'POST', headers: boardHeaders, body: JSON.stringify({ name: `  ${categoryName}  ` })
+    }))
+    expect(createCategory.status).toBe(201)
+    const createdCategory = await createCategory.json() as { id: number; name: string; active: boolean }
+    createdCategoryIds.push(createdCategory.id)
+    expect(createdCategory).toMatchObject({ name: categoryName, active: true })
+
+    const duplicateCategory = await app.handle(request('/api/v1/admin/theses/categories', {
+      method: 'POST', headers: boardHeaders, body: JSON.stringify({ name: categoryName.toLowerCase() })
+    }))
+    expect(duplicateCategory.status).toBe(409)
+    expect((await duplicateCategory.json()).error.code).toBe('THESIS_CATEGORY_EXISTS')
+    const invalidCategoryName = await app.handle(request('/api/v1/admin/theses/categories', {
+      method: 'POST', headers: boardHeaders, body: JSON.stringify({ name: 'x' })
+    }))
+    expect(invalidCategoryName.status).toBe(422)
+
+    const createThesis = await app.handle(request('/api/v1/admin/theses', {
+      method: 'POST', headers: boardHeaders,
+      body: JSON.stringify(thesisPayload({ categoryIds: [analytical.id, createdCategory.id] }))
+    }))
+    expect(createThesis.status).toBe(201)
+    const thesis = await createThesis.json() as { id: number; categories: Array<{ id: number; name: string; active: boolean }> }
+    createdThesisIds.push(thesis.id)
+    expect(thesis.categories.map(({ id }) => id).sort()).toEqual([analytical.id, createdCategory.id].sort())
+
+    const publicFilter = await app.handle(request(`/api/v1/theses?categoryId=${createdCategory.id}`))
+    expect((await publicFilter.json()).items).toEqual(expect.arrayContaining([expect.objectContaining({ id: thesis.id })]))
+    const filteredAdmin = await app.handle(request(`/api/v1/admin/theses?categoryId=${analytical.id}`, { headers: boardHeaders }))
+    expect((await filteredAdmin.json()).items).toEqual(expect.arrayContaining([expect.objectContaining({ id: thesis.id })]))
+
+    const update = await app.handle(request(`/api/v1/admin/theses/${thesis.id}`, {
+      method: 'PUT', headers: boardHeaders, body: JSON.stringify({ categoryIds: [createdCategory.id] })
+    }))
+    expect(update.status).toBe(200)
+    expect((await update.json()).categories).toEqual([expect.objectContaining({ id: createdCategory.id })])
+    expect((await (await app.handle(request(`/api/v1/theses?categoryId=${analytical.id}`))).json()).items)
+      .not.toEqual(expect.arrayContaining([expect.objectContaining({ id: thesis.id })]))
+
+    const invalidReference = await app.handle(request(`/api/v1/admin/theses/${thesis.id}`, {
+      method: 'PUT', headers: boardHeaders, body: JSON.stringify({ categoryIds: [999999] })
+    }))
+    expect(invalidReference.status).toBe(422)
+    expect((await invalidReference.json()).error.code).toBe('INVALID_THESIS_CATEGORY')
+
+    const deactivated = await app.handle(request(`/api/v1/admin/theses/categories/${createdCategory.id}`, {
+      method: 'PATCH', headers: boardHeaders, body: JSON.stringify({ active: false })
+    }))
+    expect(deactivated.status).toBe(200)
+    expect((await deactivated.json()).active).toBe(false)
+    expect((await prisma.thesisLinkCategory.findMany({ where: { thesisId: thesis.id } })).map(({ categoryId }) => categoryId)).toContain(createdCategory.id)
+    expect((await (await app.handle(request('/api/v1/theses/categories'))).json()).map(({ id }: { id: number }) => id)).not.toContain(createdCategory.id)
+    const publicDetail = await app.handle(request(`/api/v1/theses/${thesis.id}`))
+    expect((await publicDetail.json()).categories).toEqual([])
+    const preserveInactiveOnEdit = await app.handle(request(`/api/v1/admin/theses/${thesis.id}`, {
+      method: 'PUT', headers: boardHeaders, body: JSON.stringify({ title: `${runId} edición con categoría inactiva`, categoryIds: [createdCategory.id] })
+    }))
+    expect(preserveInactiveOnEdit.status).toBe(200)
+    expect((await preserveInactiveOnEdit.json()).categories).toEqual([expect.objectContaining({ id: createdCategory.id, active: false })])
+    const rejectInactiveNewAssignment = await app.handle(request('/api/v1/admin/theses', {
+      method: 'POST', headers: boardHeaders, body: JSON.stringify(thesisPayload({ categoryIds: [createdCategory.id] }))
+    }))
+    expect(rejectInactiveNewAssignment.status).toBe(422)
+    const adminCategories = await app.handle(request('/api/v1/admin/theses/categories', { headers: boardHeaders }))
+    expect((await adminCategories.json()).find(({ id }: { id: number }) => id === createdCategory.id).active).toBe(false)
   })
 
   it('permite lectura pública a visitantes y estudiantes, y bloquea escrituras directas sin PAPERS_MANAGE', async () => {

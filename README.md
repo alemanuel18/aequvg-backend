@@ -50,6 +50,8 @@ docs/
 
 La decisión aprobada para estructurar autor principal y coautores de tesis, junto con las consideraciones previas a migrar datos, está documentada en [`docs/thesis-authorship-decision.md`](docs/thesis-authorship-decision.md). La decisión reutiliza el patrón de contribuyentes de publicaciones científicas; S6-05 no cambia el esquema ni el contrato de tesis.
 
+S6-07 agrega categorías múltiples y editables para tesis. El catálogo inicial, persistencia, reglas de desactivación y filtros públicos están descritos en [`docs/thesis-categories.md`](docs/thesis-categories.md).
+
 Cada módulo separa responsabilidades:
 
 1. `controllers`: rutas, parámetros, códigos HTTP y serialización.
