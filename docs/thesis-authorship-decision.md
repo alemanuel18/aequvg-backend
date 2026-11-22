@@ -74,8 +74,8 @@ Las siguientes decisiones funcionales fueron confirmadas en esta conversación:
 
 1. Usar relación muchos a muchos entre tesis y `AuthorPerson` mediante `ThesisContributor`.
 2. Cada tesis tendrá al menos una persona y exactamente una persona con rol `PRINCIPAL`; las demás serán `COAUTOR`.
-3. El autor principal siempre ocupa el orden 1. Los coautores siguen en el orden aprobado por la junta, sin espacios, desde 2.
-4. La junta podrá agregar, quitar, seleccionar y reordenar autores desde el panel; el reemplazo de la lista será atómico.
+3. El autor principal siempre ocupa el orden 1. Los coautores se muestran alfabéticamente desde el orden 2.
+4. La junta podrá agregar, quitar y seleccionar autores desde el panel; el reemplazo de la lista será atómico. El orden se deriva de los nombres y no se edita manualmente.
 5. En la migración, cada valor actual de `author` se toma completo como un autor principal. No se separan automáticamente cadenas por comas o conjunciones; valores vacíos o que contengan varias personas requieren revisión manual.
 6. La API mantiene temporalmente `author` como alias del nombre del autor principal mientras agrega la lista estructurada `contributors`; el alias se retira luego de migrar a todos los consumidores.
 7. La autoría se mantiene independiente de las cuentas `StudentUser` y `AdministrativeUser`. Se permiten homónimos como personas distintas; no se fusionan automáticamente por nombre, la junta selecciona explícitamente una persona existente para reutilizarla y ORCID queda fuera de este alcance.
@@ -94,7 +94,7 @@ La confirmación de la regla 7 se recibió después de revisar el esquema de cue
 
 - Listas y detalles entregan `contributors` con `person`, ordenados por `authorOrder`; el índice por persona permite buscar las tesis de una persona sin escanear todas las asociaciones.
 - La búsqueda por nombre recorre la relación persona → contribuciones → tesis y conserva el permiso y la visibilidad pública existentes.
-- La edición recibe y reemplaza la lista ordenada dentro de una transacción. Para evitar conflictos temporales con la restricción única de orden al reordenar, borra y recrea solo las asociaciones de esa tesis, preservando las filas `AuthorPerson`.
+- La edición recibe y reemplaza la lista de autores dentro de una transacción. La aplicación conserva al principal primero y asigna a los coautores el orden alfabético, borrando y recreando solo las asociaciones de esa tesis y preservando las filas `AuthorPerson`.
 - La respuesta entrega `author` como alias de compatibilidad y también `contributors`, conforme a la regla confirmada.
 - Al eliminar una tesis, se eliminan sus filas de `ThesisContributor`, no la fila de `AuthorPerson`; una persona reutilizada debe sobrevivir al retiro de una tesis. Esta es una regla técnica de integridad referencial.
 

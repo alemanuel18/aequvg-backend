@@ -166,7 +166,8 @@ describe('contrato HTTP base', () => {
     expect(schema?.properties?.url?.description).toContain('HTTPS')
     expect(schema?.properties?.url?.description).toContain('única')
     expect(create?.description).toContain('se normaliza')
-    expect(create?.description).toContain('autor principal primero')
+    expect(create?.description).toContain('autor principal aparece primero')
+    expect(create?.description).toContain('coautores se ordenan alfabéticamente')
     expect(create?.responses['409']).toBeTruthy()
   })
 

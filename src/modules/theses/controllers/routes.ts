@@ -14,7 +14,7 @@ const thesisContributorBody = t.Object({
 const thesisBody = t.Object({
   title: t.String({ minLength: 3, maxLength: 300 }),
   author: t.Optional(t.String({ minLength: 1, maxLength: 300, description: 'Alias de compatibilidad para clientes anteriores; se convierte en un autor principal.' })),
-  contributors: t.Optional(t.Array(thesisContributorBody, { minItems: 1, maxItems: 50, description: 'Lista completa ordenada. El primer elemento es el autor principal.' })),
+  contributors: t.Optional(t.Array(thesisContributorBody, { minItems: 1, maxItems: 50, description: 'Lista completa. El primer elemento es el autor principal; los coautores se ordenan alfabéticamente.' })),
   publicationYear: t.Integer({ minimum: 1900, maximum: 9999 }),
   summary: t.String({ minLength: 1, maxLength: 12000 }),
   url: t.String({ minLength: 1, maxLength: 2048, description: 'URL HTTPS única del repositorio. Se normalizan espacios externos, esquema y host; se conserva la ruta.' }),
@@ -122,7 +122,7 @@ export const thesisRoutes = new Elysia({ prefix: '/api/v1' })
     const admin = await requireAdmin(request, 'PAPERS_MANAGE')
     validateThesisRequiredFields(body)
     if (body.author === undefined && body.contributors === undefined) {
-      throw new AppError(422, 'THESIS_CONTRIBUTORS_REQUIRED', 'Agrega un autor principal y ordena los coautores.')
+      throw new AppError(422, 'THESIS_CONTRIBUTORS_REQUIRED', 'Agrega un autor principal y sus coautores.')
     }
     set.status = 201
     try {
@@ -130,7 +130,7 @@ export const thesisRoutes = new Elysia({ prefix: '/api/v1' })
         const url = await ensureUniqueThesisUrl(tx, body.url)
         const contributors = await resolveRequestedContributors(tx, body)
         const principal = contributors?.[0]
-        if (!principal) throw new AppError(422, 'THESIS_CONTRIBUTORS_REQUIRED', 'Agrega un autor principal y ordena los coautores.')
+        if (!principal) throw new AppError(422, 'THESIS_CONTRIBUTORS_REQUIRED', 'Agrega un autor principal y sus coautores.')
         validateThesisRequiredFields({ title: body.title, author: principal.name, publicationYear: body.publicationYear, summary: body.summary })
         const thesis = await tx.thesisLink.create({ data: { title: body.title.trim(), author: principal.name, publicationYear: body.publicationYear, summary: body.summary.trim(), url, publishedAt: body.publishedAt ? new Date(body.publishedAt) : null, createdById: admin.user.id }, select: { id: true } })
         await createContributorLinks(tx, thesis.id, contributors)
@@ -140,7 +140,7 @@ export const thesisRoutes = new Elysia({ prefix: '/api/v1' })
       if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') throw new AppError(409, 'THESIS_LINK_EXISTS', 'Ya existe una tesis con esa URL del repositorio.')
       throw error
     }
-  }, { body: thesisBody, response: { 201: t.Any(), 401: errorResponse, 403: errorResponse, 409: errorResponse, 422: errorResponse }, detail: { tags: ['Administración'], summary: 'Agrega un enlace de tesis', description: 'Título, año, resumen y URL HTTPS única son obligatorios. La URL se normaliza; envía contributors en orden, con el autor principal primero y los coautores después. El campo author se acepta como alias temporal para clientes anteriores.' } })
+  }, { body: thesisBody, response: { 201: t.Any(), 401: errorResponse, 403: errorResponse, 409: errorResponse, 422: errorResponse }, detail: { tags: ['Administración'], summary: 'Agrega un enlace de tesis', description: 'Título, año, resumen y URL HTTPS única son obligatorios. La URL se normaliza; el autor principal aparece primero y los coautores se ordenan alfabéticamente. El campo author se acepta como alias temporal para clientes anteriores.' } })
   .put('/admin/theses/:id', async ({ request, params, body }) => {
     await requireAdmin(request, 'PAPERS_MANAGE')
     try {
@@ -181,7 +181,7 @@ export const thesisRoutes = new Elysia({ prefix: '/api/v1' })
       if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') throw new AppError(409, 'THESIS_LINK_EXISTS', 'Ya existe una tesis con esa URL del repositorio.')
       throw error
     }
-  }, { params: idParams, body: t.Partial(thesisBody), response: { 200: t.Any(), 401: errorResponse, 403: errorResponse, 404: errorResponse, 409: errorResponse, 422: errorResponse }, detail: { tags: ['Administración'], summary: 'Edita metadatos, autoría ordenada o enlace de tesis', description: 'contributors reemplaza la lista completa en una transacción. El primer autor es el principal; author sigue disponible como alias temporal para editar solo su nombre.' } })
+  }, { params: idParams, body: t.Partial(thesisBody), response: { 200: t.Any(), 401: errorResponse, 403: errorResponse, 404: errorResponse, 409: errorResponse, 422: errorResponse }, detail: { tags: ['Administración'], summary: 'Edita metadatos, autores o enlace de tesis', description: 'contributors reemplaza la lista completa en una transacción. El autor principal aparece primero y los coautores se ordenan alfabéticamente; author sigue disponible como alias temporal para editar solo el nombre principal.' } })
   .delete('/admin/theses/:id', async ({ request, params }) => {
     await requireAdmin(request, 'PAPERS_MANAGE')
     try { await prisma.thesisLink.delete({ where: { id: params.id } }); return { message: 'Enlace de tesis eliminado.' } }

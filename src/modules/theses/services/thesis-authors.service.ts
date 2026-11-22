@@ -3,19 +3,20 @@ import { AppError } from '../../../shared/errors/app-error'
 
 export type ThesisContributorInput = { personId?: number; name?: string }
 export type ResolvedThesisContributor = { personId: number; name: string; role: ThesisAuthorRole; authorOrder: number }
+const authorNameCollator = new Intl.Collator('es', { sensitivity: 'base' })
 
 export const resolveThesisContributors = async (
   tx: Prisma.TransactionClient,
   inputs: ThesisContributorInput[]
 ): Promise<ResolvedThesisContributor[]> => {
   if (!Array.isArray(inputs) || inputs.length < 1 || inputs.length > 50) {
-    throw new AppError(422, 'THESIS_CONTRIBUTORS_REQUIRED', 'Agrega un autor principal y ordena los coautores.')
+    throw new AppError(422, 'THESIS_CONTRIBUTORS_REQUIRED', 'Agrega un autor principal y sus coautores.')
   }
 
   const selectedPersonIds = new Set<number>()
-  const resolved: ResolvedThesisContributor[] = []
+  const resolved: Array<{ personId: number; name: string }> = []
 
-  for (const [index, input] of inputs.entries()) {
+  for (const input of inputs) {
     const hasPersonId = input.personId !== undefined
     const hasName = input.name !== undefined
     if (hasPersonId === hasName) {
@@ -38,13 +39,17 @@ export const resolveThesisContributors = async (
       person = await tx.authorPerson.create({ data: { name }, select: { id: true, name: true } })
     }
 
-    resolved.push({
-      personId: person.id,
-      name: person.name,
-      role: index === 0 ? 'PRINCIPAL' : 'COAUTOR',
-      authorOrder: index + 1
-    })
+    resolved.push({ personId: person.id, name: person.name })
   }
 
-  return resolved
+  const principal = resolved[0]!
+  const coauthors = resolved.slice(1).sort((a, b) =>
+    authorNameCollator.compare(a.name, b.name) || a.personId - b.personId
+  )
+  return [principal, ...coauthors].map(({ personId, name }, index) => ({
+    personId,
+    name,
+    role: index === 0 ? 'PRINCIPAL' : 'COAUTOR',
+    authorOrder: index + 1
+  }))
 }

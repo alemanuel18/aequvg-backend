@@ -229,8 +229,8 @@ describeDatabase('permisos y flujo de tesis con PostgreSQL', () => {
         ...basePayload,
         contributors: [
           { name: `${runId} Autor principal` },
-          { name: `${runId} Coautor A` },
-          { name: `${runId} Coautor B` }
+          { name: `${runId} Zoe Coautor` },
+          { name: `${runId} Ana Coautor` }
         ]
       })
     }))
@@ -243,8 +243,8 @@ describeDatabase('permisos y flujo de tesis con PostgreSQL', () => {
     expect(created.author).toBe(`${runId} Autor principal`)
     expect(created.contributors.map(({ person, role, authorOrder }) => ({ name: person.name, role, authorOrder }))).toEqual([
       { name: `${runId} Autor principal`, role: 'PRINCIPAL', authorOrder: 1 },
-      { name: `${runId} Coautor A`, role: 'COAUTOR', authorOrder: 2 },
-      { name: `${runId} Coautor B`, role: 'COAUTOR', authorOrder: 3 }
+      { name: `${runId} Ana Coautor`, role: 'COAUTOR', authorOrder: 2 },
+      { name: `${runId} Zoe Coautor`, role: 'COAUTOR', authorOrder: 3 }
     ])
 
     const duplicatePerson = await app.handle(request(`/api/v1/admin/theses/${created.id}`, {
@@ -266,14 +266,14 @@ describeDatabase('permisos y flujo de tesis con PostgreSQL', () => {
     const updated = await updateResponse.json() as typeof created
     expect(updated.contributors.map(({ personId, role, authorOrder }) => ({ personId, role, authorOrder }))).toEqual([
       { personId: created.contributors[0]!.personId, role: 'PRINCIPAL', authorOrder: 1 },
-      { personId: created.contributors[2]!.personId, role: 'COAUTOR', authorOrder: 2 },
-      { personId: created.contributors[1]!.personId, role: 'COAUTOR', authorOrder: 3 }
+      { personId: created.contributors[1]!.personId, role: 'COAUTOR', authorOrder: 2 },
+      { personId: created.contributors[2]!.personId, role: 'COAUTOR', authorOrder: 3 }
     ])
 
     const publicDetail = await app.handle(request(`/api/v1/theses/${created.id}`))
     expect(publicDetail.status).toBe(200)
     expect((await publicDetail.json()).contributors.map((item: { person: { name: string } }) => item.person.name)).toEqual([
-      `${runId} Autor principal`, `${runId} Coautor B`, `${runId} Coautor A`
+      `${runId} Autor principal`, `${runId} Ana Coautor`, `${runId} Zoe Coautor`
     ])
     const authorLookup = await app.handle(request(`/api/v1/admin/thesis-authors?q=${encodeURIComponent(runId)}`, { headers: boardHeaders }))
     expect(authorLookup.status).toBe(200)
@@ -282,12 +282,12 @@ describeDatabase('permisos y flujo de tesis con PostgreSQL', () => {
     const { author: _legacyAuthorAgain, ...secondPayload } = thesisPayload()
     const reusedPersonResponse = await app.handle(request('/api/v1/admin/theses', {
       method: 'POST', headers: boardHeaders,
-      body: JSON.stringify({ ...secondPayload, contributors: [{ personId: created.contributors[1]!.personId }] })
+      body: JSON.stringify({ ...secondPayload, contributors: [{ personId: created.contributors[2]!.personId }] })
     }))
     expect(reusedPersonResponse.status).toBe(201)
     const reusedThesis = await reusedPersonResponse.json() as { id: number; contributors: Array<{ personId: number }> }
     createdThesisIds.push(reusedThesis.id)
-    expect(reusedThesis.contributors[0]?.personId).toBe(created.contributors[1]!.personId)
+    expect(reusedThesis.contributors[0]?.personId).toBe(created.contributors[2]!.personId)
   })
 
   it('permite lectura pública a visitantes y estudiantes, y bloquea escrituras directas sin PAPERS_MANAGE', async () => {
