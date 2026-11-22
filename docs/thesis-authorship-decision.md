@@ -2,7 +2,7 @@
 
 Estado: investigación documentada y reglas aprobadas por confirmación recibida en esta conversación. No se implementaron cambios de esquema ni del contrato en esta tarea; esta tarea cierra la decisión previa a implementación.
 
-Responsable: Luis. Tarea: S6-05, vinculada a SCRUM-320. La autoría estructurada quedó fuera de S6-04; la implementación espera cerrar la regla de identidad indicada abajo.
+Responsable: Luis. Tarea: S6-05, vinculada a SCRUM-320. La autoría estructurada quedó fuera de S6-04. Las reglas, incluida la política de identidad, ya están confirmadas; antes de migrar datos se debe completar la auditoría descrita al final.
 
 ## Hallazgo en el repositorio
 

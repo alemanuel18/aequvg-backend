@@ -48,7 +48,7 @@ docs/
   aequvg-hoppscotch.json # Colección para Hoppscotch
 ```
 
-La propuesta y las reglas pendientes de aprobación para estructurar autor principal y coautores de tesis están documentadas en [`docs/thesis-authorship-decision.md`](docs/thesis-authorship-decision.md). La propuesta reutiliza el patrón de contribuyentes de publicaciones científicas; S6-05 todavía no cambia el esquema ni el contrato de tesis.
+La decisión aprobada para estructurar autor principal y coautores de tesis, junto con las consideraciones previas a migrar datos, está documentada en [`docs/thesis-authorship-decision.md`](docs/thesis-authorship-decision.md). La decisión reutiliza el patrón de contribuyentes de publicaciones científicas; S6-05 no cambia el esquema ni el contrato de tesis.
 
 Cada módulo separa responsabilidades:
 
