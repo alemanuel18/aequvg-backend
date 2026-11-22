@@ -54,6 +54,8 @@ S6-07 agrega categorías múltiples y editables para tesis. El catálogo inicial
 
 Para S6-08, la Asociación reportó que prefiere mantener el ingreso manual con intervención humana. La procedencia y los límites de verificación del extracto compartido están en [`docs/thesis-automation-contract.md`](docs/thesis-automation-contract.md); el registro no activa ni autoriza consultas automáticas al repositorio UVG.
 
+El contrato de API y la evidencia de verificación del flujo manual para S6-10 están en [`docs/thesis-manual-flow-api.md`](docs/thesis-manual-flow-api.md).
+
 Cada módulo separa responsabilidades:
 
 1. `controllers`: rutas, parámetros, códigos HTTP y serialización.
