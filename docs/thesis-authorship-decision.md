@@ -1,12 +1,12 @@
 # S6-05: modelo de autor principal y coautores
 
-Estado: investigación documentada y reglas aprobadas por confirmación recibida en esta conversación. No se implementaron cambios de esquema ni del contrato en esta tarea; esta tarea cierra la decisión previa a implementación.
+Estado: decisión aprobada en S6-05 e implementada en S6-06 en la rama `feature/thesis-authorship`. Este documento conserva la justificación y las reglas acordadas; el esquema y el contrato actuales ya incluyen la autoría estructurada.
 
-Responsable: Luis. Tarea: S6-05, vinculada a SCRUM-320. La autoría estructurada quedó fuera de S6-04. Las reglas, incluida la política de identidad, ya están confirmadas; antes de migrar datos se debe completar la auditoría descrita al final.
+Responsable: Luis. Tarea de decisión: S6-05, vinculada a SCRUM-320. Implementación: S6-06. Las reglas, incluida la política de identidad, quedaron confirmadas antes de implementar. La auditoría previa encontró 1 tesis, sin autores vacíos, sin nombres mayores a 160 caracteres y sin cadenas con patrones evidentes de múltiples personas.
 
 ## Hallazgo en el repositorio
 
-`ThesisLink` guarda actualmente un solo texto `author` de hasta 300 caracteres. Ese valor permite mostrar el autor principal como texto, pero no representa personas separadas, coautoría, orden ni identidad reutilizable.
+Antes de S6-06, `ThesisLink` guardaba un solo texto `author` de hasta 300 caracteres. Ese valor permitía mostrar el autor principal, pero no representar personas separadas, coautoría, orden ni identidad reutilizable. En S6-06 se añadió la relación estructurada y `author` se conserva como alias de compatibilidad.
 
 El modelo de publicaciones científicas ya incluye `AuthorPerson` y `PublicationContributor`. La tabla intermedia relaciona una persona con una publicación, asigna rol y orden; evita repetir una persona en la misma publicación mediante su clave compuesta, y evita repetir un orden en esa publicación. `AuthorPerson.name` admite 160 caracteres. Las restricciones de orden positivo están expresadas en migración SQL porque Prisma no las declara directamente.
 
@@ -30,7 +30,7 @@ Conclusión: reutilizar `AuthorPerson` mantiene la misma separación entre autor
 
 Usar una relación muchos a muchos con `ThesisContributor` como entidad de unión y reutilizar `AuthorPerson`. Es el modelo adecuado si la misma persona puede aparecer en distintas tesis y mantiene consistencia con las publicaciones científicas. Ampliar `AuthorPerson.name` de 160 a 300 caracteres en la migración para conservar sin truncamiento los valores permitidos actualmente en `ThesisLink.author`.
 
-Esquema conceptual propuesto (no aplicado):
+Esquema implementado en `prisma/schema.prisma` y en la migración `20261122100000_thesis_contributors`:
 
 ```prisma
 enum ThesisAuthorRole {
@@ -66,7 +66,7 @@ model ThesisContributor {
 }
 ```
 
-La migración SQL debe agregar `CHECK (orden_autoria > 0)` y una restricción que permita `PRINCIPAL` solo en el orden 1 y `COAUTOR` solo en órdenes mayores que 1. `@@unique([thesisId, authorOrder])` y esa regla garantizan como máximo una persona principal; la clave compuesta impide asociar dos veces a la misma persona a una tesis. La aplicación valida que siempre exista una principal.
+La migración SQL agrega `CHECK (orden_autoria > 0)` y una restricción que permite `PRINCIPAL` solo en el orden 1 y `COAUTOR` solo en órdenes mayores que 1. `@@unique([thesisId, authorOrder])` y esa regla garantizan como máximo una persona principal; la clave compuesta impide asociar dos veces a la misma persona a una tesis. La aplicación valida que siempre exista una principal.
 
 ## Reglas confirmadas
 
@@ -84,23 +84,24 @@ La confirmación de la regla 7 se recibió después de revisar el esquema de cue
 
 ## Migración de datos existentes
 
-- Antes de migrar, medir tesis con `author` nulo o vacío y valores de autor con más de 160 caracteres. Resolver nulos o vacíos con la Asociación antes de exigir la nueva relación. Ampliar `AuthorPerson.name` antes de copiar valores largos.
-- Para cada autor existente válido, crear una asociación `PRINCIPAL` de orden 1. No separar una cadena por comas, conjunciones u otros signos: no demuestra dónde termina un nombre ni quién es coautor.
+- La auditoría local previa al backfill encontró una tesis con autor válido; no hubo nulos/vacíos ni valores mayores a 160 caracteres. La migración aborta con error si encuentra un autor nulo o vacío, y amplía `AuthorPerson.name` antes de copiar valores.
+- Para cada autor existente válido, la migración crea una asociación `PRINCIPAL` de orden 1. No separa una cadena por comas, conjunciones u otros signos: no demuestra dónde termina un nombre ni quién es coautor.
 - No fusionar personas por igualdad de nombre durante el backfill; el esquema actual no posee un identificador estable para distinguir homónimos. Si se requiere reutilización retroactiva, hacerla solo mediante revisión humana.
 - Mantener temporalmente el campo API `author` como alias derivado de la persona `PRINCIPAL` para no romper consumidores. Cambiar formularios, tipos y respuestas a una lista `contributors` en una entrega coordinada; retirar la columna antigua después de migrar consumidores y datos.
-- La migración debe ser aditiva y reversible mientras se valida el backfill. Verificar recuentos antes/después, una autoría principal por tesis migrada y ausencia de vínculos duplicados antes de retirar `author`.
+- La migración es aditiva y conserva `ThesisLink.author` como alias. Su integración verifica que cada tesis previa tenga una asociación principal de orden 1 y que el alias conserve el valor original. El alias no se retira en esta entrega.
 
 ## Consultas y edición
 
-- Listas y detalles pueden traer `contributors` con `person` y ordenar por `authorOrder`; agregar el índice por persona permite buscar las tesis de una persona sin escanear todas las asociaciones.
-- La búsqueda por nombre debe recorrer la relación persona → contribuciones → tesis y conservar el permiso y la visibilidad pública existentes.
-- La edición debe recibir y reemplazar la lista ordenada dentro de una transacción. Para evitar conflictos temporales con la restricción única de orden al reordenar, se puede borrar y recrear solo las asociaciones de esa tesis en la transacción, preservando las filas `AuthorPerson`.
-- La respuesta incluirá `author` como alias de compatibilidad durante la transición y además entregará `contributors`, conforme a la regla confirmada.
+- Listas y detalles entregan `contributors` con `person`, ordenados por `authorOrder`; el índice por persona permite buscar las tesis de una persona sin escanear todas las asociaciones.
+- La búsqueda por nombre recorre la relación persona → contribuciones → tesis y conserva el permiso y la visibilidad pública existentes.
+- La edición recibe y reemplaza la lista ordenada dentro de una transacción. Para evitar conflictos temporales con la restricción única de orden al reordenar, borra y recrea solo las asociaciones de esa tesis, preservando las filas `AuthorPerson`.
+- La respuesta entrega `author` como alias de compatibilidad y también `contributors`, conforme a la regla confirmada.
 - Al eliminar una tesis, se eliminan sus filas de `ThesisContributor`, no la fila de `AuthorPerson`; una persona reutilizada debe sobrevivir al retiro de una tesis. Esta es una regla técnica de integridad referencial.
 
-## Previo a la migración de datos
+## Evidencia de migración y alcance restante
 
-- Auditar autores vacíos, nombres largos y cadenas que puedan contener más de una persona. La regla aprobada indica revisión manual, no división automática.
-- Resolver los registros que requieran corrección con la Asociación y ensayar el backfill antes de retirar `ThesisLink.author`.
+- Los valores que parezcan contener más de una persona se conservan completos como un único autor principal; la regla acordada prohíbe dividirlos automáticamente.
+- La migración preserva el campo legado para compatibilidad; retirarlo requiere una tarea posterior coordinada con todos los consumidores de la API.
+- La migración se desplegó en una base efímera con una tesis legado sintética y una consulta confirmó que el alias y el nombre relacionado coincidieron, con rol `PRINCIPAL` y orden 1. La integración PostgreSQL ejecutó 6/6 pruebas; E2E de tesis ejecutó 2/2.
 
 Referencias: [`schema.prisma`](../prisma/schema.prisma), migración de autoría de publicaciones [`20260922170000_sprint_2_public_content`](../prisma/migrations/20260922170000_sprint_2_public_content/migration.sql), y matriz de campos S6-04 en el [estado de alcance del frontend](https://github.com/alemanuel18/aequvg-frontend/blob/feature/thesis-required-fields/docs/thesis-scope-status.md).
