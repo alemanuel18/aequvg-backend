@@ -1,12 +1,18 @@
 # Decisión de modalidad para tesis
 
-Actualizado: 22 de noviembre de 2026. Este documento da seguimiento a SCRUM-308/S6-08 y a la investigación técnica 50309. Registra la respuesta de la Asociación recibida por mensaje el 22 de noviembre de 2026.
+Actualizado: 22 de noviembre de 2026. Este documento da seguimiento a SCRUM-308/S6-08 y a la investigación técnica 50309. Registra una decisión atribuida a la Asociación a partir de un extracto de WhatsApp que el responsable del proyecto compartió en esta conversación.
 
-## Acuerdo de la Asociación
+## Evidencia y límites de verificación
 
-La Asociación eligió **mantener el registro manual con intervención humana**. El equipo agrega los datos de la tesis —autoría, resumen y enlace al repositorio, además de los demás campos acordados— y una persona decide su publicación. La razón expresada fue la sensibilidad y el tipo de trabajos e información que se maneja. La opción de consulta periódica de la API no fue elegida.
+El extracto compartido muestra el intercambio del 22 de noviembre de 2026 entre las 12:56 y la 1:02 p. m.: Luis pregunta si prefieren consulta automática periódica o ingreso manual; la persona representante pregunta cómo sería el proceso manual; Luis explica que el equipo agrega autores, resumen y enlace como en la vista revisada; la respuesta es «Me parece mejor hacer eso» y menciona la sensibilidad de los trabajos y la información. El número telefónico no se copia a este documento.
 
-Esta decisión define la modalidad de SCRUM-323. Por ahora no se necesita autorización de UVG para sondear su API, porque AEQUVG no realizará consultas automáticas ni depósitos. Si la Asociación reabre esa opción, primero debe acordarse un nuevo alcance y solicitar confirmación escrita de UVG.
+La decisión de mantener el proceso manual es la interpretación de esa respuesta dentro de ese contexto. La fuente disponible para este cambio es la transcripción pegada por el responsable en la conversación de trabajo; el archivo original de WhatsApp y un acta aprobada no están adjuntos al repositorio. Por eso esta documentación deja trazabilidad de la atribución, pero no permite verificar de manera independiente la autenticidad o integridad del intercambio. No se presenta como aprobación formal firmada.
+
+## Respuesta atribuida a la Asociación
+
+Según el intercambio transcrito, la representante prefirió **mantener el registro manual con intervención humana**. El equipo agrega los datos de la tesis —autoría, resumen y enlace al repositorio, además de los demás campos acordados— y una persona decide su publicación. La razón expresada fue la sensibilidad y el tipo de trabajos e información que se maneja. La opción de consulta periódica de la API no fue elegida.
+
+Esta respuesta se registra como la modalidad reportada para SCRUM-323, pero su autenticidad y autoridad no se verificaron independientemente: no hay acta firmada ni archivo original en el repositorio. Por ahora no se necesita autorización de UVG para sondear su API, porque AEQUVG no realizará consultas automáticas ni depósitos. Si la Asociación reabre esa opción, primero debe acordarse un nuevo alcance y solicitar confirmación escrita de UVG.
 
 La implementación actual ya permite que una cuenta con `PAPERS_MANAGE` registre y publique tesis manualmente. S6-08 no autoriza cambios a esa operación ni crea una sincronización. La definición propuesta abajo queda archivada para una eventual reconsideración; no es un contrato vigente ni aprobado.
 
@@ -38,4 +44,4 @@ Si se reabre, el contrato debe volver a definir y aprobar como mínimo: colecci�
 
 ### Criterio de cierre
 
-La modalidad de S6-08 queda definida como manual por decisión de la Asociación. La autorización de consulta a la API de UVG no se solicitó porque no es necesaria para el alcance seleccionado. SCRUM-324/S6-09 debe revisarse: implementar publicación automatizada contradice esta decisión y no debería comenzar sin una nueva aprobación de alcance.
+La modalidad reportada para S6-08 es manual. La autorización de consulta a la API de UVG no se solicitó porque no es necesaria para el alcance seleccionado. SCRUM-324/S6-09 debe revisarse: implementar publicación automatizada contradice esta respuesta y no debería comenzar sin una nueva aprobación de alcance. Para verificar la decisión de forma independiente, hace falta adjuntar o referenciar el registro original aprobado por la Asociación.
