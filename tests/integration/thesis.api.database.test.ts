@@ -26,7 +26,7 @@ const request = (path: string, options: RequestInit = {}) => new Request(`http:/
 const uniqueUrl = () => `https://repositorio.uvg.edu.gt/handle/${runId}-${++thesisSequence}`
 const thesisPayload = (overrides: Record<string, unknown> = {}) => ({
   title: `${runId} tesis de Química`,
-  author: 'Autora de integración',
+  author: 'Autor de integración',
   publicationYear: 2026,
   summary: 'Resumen temporal para validar el flujo completo sin almacenar documentos.',
   url: uniqueUrl(),
@@ -228,8 +228,8 @@ describeDatabase('permisos y flujo de tesis con PostgreSQL', () => {
       body: JSON.stringify({
         ...basePayload,
         contributors: [
-          { name: `${runId} Autora principal` },
-          { name: `${runId} Coautora A` },
+          { name: `${runId} Autor principal` },
+          { name: `${runId} Coautor A` },
           { name: `${runId} Coautor B` }
         ]
       })
@@ -240,10 +240,10 @@ describeDatabase('permisos y flujo de tesis con PostgreSQL', () => {
     }
     createdThesisIds.push(created.id)
     createdAuthorPersonIds.push(...created.contributors.map(({ personId }) => personId))
-    expect(created.author).toBe(`${runId} Autora principal`)
+    expect(created.author).toBe(`${runId} Autor principal`)
     expect(created.contributors.map(({ person, role, authorOrder }) => ({ name: person.name, role, authorOrder }))).toEqual([
-      { name: `${runId} Autora principal`, role: 'PRINCIPAL', authorOrder: 1 },
-      { name: `${runId} Coautora A`, role: 'COAUTOR', authorOrder: 2 },
+      { name: `${runId} Autor principal`, role: 'PRINCIPAL', authorOrder: 1 },
+      { name: `${runId} Coautor A`, role: 'COAUTOR', authorOrder: 2 },
       { name: `${runId} Coautor B`, role: 'COAUTOR', authorOrder: 3 }
     ])
 
@@ -273,7 +273,7 @@ describeDatabase('permisos y flujo de tesis con PostgreSQL', () => {
     const publicDetail = await app.handle(request(`/api/v1/theses/${created.id}`))
     expect(publicDetail.status).toBe(200)
     expect((await publicDetail.json()).contributors.map((item: { person: { name: string } }) => item.person.name)).toEqual([
-      `${runId} Autora principal`, `${runId} Coautor B`, `${runId} Coautora A`
+      `${runId} Autor principal`, `${runId} Coautor B`, `${runId} Coautor A`
     ])
     const authorLookup = await app.handle(request(`/api/v1/admin/thesis-authors?q=${encodeURIComponent(runId)}`, { headers: boardHeaders }))
     expect(authorLookup.status).toBe(200)

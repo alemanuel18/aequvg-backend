@@ -158,7 +158,7 @@ describe('contrato HTTP base', () => {
     const schema = create?.requestBody?.content?.['application/json']?.schema
     expect(schema?.required).toEqual(expect.arrayContaining(['title', 'publicationYear', 'summary', 'url']))
     expect(schema?.required).not.toContain('author')
-    expect(schema?.properties?.contributors?.description).toContain('autora principal')
+    expect(schema?.properties?.contributors?.description).toContain('autor principal')
     expect(schema?.properties?.sourceIdentifier).toBeUndefined()
     expect(schema?.properties?.title?.minLength).toBe(3)
     expect(schema?.properties?.author?.description).toContain('compatibilidad')
@@ -166,7 +166,7 @@ describe('contrato HTTP base', () => {
     expect(schema?.properties?.url?.description).toContain('HTTPS')
     expect(schema?.properties?.url?.description).toContain('única')
     expect(create?.description).toContain('se normaliza')
-    expect(create?.description).toContain('autora principal primero')
+    expect(create?.description).toContain('autor principal primero')
     expect(create?.responses['409']).toBeTruthy()
   })
 

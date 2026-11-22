@@ -9,7 +9,7 @@ export const resolveThesisContributors = async (
   inputs: ThesisContributorInput[]
 ): Promise<ResolvedThesisContributor[]> => {
   if (!Array.isArray(inputs) || inputs.length < 1 || inputs.length > 50) {
-    throw new AppError(422, 'THESIS_CONTRIBUTORS_REQUIRED', 'Agrega una autora principal y ordena las coautoras.')
+    throw new AppError(422, 'THESIS_CONTRIBUTORS_REQUIRED', 'Agrega un autor principal y ordena los coautores.')
   }
 
   const selectedPersonIds = new Set<number>()
@@ -29,11 +29,11 @@ export const resolveThesisContributors = async (
       }
       selectedPersonIds.add(input.personId!)
       person = await tx.authorPerson.findUnique({ where: { id: input.personId }, select: { id: true, name: true } })
-      if (!person) throw new AppError(422, 'THESIS_AUTHOR_NOT_FOUND', 'No encontramos a la persona autora seleccionada.')
+      if (!person) throw new AppError(422, 'THESIS_AUTHOR_NOT_FOUND', 'No encontramos el registro del autor seleccionado.')
     } else {
       const name = input.name!.trim()
       if (!name || name.length > 300) {
-        throw new AppError(422, 'INVALID_THESIS_CONTRIBUTOR', 'Escribe un nombre de autora de hasta 300 caracteres.')
+        throw new AppError(422, 'INVALID_THESIS_CONTRIBUTOR', 'Escribe un nombre de autor de hasta 300 caracteres.')
       }
       person = await tx.authorPerson.create({ data: { name }, select: { id: true, name: true } })
     }

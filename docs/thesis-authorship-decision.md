@@ -15,7 +15,7 @@ El modelo de publicaciones científicas ya incluye `AuthorPerson` y `Publication
 - Las cuentas administrativas (`AdministrativeUser`) y estudiantiles (`StudentUser`) son modelos separados. Cada una administra correo, estado, sesiones y credenciales; las identidades de inicio de sesión pertenecen a la cuenta administrativa.
 - Una cuenta administrativa puede ser responsable de crear una publicación científica o un enlace de tesis (`createdById`). Ese campo registra quién administra o carga el contenido, no quién escribió el trabajo.
 - La autoría científica se guarda aparte: `ScientificPublication.createdById` identifica a la cuenta que registró el trabajo, mientras `PublicationContributor` apunta a `AuthorPerson` para sus autores y colaboradores.
-- `AuthorPerson` es un registro académico simple con ID y nombre; no tiene correo, contraseña, sesión ni relación con una cuenta. Una persona autora no necesita tener cuenta AEQUV ni debe vincularse automáticamente a una cuenta estudiantil o administrativa.
+- `AuthorPerson` es un registro académico simple con ID y nombre; no tiene correo, contraseña, sesión ni relación con una cuenta. Los autores no necesitan una cuenta AEQUV ni deben vincularse automáticamente a una cuenta estudiantil o administrativa.
 
 Conclusión: reutilizar `AuthorPerson` mantiene la misma separación entre autoría académica y cuentas de acceso que ya aplica el módulo de publicaciones. Su ID permite seleccionar y reutilizar el mismo registro; el nombre por sí solo no demuestra identidad.
 
@@ -74,10 +74,10 @@ Las siguientes decisiones funcionales fueron confirmadas en esta conversación:
 
 1. Usar relación muchos a muchos entre tesis y `AuthorPerson` mediante `ThesisContributor`.
 2. Cada tesis tendrá al menos una persona y exactamente una persona con rol `PRINCIPAL`; las demás serán `COAUTOR`.
-3. La persona principal siempre ocupa el orden 1. Las coautoras siguen en el orden aprobado por la junta, sin espacios, desde 2.
+3. El autor principal siempre ocupa el orden 1. Los coautores siguen en el orden aprobado por la junta, sin espacios, desde 2.
 4. La junta podrá agregar, quitar, seleccionar y reordenar autores desde el panel; el reemplazo de la lista será atómico.
-5. En la migración, cada valor actual de `author` se toma completo como una autora principal. No se separan automáticamente cadenas por comas o conjunciones; valores vacíos o que contengan varias personas requieren revisión manual.
-6. La API mantiene temporalmente `author` como alias del nombre de la autora principal mientras agrega la lista estructurada `contributors`; el alias se retira luego de migrar a todos los consumidores.
+5. En la migración, cada valor actual de `author` se toma completo como un autor principal. No se separan automáticamente cadenas por comas o conjunciones; valores vacíos o que contengan varias personas requieren revisión manual.
+6. La API mantiene temporalmente `author` como alias del nombre del autor principal mientras agrega la lista estructurada `contributors`; el alias se retira luego de migrar a todos los consumidores.
 7. La autoría se mantiene independiente de las cuentas `StudentUser` y `AdministrativeUser`. Se permiten homónimos como personas distintas; no se fusionan automáticamente por nombre, la junta selecciona explícitamente una persona existente para reutilizarla y ORCID queda fuera de este alcance.
 
 La confirmación de la regla 7 se recibió después de revisar el esquema de cuentas y personas del repositorio. `AuthorPerson` no tiene correo ni credenciales; su ID es interno a AEQUV y no verifica por sí solo la identidad académica. No se vincula una autoría a una cuenta solo porque coincidan los nombres.
