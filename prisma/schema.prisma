@@ -109,6 +109,13 @@ enum ContributionRole {
   @@map("rol_contribucion")
 }
 
+enum ThesisAuthorRole {
+  PRINCIPAL
+  COAUTOR
+
+  @@map("rol_autoria_tesis")
+}
+
 enum ApprovalResponsibility {
   ASOCIACION
   FACULTAD
@@ -567,6 +574,7 @@ model ThesisLink {
   id               Int      @id @default(autoincrement()) @map("id_enlace_tesis")
   sourceIdentifier String?  @unique @map("identificador_origen") @db.VarChar(255)
   title            String   @map("titulo") @db.VarChar(300)
+  /// Alias temporal del nombre principal; se conserva por compatibilidad de API.
   author            String?  @map("autor") @db.VarChar(300)
   publicationYear   Int?     @map("anio_publicacion") @db.SmallInt
   summary           String?  @map("resumen") @db.Text
@@ -577,20 +585,63 @@ model ThesisLink {
   publishedAt       DateTime? @map("publicado_en") @db.Timestamptz(3)
 
   createdBy AdministrativeUser @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  contributors ThesisContributor[]
+  categories ThesisLinkCategory[]
 
   @@index([publishedAt, createdAt])
   @@index([createdById])
   @@map("enlace_tesis")
 }
 
+model ThesisCategory {
+  id        Int      @id @default(autoincrement()) @map("id_categoria_tesis")
+  name      String   @unique @map("nombre") @db.Citext
+  active    Boolean  @default(true) @map("activa")
+  createdAt DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  theses ThesisLinkCategory[]
+
+  @@index([active, name])
+  @@map("categoria_tesis")
+}
+
+model ThesisLinkCategory {
+  thesisId   Int @map("id_enlace_tesis")
+  categoryId Int @map("id_categoria_tesis")
+
+  thesis   ThesisLink    @relation(fields: [thesisId], references: [id], onDelete: Cascade)
+  category ThesisCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@id([thesisId, categoryId])
+  @@index([categoryId, thesisId])
+  @@map("tesis_categoria")
+}
+
 model AuthorPerson {
   id   Int    @id @default(autoincrement()) @map("id_persona")
-  name String @map("nombre") @db.VarChar(160)
+  name String @map("nombre") @db.VarChar(300)
 
   publications PublicationContributor[]
+  thesisContributions ThesisContributor[]
 
   @@index([name])
   @@map("persona_autora")
+}
+
+model ThesisContributor {
+  thesisId   Int             @map("id_enlace_tesis")
+  personId   Int             @map("id_persona")
+  role       ThesisAuthorRole @map("rol_autoria")
+  authorOrder Int             @map("orden_autoria") @db.SmallInt
+
+  thesis ThesisLink   @relation(fields: [thesisId], references: [id], onDelete: Cascade)
+  person AuthorPerson @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@id([thesisId, personId])
+  @@unique([thesisId, authorOrder])
+  @@index([personId, authorOrder])
+  @@map("tesis_contribuyente")
 }
 
 /// La primera migración debe agregar CHECK (orden_autoria > 0).

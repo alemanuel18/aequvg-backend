@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeThesisRepositoryUrl, validateThesisRequiredFields } from '../../src/modules/theses/services/thesis.service'
+import { normalizeThesisCategoryName, normalizeThesisRepositoryUrl, validateThesisRequiredFields } from '../../src/modules/theses/services/thesis.service'
 
 describe('reglas de campos obligatorios de tesis (S6-04)', () => {
+	it('normaliza nombres de categoría y rechaza nombres demasiado cortos o largos', () => {
+		expect(normalizeThesisCategoryName('  Química   ambiental  ')).toBe('Química ambiental')
+		expect(() => normalizeThesisCategoryName(' ')).toThrow(expect.objectContaining({ status: 422, code: 'INVALID_THESIS_CATEGORY_NAME' }))
+		expect(() => normalizeThesisCategoryName('x'.repeat(81))).toThrow(expect.objectContaining({ status: 422, code: 'INVALID_THESIS_CATEGORY_NAME' }))
+	})
+
 	it('recorta espacios y normaliza esquema y host, conservando mayúsculas de ruta', () => {
 		expect(normalizeThesisRepositoryUrl('  HTTPS://REPOSITORIO.UVG.EDU.GT/Handle/CaseSensitive  '))
 			.toBe('https://repositorio.uvg.edu.gt/Handle/CaseSensitive')

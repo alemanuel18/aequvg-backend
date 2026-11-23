@@ -1,4 +1,11 @@
 import { AppError } from '../../../shared/errors/app-error'
+import { cleanText } from '../../../shared/utils/text'
+
+export const normalizeThesisCategoryName = (value: string) => {
+	const name = cleanText(value)
+	if (name.length < 2 || name.length > 80) throw new AppError(422, 'INVALID_THESIS_CATEGORY_NAME', 'El nombre debe tener entre 2 y 80 caracteres.')
+	return name
+}
 
 export const normalizeThesisRepositoryUrl = (value: string) => {
 	let parsed: URL
