@@ -142,6 +142,31 @@ describe('contrato HTTP base', () => {
     expect(document.paths['/api/v1/admin/comments/history']?.get?.security).toEqual([{ cookieAuth: [] }])
   })
 
+  it('documenta los campos obligatorios y la unicidad normalizada de tesis', async () => {
+    const response = await app.handle(new Request('http://localhost/openapi/json'))
+    interface Schema { required?: string[]; properties?: Record<string, { minLength?: number; description?: string }> }
+    interface Operation {
+      description?: string
+      responses: Record<string, unknown>
+      requestBody?: { content?: Record<string, { schema?: Schema }> }
+    }
+    interface OpenApiDocument {
+      paths: { '/api/v1/admin/theses'?: { post?: Operation } }
+    }
+    const document = await response.json() as OpenApiDocument
+    const create = document.paths['/api/v1/admin/theses']?.post
+    const schema = create?.requestBody?.content?.['application/json']?.schema
+    expect(schema?.required).toEqual(expect.arrayContaining(['title', 'author', 'publicationYear', 'summary', 'url']))
+    expect(schema?.properties?.sourceIdentifier).toBeUndefined()
+    expect(schema?.properties?.title?.minLength).toBe(3)
+    expect(schema?.properties?.author?.minLength).toBe(1)
+    expect(schema?.properties?.summary?.minLength).toBe(1)
+    expect(schema?.properties?.url?.description).toContain('HTTPS')
+    expect(schema?.properties?.url?.description).toContain('única')
+    expect(create?.description).toContain('se normaliza')
+    expect(create?.responses['409']).toBeTruthy()
+  })
+
   it('protege la consulta del historial de comentarios propios', async () => {
     const response = await app.handle(new Request('http://localhost/api/v1/student-auth/me/comments'))
     expect(response.status).toBe(401)

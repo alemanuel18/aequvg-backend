@@ -28,6 +28,7 @@ src/
     events/              # Eventos e inscripciones
     news/                # Noticias
     projects/            # Proyectos y documentos PDF
+    theses/              # Enlaces de repositorio y publicación de tesis
     resources/           # Recursos académicos y archivos
     users/               # Sesión, usuarios, roles y recuperación
   middleware/            # Autorización, rate limit y logs HTTP
