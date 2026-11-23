@@ -83,10 +83,25 @@ export const managedStudentDetailResponse = t.Intersect([managedStudent, t.Objec
   isStudent: t.Boolean(), moderationViolationCount: t.Integer(), moderationIncidents: t.Array(t.Object({
     id: t.Integer(), source: t.String(), policyVersion: t.String(), ruleId: t.String(), evidenceHash: t.String(),
     occurrenceNumber: t.Integer(), sanction: t.String(), blockedUntil: t.Nullable(t.Date()),
-    reviewChannel: t.Nullable(t.String()), createdAt: t.Date()
+    reviewChannel: t.Nullable(t.String()), createdAt: t.Date(), countsTowardReincidence: t.Boolean(),
+    reviewedAt: t.Nullable(t.Date()), reviewReason: t.Nullable(t.String()),
+    reviewedBy: t.Nullable(t.Object({ id: t.Integer(), name: t.String() }))
   })), statusHistory: t.Array(t.Object({
     id: t.Integer(), fromStatus: t.String(), toStatus: t.String(), reason: t.String(),
     blockedUntil: t.Nullable(t.Date()), reviewChannel: t.Nullable(t.String()), createdAt: t.Date(),
     actor: t.Nullable(t.Object({ id: t.Integer(), name: t.String() }))
   }))
 })])
+
+export const moderationPolicySummaryResponse = t.Object({
+  version: t.String(), recurrenceWindowHours: t.Integer(),
+  sanctions: t.Array(t.Union([
+    t.Object({ after: t.Integer(), action: t.Literal('TEMPORARY'), durationHours: t.Integer() }),
+    t.Object({ after: t.Integer(), action: t.Literal('PERMANENT') })
+  ])),
+  permanentReviewChannel: t.Nullable(t.String())
+})
+export const moderationIncidentReviewBody = t.Object({ reason: t.String({ minLength: 5, maxLength: 1000 }) }, { additionalProperties: false })
+export const moderationIncidentReviewResponse = t.Object({
+  id: t.Integer(), countsTowardReincidence: t.Boolean(), reviewedAt: t.Date(), reason: t.String(), remainingCount: t.Integer()
+})

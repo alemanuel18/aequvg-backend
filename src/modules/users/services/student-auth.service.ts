@@ -195,6 +195,30 @@ export const studentAuthService = {
     return user
   },
 
+  moderationPolicySummary() {
+    const policy = moderationService.currentPolicy()
+    if (!policy) throw new AppError(503, 'MODERATION_POLICY_UNAVAILABLE', 'La política de moderación no está disponible.')
+    return {
+      version: policy.version,
+      recurrenceWindowHours: policy.recurrenceWindowHours,
+      sanctions: policy.sanctions,
+      permanentReviewChannel: policy.permanentReviewChannel ?? null
+    }
+  },
+
+  async excludeModerationIncident(studentId: number, incidentId: number, actorId: number, reasonInput: string) {
+    const reason = reasonInput.trim()
+    if (reason.length < 5) throw new AppError(422, 'INVALID_REVIEW_REASON', 'El motivo de revisión debe tener al menos 5 caracteres.')
+    const policy = moderationService.currentPolicy()
+    if (!policy) throw new AppError(503, 'MODERATION_POLICY_UNAVAILABLE', 'La política de moderación no está disponible.')
+    const result = await studentAuthRepository.reviewModerationIncident({
+      studentId, incidentId, actorId, reason, recurrenceWindowHours: policy.recurrenceWindowHours
+    })
+    if (!result) throw new AppError(404, 'MODERATION_INCIDENT_NOT_FOUND', 'No se encontró la incidencia para esta cuenta.')
+    if (result.alreadyExcluded) throw new AppError(409, 'MODERATION_INCIDENT_ALREADY_EXCLUDED', 'La incidencia ya fue excluida del contador.')
+    return { id: result.incident.id, countsTowardReincidence: false, reviewedAt: result.incident.reviewedAt!, reason: result.incident.reviewReason!, remainingCount: result.count }
+  },
+
   async updateStatus(userId: number, input:
     | { status: 'ACTIVO'; reason: string }
     | { status: 'BLOQUEADO_TEMPORAL'; blockedUntil: string; reason: string }
@@ -213,6 +237,17 @@ export const studentAuthService = {
     const counterEffect = input.status === 'ACTIVO' ? await moderationService.applyManualUnlockEffect() : undefined
     const reason = input.reason.trim()
     if (reason.length < 5) throw new AppError(422, 'INVALID_STATUS_REASON', 'El motivo debe tener al menos 5 caracteres.')
+    if (input.status === 'ACTIVO') {
+      const lastPermanentViolation = await studentAuthRepository.findLatestPermanentModerationIncident(userId)
+      if (lastPermanentViolation) {
+        const appealEligibleAt = new Date(lastPermanentViolation.createdAt)
+        appealEligibleAt.setMonth(appealEligibleAt.getMonth() + 6)
+        const documentedErrorCorrection = /falso positivo|error de moderaci[oó]n/i.test(reason)
+        if (new Date() < appealEligibleAt && !documentedErrorCorrection) {
+          throw new AppError(422, 'MODERATION_APPEAL_PERIOD_NOT_REACHED', `La apelación por bloqueo permanente puede resolverse desde ${appealEligibleAt.toISOString()}. Para corregir un falso positivo, indícalo explícitamente en el motivo.`)
+        }
+      }
+    }
     try {
       const result = await studentAuthRepository.updateStatusAndRevokeSessions(userId, { status: input.status, blockedUntil, reviewChannel, actorId, reason, counterEffect })
       if (!result) throw new AppError(404, 'STUDENT_NOT_FOUND', 'La cuenta estudiantil no existe.')

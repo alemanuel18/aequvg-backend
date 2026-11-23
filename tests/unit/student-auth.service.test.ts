@@ -18,6 +18,7 @@ vi.mock('../../src/modules/users/repositories/student-auth.repository', () => ({
 
 import { studentAuthService } from '../../src/modules/users/services/student-auth.service'
 import { hashPassword } from '../../src/shared/utils/auth-crypto'
+import { moderationService } from '../../src/modules/moderation/services/moderation.service'
 
 const activeStudent = async () => ({
   id: 41,
@@ -38,10 +39,14 @@ const activeStudent = async () => ({
 describe('servicio de acceso estudiantil', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    moderationService.registerPolicyProvider({ getApprovedPolicy: () => null })
     process.env.SESSION_SECRET = 'secreto-estudiantil-de-pruebas-32-caracteres'
   })
 
-  afterEach(() => { delete process.env.SESSION_SECRET })
+  afterEach(() => {
+    delete process.env.SESSION_SECRET
+    moderationService.useEnvironmentPolicyProvider()
+  })
 
   it('crea siempre una cuenta estudiantil sin aceptar un rol desde el cliente', async () => {
     const user = await activeStudent()

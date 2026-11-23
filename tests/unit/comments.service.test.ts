@@ -22,13 +22,17 @@ const saved = {
 describe('comentarios', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    moderationService.registerPolicyProvider({ getApprovedPolicy: () => null })
     moderationService.registerCommentProvider({ isCommentAllowed: () => true })
     repository.findVisibleTarget.mockResolvedValue(target)
     repository.create.mockResolvedValue(saved)
     repository.listForTarget.mockResolvedValue({ items: [saved], total: 1 })
     repository.listForStudent.mockResolvedValue({ items: [saved], total: 1 })
   })
-  afterEach(() => moderationService.useDefaultCommentProvider())
+  afterEach(() => {
+    moderationService.useEnvironmentPolicyProvider()
+    moderationService.useDefaultCommentProvider()
+  })
 
   it('usa el autor de sesión y modera antes de persistir', async () => {
     const order: string[] = []

@@ -4,7 +4,7 @@ import { AppError } from '../../../shared/errors/app-error'
 import { createUserBody, passwordBody, roleListResponse, updateUserBody, userIdParams, userListResponse, userResponse, usersErrorResponse } from '../dtos/users.schemas'
 import { usersService } from '../services/users.service'
 import { registrationService } from '../services/registration.service'
-import { managedStudentDeleteBody, managedStudentDetailResponse, managedStudentListQuery, managedStudentListResponse, studentAuthErrorResponse, studentStatusBody, studentUserResponse } from '../dtos/student-auth.schemas'
+import { managedStudentDeleteBody, managedStudentDetailResponse, managedStudentListQuery, managedStudentListResponse, moderationIncidentReviewBody, moderationIncidentReviewResponse, moderationPolicySummaryResponse, studentAuthErrorResponse, studentStatusBody, studentUserResponse } from '../dtos/student-auth.schemas'
 import { studentAuthService } from '../services/student-auth.service'
 import { studentAccountDeletionService } from '../services/student-account-deletion.service'
 
@@ -94,6 +94,22 @@ export const usersRoutes = new Elysia({ prefix: '/api/v1/admin' })
       description: 'Exclusivo para administradores con permiso USERS_MANAGE. Incluye historial con actor, fecha, motivo, transición y datos del bloqueo. No permite consultar cuentas administrativas.'
     }
   })
+  .get('/moderation-policy', async ({ request }) => {
+    await requireAdmin(request, 'USERS_MANAGE')
+    return studentAuthService.moderationPolicySummary()
+  }, {
+    response: { 200: moderationPolicySummaryResponse, 401: studentAuthErrorResponse, 403: studentAuthErrorResponse, 503: studentAuthErrorResponse },
+    detail: { tags: ['Administración'], summary: 'Consulta umbrales de moderación vigentes para el panel' }
+  })
+  .patch('/student-users/:id/moderation-incidents/:incidentId/review', async ({ request, params, body }) => {
+    const actor = await requireAdmin(request, 'USERS_MANAGE')
+    return studentAuthService.excludeModerationIncident(params.id, params.incidentId, actor.user.id, body.reason)
+  }, {
+    params: t.Object({ id: t.Integer({ minimum: 1 }), incidentId: t.Integer({ minimum: 1 }) }),
+    body: moderationIncidentReviewBody,
+    response: { 200: moderationIncidentReviewResponse, 401: studentAuthErrorResponse, 403: studentAuthErrorResponse, 404: studentAuthErrorResponse, 409: studentAuthErrorResponse, 422: studentAuthErrorResponse, 503: studentAuthErrorResponse },
+    detail: { tags: ['Administración'], summary: 'Revisa y excluye un falso positivo del contador de reincidencias' }
+  })
   .patch('/student-users/:id/status', async ({ request, params, body }) => {
     const actor = await requireAdmin(request, 'USERS_MANAGE')
     const allowedFields = body.status === 'ACTIVO'
@@ -111,7 +127,7 @@ export const usersRoutes = new Elysia({ prefix: '/api/v1/admin' })
     detail: {
       tags: ['Administración'], summary: 'Bloquea, desbloquea y registra la auditoría de una cuenta normal',
       security: [{ cookieAuth: [], csrfToken: [] }],
-      description: 'Requiere sesión administrativa con USERS_MANAGE y X-CSRF-Token. reason es obligatorio (5–1000 caracteres). BLOQUEADO_TEMPORAL requiere blockedUntil futuro; al vencimiento, el siguiente inicio de sesión reactiva la cuenta y registra la transición automática. BLOQUEADO_PERMANENTE requiere reviewChannel y no vence automáticamente; solo ADMIN puede desbloquearlo. ACTIVO es el desbloqueo manual, por ejemplo para corregir un falso positivo. Los bloqueos revocan sesiones activas inmediatamente y la reactivación requiere iniciar sesión de nuevo. Se registra actor, fecha, motivo y transición; repetir el mismo estado efectivo no duplica el historial. MOD también puede aplicar bloqueos progresivos cuando existe una política aprobada y configurada; con MODERATION_POLICY_JSON vacío no se cuentan reincidencias ni se aplican sanciones automáticas.'
+      description: 'Requiere sesión administrativa con USERS_MANAGE y X-CSRF-Token. reason es obligatorio (5–1000 caracteres). BLOQUEADO_TEMPORAL requiere blockedUntil futuro; al vencimiento, el siguiente inicio de sesión reactiva la cuenta y registra la transición automática. BLOQUEADO_PERMANENTE requiere reviewChannel y no vence automáticamente. La apelación por sanción MOD se resuelve después de seis meses; una corrección de falso positivo puede desbloquearse antes y debe constar explícitamente en reason. ACTIVO es el desbloqueo manual. Los bloqueos revocan sesiones activas inmediatamente y la reactivación requiere iniciar sesión de nuevo. Se registra actor, fecha, motivo y transición; repetir el mismo estado efectivo no duplica el historial. MOD carga la política versionada incluida cuando MODERATION_POLICY_JSON está vacío.'
     }
   })
   .delete('/student-users/:id', async ({ request, params, body }) => {
